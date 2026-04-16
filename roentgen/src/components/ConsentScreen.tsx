@@ -1,18 +1,23 @@
 import type { PrepareResult } from '../ai/profile'
 import type { ParsedChat } from '../parser/types'
+import { MODULE_COSTS, useTokenState } from '../tokens/store'
 
 interface Props {
   chat: ParsedChat
   prepared: PrepareResult
   onAccept: () => void
   onCancel: () => void
+  onOpenTokens?: () => void
 }
 
 // The critical trust moment. Show exactly what's going out and why.
 // "Transparenz schafft mehr Vertrauen als Verschweigen."
-export function ConsentScreen({ chat, prepared, onAccept, onCancel }: Props) {
+export function ConsentScreen({ chat, prepared, onAccept, onCancel, onOpenTokens }: Props) {
   const pctOfChat = ((prepared.messagesSent / prepared.sample.totalAvailable) * 100).toFixed(1)
   const isFixture = prepared.analyzerKind === 'fixture'
+  const { balance } = useTokenState()
+  const cost = MODULE_COSTS.profiles.cost
+  const insufficient = balance < cost
 
   return (
     <div className="min-h-[80vh] flex items-start justify-center px-5 md:px-8 py-12">
@@ -64,6 +69,11 @@ export function ConsentScreen({ chat, prepared, onAccept, onCancel }: Props) {
             value="intelligent"
             suffix={`${prepared.sample.strategy.start} Anfang · ${prepared.sample.strategy.end} Ende · ${prepared.sample.strategy.longTail} lang · ${prepared.sample.strategy.offHours} Nachts · ${prepared.sample.strategy.kipppunkte} Kipppunkte · ${prepared.sample.strategy.random} zufällig`}
           />
+          <Row
+            label="Kosten"
+            value={`${cost} Token`}
+            suffix={`Guthaben: ${balance} · weitere Module je 1 Token`}
+          />
         </div>
 
         {/* Anthropic retention */}
@@ -86,13 +96,34 @@ export function ConsentScreen({ chat, prepared, onAccept, onCancel }: Props) {
           </ul>
         </div>
 
+        {insufficient && (
+          <div className="card border-b/60 bg-b/5 mb-6">
+            <div className="label-mono text-b mb-2">Kein Guthaben</div>
+            <p className="serif-body text-lg text-ink mb-4">
+              Du brauchst mindestens {cost} Token für die Profil-Analyse. Du hast aktuell {balance}.
+            </p>
+            {onOpenTokens && (
+              <button
+                onClick={onOpenTokens}
+                className="px-5 py-2.5 bg-b text-bg rounded-full font-sans text-sm tracking-wide hover:bg-b/90 transition-colors"
+              >
+                Tokens nachladen →
+              </button>
+            )}
+          </div>
+        )}
+
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={onAccept}
-            className="flex-1 px-6 py-4 bg-ink text-bg rounded-full font-sans font-medium text-base hover:bg-a hover:text-bg transition-colors"
+            disabled={insufficient}
+            className="flex-1 px-6 py-4 bg-ink text-bg rounded-full font-sans font-medium text-base hover:bg-a hover:text-bg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-ink disabled:hover:text-bg"
           >
-            Analyse starten <span className="label-mono ml-2 text-bg/60">€0 · Demo</span>
+            Analyse starten{' '}
+            <span className="label-mono ml-2 text-bg/60">
+              {cost} {cost === 1 ? 'Token' : 'Tokens'}
+            </span>
           </button>
           <button
             onClick={onCancel}

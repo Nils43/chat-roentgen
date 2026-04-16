@@ -1,0 +1,161 @@
+{
+  "zentrale_themen_gesamt": [
+    {
+      "thema": "Nähe & Zuneigung",
+      "praegnanz": "hoch",
+      "beispiele": [
+        "Sweet-Notes und Emojis von Person A",
+        "Einmalige warme Momente von Person B"
+      ]
+    },
+    {
+      "thema": "Verfügbarkeit & Antwortzeit",
+      "praegnanz": "hoch",
+      "beispiele": [
+        "\"Bist du noch da?\"",
+        "\"sorry hatte viel zu tun\""
+      ]
+    },
+    {
+      "thema": "Status der Beziehung",
+      "praegnanz": "mittel",
+      "beispiele": [
+        "\"Was willst du eigentlich von mir?\"",
+        "\"läuft doch\""
+      ]
+    },
+    {
+      "thema": "Selbstzweifel von Person A",
+      "praegnanz": "mittel",
+      "beispiele": [
+        "\"Ich glaub ich bin zu viel\"",
+        "\"Sorry das war viel\""
+      ]
+    },
+    {
+      "thema": "Alltag & Logistik",
+      "praegnanz": "niedrig",
+      "beispiele": [
+        "\"samstag könnten wir uns sehen\"",
+        "\"nächste woche wird stressig\""
+      ]
+    }
+  ],
+  "themen_phasen": [
+    {
+      "start": "2024-01-05",
+      "end": "2024-01-22",
+      "titel": "Flirten & Kennenlernen",
+      "dominante_themen": [
+        {
+          "thema": "Nähe & Zuneigung",
+          "praegnanz": "hoch",
+          "beispiele": ["Gegenseitige Sweet-Notes", "Emojis, warme kurze Verabredungen"]
+        },
+        {
+          "thema": "Neugier aufeinander",
+          "praegnanz": "hoch",
+          "beispiele": ["\"Wie war dein Tag?\"", "\"Was machst du so?\""]
+        },
+        {
+          "thema": "Spielerische Abend-Bursts",
+          "praegnanz": "mittel",
+          "beispiele": ["Mehrere kurze Nachrichten am späten Abend"]
+        }
+      ],
+      "verschwundene_themen": [],
+      "neue_themen": ["Nähe & Zuneigung", "Neugier aufeinander"]
+    },
+    {
+      "start": "2024-01-23",
+      "end": "2024-02-29",
+      "titel": "Alltag & erste Reibung",
+      "dominante_themen": [
+        {
+          "thema": "Logistik & Verfügbarkeit",
+          "praegnanz": "hoch",
+          "beispiele": ["\"nächste woche wird stressig\"", "\"später mehr\""]
+        },
+        {
+          "thema": "Einseitige Nähe-Suche",
+          "praegnanz": "mittel",
+          "beispiele": ["\"Ist alles ok bei dir?\"", "Mehrfach-Nachrichten ohne Antwort"]
+        },
+        {
+          "thema": "Implizite Kritik (Person A)",
+          "praegnanz": "mittel",
+          "beispiele": ["\"Du bist so still heute\"", "\"Hab ich was gesagt?\""]
+        }
+      ],
+      "verschwundene_themen": ["Gegenseitige Sweet-Notes auf Augenhöhe"],
+      "neue_themen": ["Logistik & Verfügbarkeit", "Implizite Kritik"]
+    },
+    {
+      "start": "2024-03-01",
+      "end": "2024-04-16",
+      "titel": "Einseitige Beziehungsarbeit",
+      "dominante_themen": [
+        {
+          "thema": "Emotionale Monologe",
+          "praegnanz": "hoch",
+          "beispiele": [
+            "\"Ich hab heute viel über uns nachgedacht\"",
+            "\"Manchmal weiß ich nicht wo ich stehe\""
+          ]
+        },
+        {
+          "thema": "Selbst-Beschämung (Person A)",
+          "praegnanz": "hoch",
+          "beispiele": ["\"Sorry das war viel\"", "\"Bin halt grad emotional\""]
+        },
+        {
+          "thema": "Stonewalling (Person B)",
+          "praegnanz": "mittel",
+          "beispiele": ["Antworten 24h+ später", "\"nicht heute bitte\""]
+        }
+      ],
+      "verschwundene_themen": ["Neugier aufeinander", "Spielerische Abend-Bursts"],
+      "neue_themen": ["Emotionale Monologe", "Selbst-Beschämung", "Stonewalling"]
+    },
+    {
+      "start": "2024-04-17",
+      "end": "2024-04-21",
+      "titel": "Konfrontation",
+      "dominante_themen": [
+        {
+          "thema": "Status-Frage direkt",
+          "praegnanz": "hoch",
+          "beispiele": ["\"Ich kann so nicht weitermachen\"", "\"Was willst du eigentlich?\""]
+        },
+        {
+          "thema": "Deflection durch Person B",
+          "praegnanz": "hoch",
+          "beispiele": ["\"sorry war viel\"", "\"ich glaub du überdenkst das\""]
+        }
+      ],
+      "verschwundene_themen": ["Logistik & Verfügbarkeit"],
+      "neue_themen": ["Status-Frage direkt"]
+    }
+  ],
+  "prognose": {
+    "richtung": "negativ",
+    "confidence": "mittel",
+    "schluesselmuster": [
+      "Kontinuierlich divergierendes Investment-Delta (lokal: von ~15pp auf ~60pp)",
+      "Stonewalling-Muster von Person B seit Phase 3",
+      "Repair-Attempts von Person A bleiben ohne Resonanz",
+      "Verachtungs-Signal (\"du überdenkst das\") in der Konfliktphase"
+    ],
+    "gottman_signale": [
+      "stonewalling",
+      "verachtung",
+      "bid_for_connection",
+      "turning_away",
+      "repair_attempt"
+    ],
+    "wenn_nichts_aendert": "Unter fortgesetzter Asymmetrie wird Person A entweder in den Erschöpfungs-Abbruch gehen oder das Muster weiter intensivieren, bis ein Bruch unvermeidbar wird. Die aktuelle Trajektorie deutet auf eine einseitige Beendigung durch Person A innerhalb weniger Wochen.",
+    "was_verschieben_wuerde": "Eine Veränderung ist hypothetisch nur über eine Verhaltensänderung bei Person B möglich — konkrete Reziprozität bei Bids for Connection, Beantworten der Status-Frage mit Substanz, proaktive Initiative mindestens einmal pro Woche. Ohne das verfestigt sich das Muster weiter.",
+    "disclaimer": "Ein Chat-Export ist keine vollständige Beziehungs-Diagnostik; reale Gespräche, nonverbale Kommunikation und Kontexte jenseits des Chats können das Bild verändern."
+  },
+  "gesamtbogen": "Die Beziehung beginnt mit symmetrischer Wärme und wechselseitiger Neugier. Ab Phase 2 verschieben sich die Themen von gemeinsamem Kennenlernen zu einseitiger Bestands-Sicherung durch Person A. In Phase 3 dominieren emotionale Monologe und Selbst-Beschämung — das ist der Kipppunkt. Die Konfrontation in Phase 4 bringt das Unausgesprochene auf den Tisch, ohne dass eine Antwort folgt, die die Dynamik verändern könnte."
+}

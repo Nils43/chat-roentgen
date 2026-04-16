@@ -13,10 +13,22 @@ import { prepareAnalysis, runProfileAnalyses, type PrepareResult } from './ai/pr
 import { runHighlights } from './ai/highlights'
 import { runRelationshipAnalysis } from './ai/relationship'
 import { runTimeline } from './ai/timeline'
+import { runEntwicklung } from './ai/entwicklung'
+import { buildSymmetryTrend } from './analysis/symmetryTrend'
 import { HighlightsView } from './components/HighlightsView'
 import { RelationshipView } from './components/RelationshipView'
 import { TimelineView } from './components/TimelineView'
-import type { HighlightsResult, ProfileResult, RelationshipResult, TimelineResult } from './ai/types'
+import { EntwicklungView } from './components/EntwicklungView'
+import { TokenBadge } from './components/TokenBadge'
+import { TokenOverview } from './components/TokenOverview'
+import { tokenStore, type ModuleId } from './tokens/store'
+import type {
+  EntwicklungResult,
+  HighlightsResult,
+  ProfileResult,
+  RelationshipResult,
+  TimelineResult,
+} from './ai/types'
 
 type Stage =
   | 'upload'
@@ -31,6 +43,9 @@ type Stage =
   | 'highlights'
   | 'timeline_loading'
   | 'timeline'
+  | 'entwicklung_loading'
+  | 'entwicklung'
+  | 'tokens'
 
 function App() {
   const [stage, setStage] = useState<Stage>('upload')
@@ -52,6 +67,16 @@ function App() {
   const [relationshipError, setRelationshipError] = useState<string | null>(null)
   const [timeline, setTimeline] = useState<TimelineResult | null>(null)
   const [timelineError, setTimelineError] = useState<string | null>(null)
+  const [entwicklung, setEntwicklung] = useState<EntwicklungResult | null>(null)
+  const [entwicklungError, setEntwicklungError] = useState<string | null>(null)
+  const [tokensReturnTo, setTokensReturnTo] = useState<Stage>('upload')
+  const [tokensPrompt, setTokensPrompt] = useState<{ module: ModuleId } | null>(null)
+
+  const openTokens = (returnTo: Stage, prompt?: { module: ModuleId }) => {
+    setTokensReturnTo(returnTo)
+    setTokensPrompt(prompt ?? null)
+    setStage('tokens')
+  }
 
   const facts = useMemo(() => {
     if (!chat || chat.messages.length === 0) return null
@@ -67,12 +92,14 @@ function App() {
     stage === 'ai' ||
     stage === 'highlights_loading' ||
     stage === 'relationship_loading' ||
-    stage === 'timeline_loading'
+    stage === 'timeline_loading' ||
+    stage === 'entwicklung_loading'
       ? 'ai'
       : stage === 'profiles' ||
           stage === 'highlights' ||
           stage === 'relationship' ||
-          stage === 'timeline'
+          stage === 'timeline' ||
+          stage === 'entwicklung'
         ? 'done'
         : 'local'
 
@@ -101,6 +128,8 @@ function App() {
     setRelationshipError(null)
     setTimeline(null)
     setTimelineError(null)
+    setEntwicklung(null)
+    setEntwicklungError(null)
     setAiError(null)
     setAiProgress({ done: 0, total: 0, current: null })
   }
@@ -114,6 +143,10 @@ function App() {
 
   const runAi = async () => {
     if (!chat || !prepared) return
+    if (!tokenStore.charge('profiles')) {
+      openTokens('consent', { module: 'profiles' })
+      return
+    }
     setAiError(null)
     setAiProgress({ done: 0, total: chat.participants.length, current: chat.participants[0] })
     setStage('ai')
@@ -127,6 +160,7 @@ function App() {
       setStage('profiles')
     } catch (e) {
       const err = e as Error
+      tokenStore.refund('profiles')
       setAiError(err.message ?? 'Analyse fehlgeschlagen.')
     }
   }
@@ -137,6 +171,10 @@ function App() {
       setStage('highlights')
       return
     }
+    if (!tokenStore.charge('highlights')) {
+      openTokens('profiles', { module: 'highlights' })
+      return
+    }
     setHighlightsError(null)
     setStage('highlights_loading')
     try {
@@ -145,6 +183,7 @@ function App() {
       setStage('highlights')
     } catch (e) {
       const err = e as Error
+      tokenStore.refund('highlights')
       setHighlightsError(err.message ?? 'Highlights-Analyse fehlgeschlagen.')
     }
   }
@@ -155,6 +194,10 @@ function App() {
       setStage('relationship')
       return
     }
+    if (!tokenStore.charge('relationship')) {
+      openTokens('profiles', { module: 'relationship' })
+      return
+    }
     setRelationshipError(null)
     setStage('relationship_loading')
     try {
@@ -163,6 +206,7 @@ function App() {
       setStage('relationship')
     } catch (e) {
       const err = e as Error
+      tokenStore.refund('relationship')
       setRelationshipError(err.message ?? 'Beziehungsebene-Analyse fehlgeschlagen.')
     }
   }
@@ -173,6 +217,10 @@ function App() {
       setStage('timeline')
       return
     }
+    if (!tokenStore.charge('timeline')) {
+      openTokens('profiles', { module: 'timeline' })
+      return
+    }
     setTimelineError(null)
     setStage('timeline_loading')
     try {
@@ -181,7 +229,32 @@ function App() {
       setStage('timeline')
     } catch (e) {
       const err = e as Error
+      tokenStore.refund('timeline')
       setTimelineError(err.message ?? 'Timeline-Analyse fehlgeschlagen.')
+    }
+  }
+
+  const goToEntwicklung = async () => {
+    if (!chat || !prepared || !facts) return
+    if (entwicklung) {
+      setStage('entwicklung')
+      return
+    }
+    if (!tokenStore.charge('entwicklung')) {
+      openTokens('profiles', { module: 'entwicklung' })
+      return
+    }
+    setEntwicklungError(null)
+    setStage('entwicklung_loading')
+    try {
+      const symmetry = buildSymmetryTrend(facts)
+      const result = await runEntwicklung({ chat, prepared, symmetry })
+      setEntwicklung(result)
+      setStage('entwicklung')
+    } catch (e) {
+      const err = e as Error
+      tokenStore.refund('entwicklung')
+      setEntwicklungError(err.message ?? 'Entwicklungs-Analyse fehlgeschlagen.')
     }
   }
 
@@ -215,6 +288,12 @@ function App() {
                   Highlights →
                 </button>
                 <button
+                  onClick={goToEntwicklung}
+                  className="label-mono text-a hover:text-ink transition-colors hidden md:inline"
+                >
+                  Entwicklung →
+                </button>
+                <button
                   onClick={goToTimeline}
                   className="label-mono text-ink hover:text-a transition-colors hidden md:inline"
                 >
@@ -229,6 +308,12 @@ function App() {
                   className="label-mono text-ink-muted hover:text-ink transition-colors hidden md:inline"
                 >
                   ← Profile
+                </button>
+                <button
+                  onClick={goToEntwicklung}
+                  className="label-mono text-a hover:text-ink transition-colors hidden md:inline"
+                >
+                  Entwicklung →
                 </button>
                 <button
                   onClick={goToHighlights}
@@ -253,6 +338,28 @@ function App() {
                   ← Profile
                 </button>
                 <button
+                  onClick={goToEntwicklung}
+                  className="label-mono text-a hover:text-ink transition-colors hidden md:inline"
+                >
+                  Entwicklung →
+                </button>
+                <button
+                  onClick={goToTimeline}
+                  className="label-mono text-ink hover:text-a transition-colors hidden md:inline"
+                >
+                  Timeline →
+                </button>
+              </>
+            )}
+            {stage === 'entwicklung' && (
+              <>
+                <button
+                  onClick={() => setStage('profiles')}
+                  className="label-mono text-ink-muted hover:text-ink transition-colors hidden md:inline"
+                >
+                  ← Profile
+                </button>
+                <button
                   onClick={goToTimeline}
                   className="label-mono text-ink hover:text-a transition-colors hidden md:inline"
                 >
@@ -261,12 +368,20 @@ function App() {
               </>
             )}
             {stage === 'timeline' && (
-              <button
-                onClick={() => setStage('profiles')}
-                className="label-mono text-ink-muted hover:text-ink transition-colors hidden md:inline"
-              >
-                ← Profile
-              </button>
+              <>
+                <button
+                  onClick={() => setStage('profiles')}
+                  className="label-mono text-ink-muted hover:text-ink transition-colors hidden md:inline"
+                >
+                  ← Profile
+                </button>
+                <button
+                  onClick={goToEntwicklung}
+                  className="label-mono text-a hover:text-ink transition-colors hidden md:inline"
+                >
+                  Entwicklung →
+                </button>
+              </>
             )}
             <NetworkIndicator
               mode={networkMode}
@@ -274,7 +389,8 @@ function App() {
                 (stage === 'ai' ||
                   stage === 'highlights_loading' ||
                   stage === 'relationship_loading' ||
-                  stage === 'timeline_loading') &&
+                  stage === 'timeline_loading' ||
+                  stage === 'entwicklung_loading') &&
                 prepared
                   ? prepared.analyzerKind === 'fixture'
                     ? 'Fixture-Mode · nichts wird gesendet'
@@ -282,6 +398,7 @@ function App() {
                   : undefined
               }
             />
+            <TokenBadge onClick={() => openTokens(stage === 'tokens' ? tokensReturnTo : stage)} />
           </div>
         </div>
       </header>
@@ -317,6 +434,7 @@ function App() {
             prepared={prepared}
             onAccept={runAi}
             onCancel={() => setStage('analysis')}
+            onOpenTokens={() => openTokens('consent', { module: 'profiles' })}
           />
         )}
 
@@ -382,6 +500,31 @@ function App() {
 
         {stage === 'timeline' && timeline && facts && (
           <TimelineView timeline={timeline} facts={facts} highlights={highlights} />
+        )}
+
+        {stage === 'entwicklung_loading' && (
+          <AiProgress
+            done={entwicklungError ? 0 : 1}
+            total={2}
+            currentPerson={entwicklungError ? null : 'Themen & Trend'}
+            error={entwicklungError}
+            onCancel={entwicklungError ? () => setStage('profiles') : undefined}
+          />
+        )}
+
+        {stage === 'entwicklung' && entwicklung && facts && (
+          <EntwicklungView result={entwicklung} facts={facts} />
+        )}
+
+        {stage === 'tokens' && (
+          <TokenOverview
+            onClose={() => {
+              setTokensPrompt(null)
+              setStage(tokensReturnTo)
+            }}
+            highlightReason={tokensPrompt ? 'insufficient' : null}
+            pendingModule={tokensPrompt?.module ?? null}
+          />
         )}
 
         {stage === 'analysis' && !facts && (

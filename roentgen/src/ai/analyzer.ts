@@ -37,6 +37,8 @@ export class FixtureAnalyzer implements Analyzer {
         ? { url: '/fixtures/relationship.json', slug: 'relationship', outputTokens: 1400 }
         : toolName === 'submit_timeline'
         ? { url: '/fixtures/timeline.json', slug: 'timeline', outputTokens: 1200 }
+        : toolName === 'submit_entwicklung'
+        ? { url: '/fixtures/entwicklung.json', slug: 'entwicklung', outputTokens: 1400 }
         : (() => {
             const target = extractTargetPerson(req)
             const s = target.replace(/\s+/g, '-').toLowerCase()

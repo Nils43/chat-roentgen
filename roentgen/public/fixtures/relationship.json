@@ -1,108 +1,188 @@
 {
   "teilnehmer": ["Person A", "Person B"],
-  "machtgefaelle": {
-    "inhaltlich": "person_a",
-    "strukturell": "person_b",
-    "interpretation": "Person A setzt die Themen — Gefühle, gemeinsame Pläne, Beziehungsfragen. Person B bestimmt wann und wie lange geredet wird, oft durch späte Antworten oder kurze Signale. Das ist die klassische Split-Konstellation: eine Seite trägt den Inhalt, die andere den Takt. Keine der beiden Machtformen ist harmlos, weil die strukturelle Macht die inhaltliche permanent relativieren kann.",
-    "evidenz": [
-      "Person A öffnet fast alle emotionalen Themen",
-      "Person B bestimmt durch Antwortzeit die Dramaturgie",
-      "„Reden wir heute Abend?\" — beantwortet am Folgemittag"
+  "kopplung": {
+    "attunement": 52,
+    "rhythmus_synchron": 38,
+    "lexikon_synchron": 61,
+    "interpretation": "Emotionales Mitschwingen ist mittel und einseitig — Person A liest Person Bs Zustand akkurat, umgekehrt seltener. Der Rhythmus ist asymmetrisch: Person A hält ein hohes Antworttempo, Person B zieht Antwortzeiten in die Länge, vor allem bei Themen mit emotionalem Gewicht. Lexikalisch existiert eine gemeinsame Zone — übernommene Formulierungen, Inside-Jokes — was zeigt, dass eine geteilte Mikrokultur besteht, trotz struktureller Asymmetrie.",
+    "zitate": [
+      { "person": "Person A", "text": "Merkst du, du bist heut anders?" },
+      { "person": "Person B", "text": "Jo" },
+      { "person": "Person A", "text": "Unser Montag-Desaster-Meme" }
     ]
   },
-  "investment_delta": {
-    "skala": 62,
-    "richtung": "person_a",
+  "machtstruktur": {
+    "inhalt_lead": "Person A",
+    "prozess_lead": "Person B",
+    "affekt_lead": "Person A",
+    "asymmetrie_skala": 64,
     "statik": "statisch",
-    "interpretation": "Das Delta ist deutlich und bewegt sich wenig. Person A trägt den emotionalen Anteil des Chats — Nachfragen, Wärme, Repair nach Schweigen. Person B bleibt oft sachlich-freundlich, ohne nachzulegen. In gesunden Dyaden pendelt das Investment; hier ist es festgelaufen.",
-    "evidenz": [
-      "Doppeltexte von Person A nach Schweigen",
-      "Einsilbige „joa\" / „passt\"-Antworten von Person B",
-      "Sweet-Notes kommen fast ausschließlich von Person A"
+    "interpretation": "Person A setzt fast alle Themen und trägt die emotionale Temperatur des Chats. Person B steuert den Prozess — bestimmt wann geantwortet wird, wann ein Thema endet, wann ein Bruch gelegt wird. Diese Split-Konstellation bedeutet: Person A produziert den Inhalt, Person B reguliert den Rahmen. Die strukturelle Macht dominiert inhaltliche Initiative.",
+    "zitate": [
+      { "person": "Person A", "text": "Ich hab heut viel nachgedacht über uns" },
+      { "person": "Person B", "text": "Müssen wir jetzt drüber?" },
+      { "person": "Person B", "text": "Schreib dir morgen" }
+    ]
+  },
+  "bindungsdyade": {
+    "konstellation": "anxious_avoidant",
+    "dyaden_beschreibung": "Die klassische Insecure-Trap: Person A erlebt Verbindung über emotionale Öffnung, Person B reguliert Intimität durch Distanz. Je mehr A sucht, desto stärker deaktiviert B. Je mehr B sich zurückzieht, desto mehr hyperaktiviert A.",
+    "dyaden_risiko": "Selbstverstärkender Loop: A liest Distanz als Bedrohung und sucht mehr, B liest Suchen als Druck und zieht sich mehr zurück. Ohne bewusste Unterbrechung kippt das System in chronische Überaktivierung bei A und chronisches Stonewalling bei B.",
+    "interpretation": "Das Muster ist robust sichtbar — protestierendes Nachlegen nach Schweigen bei A, kurze deaktivierende Antworten bei B, schnelle Deeskalation zu Wärme von A nach eigenem 'zu viel'. Ein Chat ist keine Bindungsdiagnostik, aber die Signatur ist konsistent.",
+    "sicherheit": "mittel",
+    "zitate": [
+      { "person": "Person A", "text": "Bist du sauer? Ich mach mir Sorgen" },
+      { "person": "Person B", "text": "Nein alles gut" },
+      { "person": "Person A", "text": "Sorry ich bin zu viel heut" }
+    ]
+  },
+  "bids": {
+    "dominante_response": "turning_away",
+    "pro_person": [
+      { "person": "Person A", "bid_haeufigkeit": "hoch", "antwort_signatur": "turning_toward" },
+      { "person": "Person B", "bid_haeufigkeit": "selten", "antwort_signatur": "turning_away" }
+    ],
+    "beispiele": [
+      {
+        "bid": { "person": "Person A", "text": "Fand das heut schön mit dir" },
+        "antwort": { "person": "Person B", "text": "Ja" },
+        "klasse": "turning_away"
+      },
+      {
+        "bid": { "person": "Person A", "text": "Hab voll Bock auf Wochenende mit dir" },
+        "antwort": { "person": "Person B", "text": "Mal schauen hab noch Sachen" },
+        "klasse": "turning_away"
+      },
+      {
+        "bid": { "person": "Person B", "text": "Hab grad Stress im Büro" },
+        "antwort": { "person": "Person A", "text": "Oh no erzähl, was ist los?" },
+        "klasse": "turning_toward"
+      },
+      {
+        "bid": { "person": "Person A", "text": "Vermiss dich irgendwie" },
+        "antwort": { "person": "Person B", "text": "Hab grad keinen Kopf dafür" },
+        "klasse": "turning_against"
+      }
+    ],
+    "interpretation": "Person A investiert stark in Bids — kleine Zuwendungen, geteilte Details, Verletzlichkeit. Person B turnt überwiegend away (einsilbig, Themenwechsel) und gelegentlich against (Zurückweisung). Wenn B seltene Bids sendet, reagiert A stark toward. Die Asymmetrie ist Gottmans stärkster Prädiktor für Erosion: das Verhältnis toward/away liegt hier weit unter dem 5:1 stabiler Paare."
+  },
+  "repair": {
+    "hat_repair": true,
+    "wer_repariert": ["Person A"],
+    "annahme_quote": "mittel",
+    "typische_form": "Sweet-Note von A, oft mit Entschuldigung vorweg — 'sorry war zu viel'. Selten Benennen des Bruchs selbst.",
+    "interpretation": "Repair existiert, aber asymmetrisch: A trägt die Reparatur-Last komplett. B akzeptiert die meisten Repair-Versuche still, initiiert selbst keine. Das kurzfristig stabilisierende Muster normalisiert, dass A immer zurückkommt — und nimmt B aus der Verantwortung für die Dyade. Langfristig Ressourcen-Asymmetrie.",
+    "zitate": [
+      { "person": "Person A", "text": "Sorry war zu viel grad, liebs dich" },
+      { "person": "Person B", "text": "Passt schon" },
+      { "person": "Person A", "text": "Können wir morgen normal reden?" }
+    ]
+  },
+  "konflikt_signatur": {
+    "four_horsemen_pro_person": [
+      { "person": "Person A", "praesenz": ["kritik"], "dominierend": "kritik" },
+      { "person": "Person B", "praesenz": ["stonewalling", "abwehr"], "dominierend": "stonewalling" }
+    ],
+    "demand_withdraw": "a_demand_b_withdraw",
+    "flooding_hinweise": [
+      {
+        "person": "Person B",
+        "hinweis": "Abrupte Kürze und stundenlanges Schweigen nach emotionalen Nachrichten — klassisches Flooding-Muster."
+      }
+    ],
+    "interpretation": "Gottmans Demand-Withdraw-Polarität ist klar ausgeprägt. A zeigt gelegentlich Kritik ('du machst nie…'), rutscht aber meist in Sorge und Reparatur. B zeigt Stonewalling (Rückzug, Mauer) und leichte Abwehr (Opferrolle). Verachtung — Gottmans stärkster negativer Prädiktor — ist nicht präsent. Das ist eine wichtige Grenze.",
+    "zitate": [
+      { "person": "Person A", "text": "Du redest nie mit mir wenn was ist" },
+      { "person": "Person B", "text": "Hab grad keine Energie dafür" },
+      { "person": "Person A", "text": "Bitte antwort mir, ich werd nervös" }
+    ]
+  },
+  "mentalisierung": {
+    "pro_person": [
+      {
+        "person": "Person A",
+        "qualitaet": "hoch",
+        "beschreibung": "Liest Bs Zustand differenziert: unterscheidet erschöpft von genervt, benennt eigene Projektionen ('bin ich grad paranoid?')."
+      },
+      {
+        "person": "Person B",
+        "qualitaet": "niedrig",
+        "beschreibung": "Modelliert As innere Welt kaum — reagiert auf Verhalten ('du schreibst zu viel'), nicht auf den affektiven Zustand dahinter."
+      }
+    ],
+    "projektion_statt_modellierung": "Person B projiziert in mehreren Momenten: 'Du willst mich kontrollieren' — ohne Evidenz für eine Kontrollabsicht. Das ist die klassische Mentalisierungs-Lücke unter Stress.",
+    "interpretation": "Die Mentalisierungs-Asymmetrie verstärkt die Bindungs-Asymmetrie: A fühlt sich gesehen und überschätzt gleichzeitig, wie viel B mitdenken kann. B erlebt A als 'zu intensiv', weil B die emotionale Innenwelt von A nicht modelliert, sondern nur Verhalten bewertet.",
+    "zitate": [
+      { "person": "Person A", "text": "Ich glaub du bist grad total überreizt vom Büro" },
+      { "person": "Person B", "text": "Musst jetzt echt nicht schon wieder" }
+    ]
+  },
+  "meta_kommunikation": {
+    "kapazitaet": "niedrig",
+    "initiator": "Person A",
+    "blocker_muster": "Person B wehrt Meta-Talk über die Beziehung ab — mit 'lass uns das nicht über Chat klären', 'mir zu dramatisch', oder einfachem Nicht-Antworten bis das Thema verdunstet.",
+    "interpretation": "Die Dyade kann über Alltag, Logistik und Themen gut reden, aber nicht über sich selbst. Jeder Versuch von A, die Beziehung zu benennen, wird auf Inhalts-Ebene zurückgestoßen. Ohne Meta-Ebene können Regeln nie verhandelt werden — sie werden nur unbewusst vollzogen.",
+    "zitate": [
+      { "person": "Person A", "text": "Können wir mal über uns reden, nicht über Sachen?" },
+      { "person": "Person B", "text": "Ist doch alles okay oder?" }
     ]
   },
   "berne": {
-    "dominant": "kind_eltern",
-    "beispiele": [
-      "Person A: „Ich glaub ich bin zu viel\" — Person B: „Nein, passt schon\"",
-      "Person A sucht Zustimmung, Person B erteilt sie knapp",
-      "„Kannst du mir sagen obs dir reicht\" → rationale Deeskalation"
-    ],
-    "interpretation": "Die Dyade kippt immer wieder in eine Kind-Eltern-Transaktion: Person A fragt an, stellt sich klein, sucht Rückversicherung — Person B antwortet aus einer sachlich-beruhigenden Eltern-Position. Das fühlt sich für beide vertraut an und wirkt kurzfristig stabilisierend. Langfristig zementiert es die Asymmetrie, weil keine der beiden Seiten in den Erwachsenen-Modus wechselt."
-  },
-  "konfliktstil": {
-    "dominant": "gemischt",
-    "pro_person": [
-      { "person": "Person A", "stil": "direkte_ansprache" },
-      { "person": "Person B", "stil": "vermeidung" }
-    ],
-    "interpretation": "Person A benennt Spannungen früh und direkt, oft verpackt in Fragen. Person B weicht aus: Themenwechsel, Humor, verzögerte Antwort. In Gottmans Modell ist das eine Demand-Withdraw-Konstellation — die klassischste und zermürbendste Paardynamik. Wichtig: es gibt Repair-Attempts von Person A, die meist angenommen werden. Das ist das gute Zeichen.",
-    "evidenz": [
-      "„Können wir drüber reden?\" — Antwort kommt erst Stunden später",
-      "Person B lenkt mit Witz ab nach heiklen Nachrichten",
-      "Person A schreibt nach Streit: „Sorry, ich liebs dich\""
-    ]
-  },
-  "naehe_distanz": {
-    "naeheSucher": "Person A",
-    "distanzRegulierer": "Person B",
-    "muster": "Verfolger-Distanzierer (pursuer-distancer), niedrig-frequent aber statisch.",
-    "interpretation": "Person A sucht Nähe über emotionale Öffnung, häufige Nachrichten und Verletzlichkeit. Person B reguliert Distanz über Kürze, späte Antworten und Themenwechsel. Je mehr A sucht, desto stärker reguliert B — ein sich selbst verstärkender Loop. Der Chat zeigt keine Phasen, in denen sich die Rollen tauschen.",
-    "evidenz": [
-      "Lange emotionale Nachrichten von A spät abends",
-      "Person B reagiert mit einem Satz am Folgetag",
-      "„Fehl dich\" / „Auch\" — Asymmetrie in der Miniatur"
-    ]
-  },
-  "cialdini": {
-    "taktiken": [
+    "dominanter_modus": "verdeckt_doppelbödig",
+    "ulterior_transactions": [
       {
-        "prinzip": "reciprocity",
-        "von": "Person A",
-        "beispiel": "Sweet-Note nach kleinem Konflikt, noch bevor Person B reagiert hat",
-        "wirkung": "Hält den Austausch ausgeglichen und nimmt Person B aus der Verantwortung zu reparieren."
+        "sozial": "A fragt sachlich nach dem Wochenendplan.",
+        "psychologisch": "A testet, ob B an A denkt — der eigentliche Wunsch ist Bestätigung der Bindung.",
+        "beispiel": { "person": "Person A", "text": "Was machst du eigentlich Samstag?" }
       },
       {
-        "prinzip": "commitment_consistency",
-        "von": "Person A",
-        "beispiel": "„Wir haben doch gesagt wir reden über sowas\"",
-        "wirkung": "Beruft sich auf frühere Vereinbarungen um Verbindlichkeit einzufordern."
+        "sozial": "B sagt 'passt schon' nach einem Konflikt.",
+        "psychologisch": "B schließt das Thema ohne Resolution — die Botschaft ist 'komm mir nicht näher damit'.",
+        "beispiel": { "person": "Person B", "text": "Passt schon, lass mal" }
       },
       {
-        "prinzip": "scarcity",
-        "von": "Person B",
-        "beispiel": "Lange Funkstille, dann ein warmer Satz",
-        "wirkung": "Seltenheit macht Zuwendung wertvoll — Person A reagiert überproportional dankbar."
-      },
-      {
-        "prinzip": "liking",
-        "von": "Person A",
-        "beispiel": "Häufige Komplimente und Emojis in Konfliktnähe",
-        "wirkung": "Weichzeichner: Spannung wird mit Wärme überlagert statt aufgelöst."
+        "sozial": "A schickt ein 'sorry' nach längerer Nachricht.",
+        "psychologisch": "A prä-entschuldigt sich für die eigene Präsenz und lädt B ein, Beruhigung zu verweigern.",
+        "beispiel": { "person": "Person A", "text": "Sorry ich quassel, lösch wenn nervt" }
       }
     ],
-    "interpretation": "Kein Manipulations-Vorwurf. Beide Personen benutzen Einfluss-Werkzeuge, die jedes Gespräch trägt. Auffällig ist die Asymmetrie der Werkzeuge: Person A arbeitet mit Reziprozität und Wärme, Person B profitiert (bewusst oder unbewusst) von Seltenheit und Ambiguität. Das verstärkt das Investment-Delta."
+    "games": [
+      {
+        "name": "Ich bin zu viel",
+        "funktion": "A erklärt sich selbst zum Problem, bekommt von B halbherzige Beruhigung, Status-quo bleibt. Das Spiel verhindert, dass B sich für die Dynamik verantworten muss.",
+        "beispiel": { "person": "Person A", "text": "Bin halt anstrengend grad, ich weiß" }
+      }
+    ],
+    "interpretation": "Die Oberfläche des Chats ist freundlich-alltäglich. Darunter liegt durchgängig eine psychologische Ebene, auf der Bindungs-Bestätigung verhandelt wird, ohne dass sie benannt wird. Das ist Berne's klassische 'ulterior' Konfiguration — und der Grund warum der Chat ruhig wirkt, obwohl die Kernfrage permanent ungelöst verhandelt wird."
   },
   "unausgesprochene_regeln": {
     "regeln": [
       {
-        "regel": "Person A macht den ersten Schritt nach einem Streit.",
-        "evidenz": "Jeder Konflikt im Sample endet mit einer Öffnungs-Nachricht von Person A."
+        "regel": "Person A macht den ersten Schritt nach jedem Bruch.",
+        "funktion": "Hält die Beziehung in Bewegung, ohne B zur Verantwortung zu rufen.",
+        "evidenz": "Jeder Konflikt im Sample endet mit einer Öffnungs-Nachricht von A, nie von B."
       },
       {
-        "regel": "Über Zukunftspläne wird nicht konkret geredet.",
-        "evidenz": "Jede „Wo seh ich uns in einem Jahr\"-Andeutung wird entschärft."
+        "regel": "Über die Beziehung selbst wird nicht geredet, nur über Alltag.",
+        "funktion": "Schützt B vor emotionaler Eskalation, schützt A vor abweisender Reaktion.",
+        "evidenz": "Meta-Talk-Versuche verdunsten systematisch. Längste Threads drehen sich um Logistik."
       },
       {
-        "regel": "Sachliche Themen sind neutrales Territorium — Gefühle sind das Minenfeld.",
-        "evidenz": "Längste Threads sind Alltagslogistik, nicht Emotion."
+        "regel": "Wer zu laut wird, hat verloren.",
+        "funktion": "Verhindert offene Eskalation — und damit auch offene Klärung.",
+        "evidenz": "Keine direkte Wut im Sample. Stattdessen Rückzug, Entschuldigung, Witz."
       },
       {
-        "regel": "Wer zu laut wird, verliert — also wird nicht laut geworden.",
-        "evidenz": "Keine offene Wut im Sample, nur versteckte Verletzungen."
+        "regel": "A ist für Wärme zuständig, B für Tempo.",
+        "funktion": "Rollenverteilung, die beide kurzfristig entlastet und langfristig zementiert.",
+        "evidenz": "Sweet-Notes ausschließlich von A, Tempo-Regulation ausschließlich von B."
       }
     ],
-    "interpretation": "Die Regeln sind funktional: sie verhindern Eskalation und halten den Chat lebendig. Gleichzeitig zementieren sie die Konfliktvermeidung. Unausgesprochene Regeln sind mächtig, weil sie nie verhandelbar werden — wer sie benennt, bricht sie bereits."
+    "interpretation": "Die Regeln sind funktional — sie halten die Dyade am Leben. Sie sind gleichzeitig der Grund, warum sie sich nicht ändert: nicht verhandelbar, weil nie ausgesprochen. Wer eine unausgesprochene Regel benennt, bricht sie — das ist der Preis für Veränderung."
   },
-  "kern_insight": "Person A trägt die Wärme, Person B hält den Takt — und beide schützen das System dadurch, dass sie genau diese Rollenverteilung nie offen verhandeln."
+  "kern_insight": "Diese Dyade funktioniert, weil sie nie über sich selbst spricht — und genau das ist, was sie nie verändern wird.",
+  "safety_flag": {
+    "aktiv": false,
+    "beschreibung": null
+  }
 }
