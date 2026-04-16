@@ -1,0 +1,56 @@
+{
+  "phasen": [
+    {
+      "label": "kennenlernen",
+      "titel": "Die ersten drei Wochen",
+      "start": "2024-01-05",
+      "end": "2024-01-22",
+      "temperatur": 8,
+      "kurzbeschreibung": "Dichte Abendgespräche, viel Neugier, beide schreiben in etwa gleich häufig. Die Grundtonlage ist warm, spielerisch, ohne große Themen.",
+      "dominantes_muster": "Tägliche Abendsessions mit 6–12 Nachrichten in kurzen Bursts."
+    },
+    {
+      "label": "plateau",
+      "titel": "Ein stilles Kippen",
+      "start": "2024-01-23",
+      "end": "2024-02-29",
+      "temperatur": 5,
+      "kurzbeschreibung": "Die Frequenz bleibt, die Symmetrie geht. Person A füllt die Pausen, Person B antwortet später und kürzer. Emotional flacht es ab, ohne dass ein Konflikt sichtbar würde.",
+      "dominantes_muster": "Mehrfach-Nachrichten von Person A, Antworten von Person B nach mehreren Stunden."
+    },
+    {
+      "label": "distanzierung",
+      "titel": "Person A schreibt gegen Stille",
+      "start": "2024-03-01",
+      "end": "2024-04-16",
+      "temperatur": 3,
+      "kurzbeschreibung": "Person A trägt fast die gesamte Kommunikation. Emotionale Monologe, Hedges, Rückversicherungen. Person B antwortet sparsam, deflektiert, verschwindet tageweise.",
+      "dominantes_muster": "Einseitige Initiative. Lange Nachrichten stoßen auf Ein-Wort-Antworten."
+    },
+    {
+      "label": "konflikt",
+      "titel": "Die Konfrontation",
+      "start": "2024-04-17",
+      "end": "2024-04-21",
+      "temperatur": 2,
+      "kurzbeschreibung": "Person A stellt offene Fragen zum Status, bricht die Spiel-Regel. Person B antwortet erst nach zwei Tagen mit Deflection. Der ungelöste Zustand ist jetzt beschrieben, nicht mehr nur spürbar.",
+      "dominantes_muster": "Direkte Beziehungs-Fragen, verzögerte Minimal-Antworten."
+    }
+  ],
+  "kipppunkte": [
+    {
+      "datum": "2024-03-02",
+      "titel": "Der emotionale Monolog",
+      "beschreibung": "Person A schickt nachts einen dreigeteilten, sehr offenen Text. Person B braucht 36 Stunden und antwortet mit einem Satz, der das Thema wegwischt. Ab hier ändert sich die Grundannahme der Beziehung: Nähe wird nicht erwidert.",
+      "beteiligt": ["Person A", "Person B"]
+    },
+    {
+      "datum": "2024-04-18",
+      "titel": "„Ich kann so nicht weitermachen\"",
+      "beschreibung": "Person A bricht die Implizit-Regel, über den Zustand zu schweigen. Die Frage steht jetzt im Raum und kann nicht mehr zurückgenommen werden — egal, was Person B antwortet.",
+      "beteiligt": ["Person A"]
+    }
+  ],
+  "gesamtbogen": "Eine Beziehung, die mit gleichrangiger Wärme beginnt und über drei Monate kontinuierlich abkühlt. Je stiller Person B wird, desto mehr schreibt Person A — und genau dieses Muster beschleunigt die Distanzierung statt sie zu heilen. Am Ende wird das, was spürbar war, auch ausgesprochen.",
+  "finaler_zustand": "abwärts"
+}

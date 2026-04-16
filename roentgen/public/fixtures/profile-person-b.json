@@ -1,0 +1,64 @@
+{
+  "person": "Person B",
+  "kommunikationsstil": {
+    "achsen": {
+      "direktIndirekt": 7,
+      "emotionalSachlich": 6,
+      "ausfuehrlichKnapp": 8,
+      "initiierendReagierend": 7
+    },
+    "beschreibung": "Person B antwortet knapp, oft mit einem Wort. Wenig Emojis, wenig Ausschmückung. Kommunikation ist funktional, nicht emotional beladen — eine Strategie, Distanz zu halten, ohne sie auszusprechen. Direktheit ersetzt hier keine Nähe, sie verhindert sie."
+  },
+  "horney": {
+    "orientierung": "von_menschen",
+    "interpretation": "Person B bewegt sich weg. Nicht konfrontativ, nicht aggressiv — schlicht distanzierend. Die Reduktion ist das Signal. Wenn Nähe-Themen aufkommen, wird das Register noch eine Stufe heruntergefahren: kürzer, später, neutraler. Das ist kein Desinteresse im starken Sinn, eher ein Schutzreflex gegen zu viel Engagement.",
+    "evidenz": [
+      "„jo\"",
+      "„später\"",
+      "„bin grad beschäftigt\""
+    ]
+  },
+  "berne": {
+    "dominanter_zustand": "erwachsenen_ich",
+    "nuance": "sachlich_rational",
+    "interpretation": "Person B hält das Erwachsenen-Ich hoch, um emotionale Eskalation zu vermeiden. Das wirkt reif, ist aber auch ein Schutzmechanismus — wer keine Emotion sendet, muss auch keine empfangen. In Momenten emotionaler Anfrage wechselt Person B in eine leichte kritisch-elterliche Position: „du überdenkst das\" ist ein klassisches Eltern-Ich-Move.",
+    "evidenz": [
+      "„läuft doch\"",
+      "„ich glaub du überdenkst das\""
+    ]
+  },
+  "bowlby": {
+    "tendenz": "vermeidend",
+    "sicherheit": "mittel",
+    "interpretation": "Vermeidende Tendenz: Distanzregulation durch Verzögerung und Minimalantworten, Deflection bei emotionalen Themen, keine proaktiven Rückfragen zu Person A's Zustand. Person B hält Nähe niedrig dosiert — genug, um nicht wegzugehen, zu wenig, um anzukommen. Das Bindungssystem ist deaktiviert, nicht defekt.",
+    "evidenz": [
+      "Antworten mit 24h+ Verzögerung",
+      "Themenwechsel bei Gefühlsthemen",
+      "Keine Gegenfragen nach „wie geht es dir\""
+    ]
+  },
+  "adler": {
+    "kompensation": "Unterengagement als Überlegenheitsposition",
+    "interpretation": "Durch das Minimum an Investition hält Person B eine strukturelle Überlegenheit. Wer weniger braucht, braucht weniger. Das ist keine Bosheit — es ist ein früh gelerntes Muster, sich nicht angreifbar zu machen. Die Kehrseite: die so gewonnene Sicherheit kostet die Tiefe der Beziehung, die Person B vermutlich gleichzeitig vermisst.",
+    "evidenz": [
+      "„nicht heute bitte\"",
+      "Keine Gegenfragen",
+      "Warme Momente werden nicht verkettet"
+    ]
+  },
+  "goffman": {
+    "front_stage": "Entspannt, easy, unaufgeregt — jemand, der „nicht kompliziert\" ist und keine großen Gefühlsaufführungen macht.",
+    "back_stage_durchbrueche": "Seltene Wärme-Momente („du bist süß\", „schön dich zu sehen gestern\") die nie ausgebaut werden. Der Rückfall in die Front Stage ist sofort. Gerade diese Momente zeigen: die Kapazität für Nähe ist da, wird aber aktiv reguliert.",
+    "interpretation": "Die Performance: „Ich bin easy.\" Die Kehrseite: die Nähe-Momente bleiben einzeln, werden nicht zu einer Beziehungs-Erzählung verkettet. Jeder Back-Stage-Moment könnte ein Anfang sein — bleibt aber Einzelereignis.",
+    "evidenz": [
+      "„du bist süß\" (einmalig, ohne Fortsetzung)",
+      "„schön dich zu sehen gestern\""
+    ]
+  },
+  "sprachliche_fingerabdruecke": {
+    "lieblings_formulierungen": ["ok", "klar", "passt", "läuft", "jo"],
+    "wiederkehrende_satzanfaenge": ["sorry …", "war …", "hab …"],
+    "zeichensetzung": "Kein Punkt, keine Fragezeichen. Kleinschreibung durchgehend. Keine Emojis. Die Nachrichten sind formal so unmarkiert wie möglich — das ist selbst eine Markierung."
+  },
+  "kern_insight": "Person B hat gelernt, dass Unverbindlichkeit der sicherste Ort ist — und zahlt dafür den Preis, nie wirklich anzukommen."
+}

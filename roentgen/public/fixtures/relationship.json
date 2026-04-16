@@ -1,0 +1,108 @@
+{
+  "teilnehmer": ["Person A", "Person B"],
+  "machtgefaelle": {
+    "inhaltlich": "person_a",
+    "strukturell": "person_b",
+    "interpretation": "Person A setzt die Themen — Gefühle, gemeinsame Pläne, Beziehungsfragen. Person B bestimmt wann und wie lange geredet wird, oft durch späte Antworten oder kurze Signale. Das ist die klassische Split-Konstellation: eine Seite trägt den Inhalt, die andere den Takt. Keine der beiden Machtformen ist harmlos, weil die strukturelle Macht die inhaltliche permanent relativieren kann.",
+    "evidenz": [
+      "Person A öffnet fast alle emotionalen Themen",
+      "Person B bestimmt durch Antwortzeit die Dramaturgie",
+      "„Reden wir heute Abend?\" — beantwortet am Folgemittag"
+    ]
+  },
+  "investment_delta": {
+    "skala": 62,
+    "richtung": "person_a",
+    "statik": "statisch",
+    "interpretation": "Das Delta ist deutlich und bewegt sich wenig. Person A trägt den emotionalen Anteil des Chats — Nachfragen, Wärme, Repair nach Schweigen. Person B bleibt oft sachlich-freundlich, ohne nachzulegen. In gesunden Dyaden pendelt das Investment; hier ist es festgelaufen.",
+    "evidenz": [
+      "Doppeltexte von Person A nach Schweigen",
+      "Einsilbige „joa\" / „passt\"-Antworten von Person B",
+      "Sweet-Notes kommen fast ausschließlich von Person A"
+    ]
+  },
+  "berne": {
+    "dominant": "kind_eltern",
+    "beispiele": [
+      "Person A: „Ich glaub ich bin zu viel\" — Person B: „Nein, passt schon\"",
+      "Person A sucht Zustimmung, Person B erteilt sie knapp",
+      "„Kannst du mir sagen obs dir reicht\" → rationale Deeskalation"
+    ],
+    "interpretation": "Die Dyade kippt immer wieder in eine Kind-Eltern-Transaktion: Person A fragt an, stellt sich klein, sucht Rückversicherung — Person B antwortet aus einer sachlich-beruhigenden Eltern-Position. Das fühlt sich für beide vertraut an und wirkt kurzfristig stabilisierend. Langfristig zementiert es die Asymmetrie, weil keine der beiden Seiten in den Erwachsenen-Modus wechselt."
+  },
+  "konfliktstil": {
+    "dominant": "gemischt",
+    "pro_person": [
+      { "person": "Person A", "stil": "direkte_ansprache" },
+      { "person": "Person B", "stil": "vermeidung" }
+    ],
+    "interpretation": "Person A benennt Spannungen früh und direkt, oft verpackt in Fragen. Person B weicht aus: Themenwechsel, Humor, verzögerte Antwort. In Gottmans Modell ist das eine Demand-Withdraw-Konstellation — die klassischste und zermürbendste Paardynamik. Wichtig: es gibt Repair-Attempts von Person A, die meist angenommen werden. Das ist das gute Zeichen.",
+    "evidenz": [
+      "„Können wir drüber reden?\" — Antwort kommt erst Stunden später",
+      "Person B lenkt mit Witz ab nach heiklen Nachrichten",
+      "Person A schreibt nach Streit: „Sorry, ich liebs dich\""
+    ]
+  },
+  "naehe_distanz": {
+    "naeheSucher": "Person A",
+    "distanzRegulierer": "Person B",
+    "muster": "Verfolger-Distanzierer (pursuer-distancer), niedrig-frequent aber statisch.",
+    "interpretation": "Person A sucht Nähe über emotionale Öffnung, häufige Nachrichten und Verletzlichkeit. Person B reguliert Distanz über Kürze, späte Antworten und Themenwechsel. Je mehr A sucht, desto stärker reguliert B — ein sich selbst verstärkender Loop. Der Chat zeigt keine Phasen, in denen sich die Rollen tauschen.",
+    "evidenz": [
+      "Lange emotionale Nachrichten von A spät abends",
+      "Person B reagiert mit einem Satz am Folgetag",
+      "„Fehl dich\" / „Auch\" — Asymmetrie in der Miniatur"
+    ]
+  },
+  "cialdini": {
+    "taktiken": [
+      {
+        "prinzip": "reciprocity",
+        "von": "Person A",
+        "beispiel": "Sweet-Note nach kleinem Konflikt, noch bevor Person B reagiert hat",
+        "wirkung": "Hält den Austausch ausgeglichen und nimmt Person B aus der Verantwortung zu reparieren."
+      },
+      {
+        "prinzip": "commitment_consistency",
+        "von": "Person A",
+        "beispiel": "„Wir haben doch gesagt wir reden über sowas\"",
+        "wirkung": "Beruft sich auf frühere Vereinbarungen um Verbindlichkeit einzufordern."
+      },
+      {
+        "prinzip": "scarcity",
+        "von": "Person B",
+        "beispiel": "Lange Funkstille, dann ein warmer Satz",
+        "wirkung": "Seltenheit macht Zuwendung wertvoll — Person A reagiert überproportional dankbar."
+      },
+      {
+        "prinzip": "liking",
+        "von": "Person A",
+        "beispiel": "Häufige Komplimente und Emojis in Konfliktnähe",
+        "wirkung": "Weichzeichner: Spannung wird mit Wärme überlagert statt aufgelöst."
+      }
+    ],
+    "interpretation": "Kein Manipulations-Vorwurf. Beide Personen benutzen Einfluss-Werkzeuge, die jedes Gespräch trägt. Auffällig ist die Asymmetrie der Werkzeuge: Person A arbeitet mit Reziprozität und Wärme, Person B profitiert (bewusst oder unbewusst) von Seltenheit und Ambiguität. Das verstärkt das Investment-Delta."
+  },
+  "unausgesprochene_regeln": {
+    "regeln": [
+      {
+        "regel": "Person A macht den ersten Schritt nach einem Streit.",
+        "evidenz": "Jeder Konflikt im Sample endet mit einer Öffnungs-Nachricht von Person A."
+      },
+      {
+        "regel": "Über Zukunftspläne wird nicht konkret geredet.",
+        "evidenz": "Jede „Wo seh ich uns in einem Jahr\"-Andeutung wird entschärft."
+      },
+      {
+        "regel": "Sachliche Themen sind neutrales Territorium — Gefühle sind das Minenfeld.",
+        "evidenz": "Längste Threads sind Alltagslogistik, nicht Emotion."
+      },
+      {
+        "regel": "Wer zu laut wird, verliert — also wird nicht laut geworden.",
+        "evidenz": "Keine offene Wut im Sample, nur versteckte Verletzungen."
+      }
+    ],
+    "interpretation": "Die Regeln sind funktional: sie verhindern Eskalation und halten den Chat lebendig. Gleichzeitig zementieren sie die Konfliktvermeidung. Unausgesprochene Regeln sind mächtig, weil sie nie verhandelbar werden — wer sie benennt, bricht sie bereits."
+  },
+  "kern_insight": "Person A trägt die Wärme, Person B hält den Takt — und beide schützen das System dadurch, dass sie genau diese Rollenverteilung nie offen verhandeln."
+}

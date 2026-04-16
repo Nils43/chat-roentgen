@@ -1,0 +1,64 @@
+{
+  "person": "Person A",
+  "kommunikationsstil": {
+    "achsen": {
+      "direktIndirekt": 4,
+      "emotionalSachlich": -7,
+      "ausfuehrlichKnapp": -6,
+      "initiierendReagierend": -8
+    },
+    "beschreibung": "Person A schreibt emotional, häufig ausführlich, und fast immer als erste. Hedges mildern die Aussagen ab, Fragen öffnen Raum für Person B. Unter der Oberfläche pulsiert ein Bedürfnis nach Bestätigung — die Sprache ist ein Werkzeug, um Distanz nicht entstehen zu lassen."
+  },
+  "horney": {
+    "orientierung": "zu_menschen",
+    "interpretation": "Person A bewegt sich klar auf Person B zu. Nähe-Suche dominiert — Fragen, Rückversicherungen, Emojis, lange Textnachrichten sind die Vehikel. Wenn Distanz entsteht, verstärkt Person A die Bewegung statt sich zurückzuziehen. Das ist weder naiv noch schwach; es ist ein konsistentes Beziehungs-Betriebssystem.",
+    "evidenz": [
+      "„Ich vermiss dich manchmal\"",
+      "„Ist alles ok bei dir?\"",
+      "Wiederholte Fragen nach Zustimmung"
+    ]
+  },
+  "berne": {
+    "dominanter_zustand": "kind_ich",
+    "nuance": "angepasst",
+    "interpretation": "Person A operiert überwiegend aus dem angepassten Kind-Ich — spürbar in den Hedges, den vorsichtigen Formulierungen, dem Warten auf Reaktion. Gelegentlich bricht das freie Kind durch (Emojis, spontane Wärme). Der Erwachsene meldet sich selten, und wenn, dann meist in der Selbstreflexion: „Ich glaub ich bin zu viel\" ist bereits ein Erwachsenen-Moment, nur kommt er in Kind-Ich-Verpackung.",
+    "evidenz": [
+      "„Vielleicht sollten wir reden?\"",
+      "„Ich glaub ich bin zu viel\""
+    ]
+  },
+  "bowlby": {
+    "tendenz": "aengstlich_ambivalent",
+    "sicherheit": "mittel",
+    "interpretation": "Das Muster zeigt klassische Merkmale ängstlich-ambivalenter Bindung: Suchverhalten bei wahrgenommener Distanz, Protest bei ausbleibender Reaktion, sofortige Rückkehr zu Zuneigungsausdrücken. Das System ist überaktiviert — jede Unklarheit wird als Bedrohung gelesen. Die Sicherheit der Einordnung liegt im mittleren Bereich: die Signale sind konsistent, aber ein Chat ist keine klinische Bindungsdiagnostik.",
+    "evidenz": [
+      "Protest nach Schweigephasen",
+      "Schnelle Deeskalation nach Konflikten",
+      "Double-Texting bei fehlender Antwort"
+    ]
+  },
+  "adler": {
+    "kompensation": "Überinvestition als Schutz vor Kontrollverlust",
+    "interpretation": "Das Überangebot an Kommunikation lässt sich als Adlersches Kompensationsmuster lesen: wer viel gibt, fühlt sich weniger abhängig von dem, was kommt. Paradox — die Investition erzeugt die Asymmetrie, die sie vermeiden wollte. Im Kern liegt vermutlich eine früh gelernte Überzeugung: „Wenn ich genug gebe, werde ich nicht verlassen.\"",
+    "evidenz": [
+      "Mehrfach-Nachrichten nach Stille",
+      "Sweet-Notes als Puffer nach Konflikten",
+      "Lange emotionale Monologe"
+    ]
+  },
+  "goffman": {
+    "front_stage": "Warm, neugierig, offen — will gesehen werden als jemand, der Beziehung ernst nimmt und Zuneigung klar zeigt.",
+    "back_stage_durchbrueche": "Spätabends und nach Verletzungen kippt der Ton: „Ich bin zu viel\", „Ich weiß nicht ob das gut geht\". Die Performance fällt, und darunter zeigt sich die Angst, überwältigend oder lästig zu sein.",
+    "interpretation": "Die öffentliche Person A ist die warme, gebende Partnerin. Die Back-Stage-Momente offenbaren Selbstzweifel und die Angst, zu viel zu sein. Interessant: Person A lässt Back Stage bewusst durchscheinen — vermutlich als unbewusste Einladung an Person B, Verantwortung für die emotionale Regulation zu übernehmen.",
+    "evidenz": [
+      "22:30-Nachrichten: „Sorry das war viel\"",
+      "„Bin halt grad emotional\""
+    ]
+  },
+  "sprachliche_fingerabdruecke": {
+    "lieblings_formulierungen": ["vielleicht", "eigentlich", "irgendwie", "ich glaub", "manchmal"],
+    "wiederkehrende_satzanfaenge": ["Ich …", "Hab grad …", "Manchmal …", "Ich hoff …"],
+    "zeichensetzung": "Wenig Punkte, viele offene Enden. Fragezeichen häufig, auch wenn keine direkte Frage gestellt wird — mehr als Öffnungs-Gesten. Emojis als emotionale Anker, besonders 💕 und 😊."
+  },
+  "kern_insight": "Person A gibt alles, was Person A fürchtet nie zurückzubekommen — und merkt nicht, dass genau dieses Geben die Balance kippt."
+}

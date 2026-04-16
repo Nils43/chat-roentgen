@@ -1,0 +1,103 @@
+{
+  "highlights": [
+    {
+      "index": 412,
+      "author": "Person A",
+      "timestamp": "2024-03-12 23:41",
+      "original_text": "Ich glaub ich bin grad zu viel",
+      "category": "verletzlichkeit",
+      "framework": "berne",
+      "titel": "Die eigene Zuviel-Diagnose",
+      "dekodierung": "Person A präempiert die Ablehnung, die sie befürchtet. Der Satz ist in Berne-Terms ein angepasstes Kind, das dem Eltern-Ich des Gegenübers zuvorkommt: „Sag es nicht, ich hab es schon selbst gesagt.\" Das ist keine Selbstreflexion, das ist ein Schutzmanöver. Interessant ist, was fehlt — es kommt keine Frage, kein „stimmt das?\".",
+      "signifikanz": "Weil der Moment zeigt, wie Person A Nähe reguliert: durch vorauseilendes Klein-Machen.",
+      "score": 94
+    },
+    {
+      "index": 508,
+      "author": "Person B",
+      "timestamp": "2024-03-13 09:22",
+      "original_text": "Alles gut. Lass mich heute einfach.",
+      "category": "machtverschiebung",
+      "framework": "horney",
+      "titel": "Rückzug als Antwort",
+      "dekodierung": "Person B reagiert auf die Verletzlichkeit von gestern Nacht mit einer weg-von-Menschen-Bewegung (Horney). Die Formulierung „alles gut\" deckt, die Anweisung „lass mich einfach\" setzt Grenze. Zusammen signalisieren sie: ich nehme wahr, ich reagiere nicht. Die Dynamik ist hier asymmetrisch — einer öffnet, der andere schließt.",
+      "signifikanz": "Ein Schlüsselmoment, weil er ein wiederkehrendes Muster etabliert: Nähe-Öffnung trifft auf Distanz-Regulation.",
+      "score": 91
+    },
+    {
+      "index": 287,
+      "author": "Person A",
+      "timestamp": "2024-02-18 02:14",
+      "original_text": "Bist du wach?",
+      "category": "goffman_moment",
+      "framework": "goffman",
+      "titel": "2 Uhr morgens",
+      "dekodierung": "Die Uhrzeit ist die eigentliche Information. Tagsüber schreibt Person A strukturiert; nachts bricht die Frontstage-Performance durch und eine rohe Frage bleibt übrig. „Bist du wach?\" ist der Versuch, ohne Agenda anzudocken — klassischer Backstage-Moment nach Goffman.",
+      "signifikanz": "Zeigt, dass die Tagesperson und die Nachtperson zwei verschiedene Register haben. Die Nachtperson ist bedürftiger.",
+      "score": 87
+    },
+    {
+      "index": 156,
+      "author": "Person B",
+      "timestamp": "2024-01-29 18:03",
+      "original_text": "Haha ja stimmt wahrscheinlich",
+      "category": "subtext",
+      "framework": "berne",
+      "titel": "Zustimmung die keine ist",
+      "dekodierung": "Dreifache Abdämpfung: „haha\" (Humor-Deflection), „ja stimmt\" (oberflächliche Zustimmung), „wahrscheinlich\" (Rücknahme der Zustimmung). Das ist keine Antwort, das ist eine Ausweichbewegung, die sich als Antwort tarnt. Berne würde sagen: das angepasste Kind vermeidet die Konfrontation, die das Erwachsenen-Ich eigentlich führen müsste.",
+      "signifikanz": "Weil hier sichtbar wird, dass Zustimmung nicht zwingend Einverständnis ist. Das ist für die ganze Beziehung relevant.",
+      "score": 82
+    },
+    {
+      "index": 634,
+      "author": "Person A",
+      "timestamp": "2024-04-02 14:11",
+      "original_text": "Okay. Dann halt nicht.",
+      "category": "emotional_peak",
+      "framework": "horney",
+      "titel": "Der plötzliche Frost",
+      "dekodierung": "Ein Bruch mit dem Muster. Person A, die sonst hedget und mildert, lässt hier jede Sicherung weg. „Okay. Dann halt nicht.\" ist aggressiv-resigniert — in Horney-Terms der seltene Moment, in dem die gegen-die-Menschen-Richtung durchbricht. Die Wahl der Punkte statt Fragezeichen ist kein Zufall.",
+      "signifikanz": "Ein Ausbruch, der selten ist — gerade deshalb diagnostisch wertvoll. Er zeigt den Preis der sonstigen Anpassung.",
+      "score": 79
+    },
+    {
+      "index": 721,
+      "author": "Person B",
+      "timestamp": "2024-04-18 20:45",
+      "original_text": "Ich bin grad selbst nicht okay. Kannst du mir kurz zuhören?",
+      "category": "green_flag",
+      "framework": "bowlby",
+      "titel": "Expliziter Bedürfnis-Ausdruck",
+      "dekodierung": "Eine Nachricht, die alle sicheren Bindungs-Marker enthält: Innenschau („ich bin nicht okay\"), direkte Artikulation des Bedürfnisses („kannst du zuhören\"), begrenzter Rahmen („kurz\"). Bowlby würde das als sichere Bindungsanfrage klassifizieren. Es ist die erste Anfrage in diesem Chat, die keine Rätsel stellt.",
+      "signifikanz": "Ein seltener, aber wichtiger Gegenpunkt: die Beziehung kann auch klar. Zeigt, dass das Repertoire vorhanden ist.",
+      "score": 76
+    },
+    {
+      "index": 389,
+      "author": "Person A",
+      "timestamp": "2024-03-05 21:30",
+      "original_text": "War das ein Witz?",
+      "category": "ignoriert",
+      "framework": "keiner",
+      "titel": "Die unbeantwortete Frage",
+      "dekodierung": "Diese Frage bleibt 47 Stunden ohne Reaktion. Kein „haha\", kein „ja war spaß\", nichts. Person B steigt erst zwei Tage später mit einem komplett neuen Thema ein. Die Nicht-Antwort ist hier die Antwort — die Frage war zu direkt, um sich spielerisch einsortieren zu lassen.",
+      "signifikanz": "Das Schweigen ist das Signal. Solche Stellen markieren Themen, die aktiv gemieden werden.",
+      "score": 72
+    },
+    {
+      "index": 845,
+      "author": "Person B",
+      "timestamp": "2024-05-07 23:58",
+      "original_text": "Vielleicht sind wir einfach unterschiedlich.",
+      "category": "subtext",
+      "framework": "horney",
+      "titel": "Diagnose als Abschied",
+      "dekodierung": "Eine Aussage in diagnostischem Register, die gleichzeitig eine Weichenstellung ist. „Unterschiedlich\" ist ein weiches Wort für einen harten Gedanken. Wer so formuliert, hat bereits innerlich einen Schritt zurück gemacht — Horney würde das als Vorform der Rückzugs-Orientierung lesen.",
+      "signifikanz": "Weil der Satz eine Haltung ausdrückt, die strukturell ist, nicht situativ. Das verändert die Beziehungsprognose.",
+      "score": 69
+    }
+  ],
+  "meta": {
+    "gesamtbefund": "Die Highlights zeichnen eine Asymmetrie: Person A sucht Nähe durch vorauseilende Selbstverkleinerung, Person B reguliert Nähe durch freundliche Distanz. Dazwischen gibt es seltene, aber präzise Momente, in denen beide kurzzeitig die Rollen tauschen — dort liegt das Potenzial."
+  }
+}
