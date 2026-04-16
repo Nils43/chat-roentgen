@@ -425,7 +425,11 @@ function App() {
         )}
 
         {stage === 'analysis' && facts && (
-          <HardFactsView facts={facts} onStartAi={startAiAnalysis} />
+          <HardFactsView
+            facts={facts}
+            onStartAi={startAiAnalysis}
+            onOpenTokens={() => openTokens('analysis')}
+          />
         )}
 
         {stage === 'consent' && chat && prepared && (
