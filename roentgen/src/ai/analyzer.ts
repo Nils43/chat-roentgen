@@ -21,8 +21,6 @@ export class ApiAnalyzer implements Analyzer {
 // Fixture mode: we dispatch by the requested tool name.
 //   submit_profile      → /fixtures/profile-<pseudo>.json
 //   submit_relationship → /fixtures/relationship.json
-//   submit_highlights   → /fixtures/highlights.json
-//   submit_timeline     → /fixtures/timeline.json
 // Simulates a realistic API latency so the loading animation still feels right.
 export class FixtureAnalyzer implements Analyzer {
   kind = 'fixture' as const
@@ -31,14 +29,8 @@ export class FixtureAnalyzer implements Analyzer {
     const toolName = req.tools?.[0]?.name ?? 'submit_profile'
 
     const { url, slug, outputTokens } =
-      toolName === 'submit_highlights'
-        ? { url: '/fixtures/highlights.json', slug: 'highlights', outputTokens: 1600 }
-        : toolName === 'submit_relationship'
+      toolName === 'submit_relationship'
         ? { url: '/fixtures/relationship.json', slug: 'relationship', outputTokens: 1400 }
-        : toolName === 'submit_timeline'
-        ? { url: '/fixtures/timeline.json', slug: 'timeline', outputTokens: 1200 }
-        : toolName === 'submit_entwicklung'
-        ? { url: '/fixtures/entwicklung.json', slug: 'entwicklung', outputTokens: 1400 }
         : (() => {
             const target = extractTargetPerson(req)
             const s = target.replace(/\s+/g, '-').toLowerCase()

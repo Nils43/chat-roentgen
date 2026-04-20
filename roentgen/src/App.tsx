@@ -13,25 +13,12 @@ import { ConsentScreen } from './components/ConsentScreen'
 import { AiProgress } from './components/AiProgress'
 import { ProfileView } from './components/ProfileView'
 import { prepareAnalysis, runProfileAnalyses, type PrepareResult } from './ai/profile'
-import { runHighlights } from './ai/highlights'
 import { runRelationshipAnalysis } from './ai/relationship'
-import { runTimeline } from './ai/timeline'
-import { runEntwicklung } from './ai/entwicklung'
-import { buildSymmetryTrend } from './analysis/symmetryTrend'
-import { HighlightsView } from './components/HighlightsView'
 import { RelationshipView } from './components/RelationshipView'
-import { TimelineView } from './components/TimelineView'
-import { EntwicklungView } from './components/EntwicklungView'
 import { TokenBadge } from './components/TokenBadge'
 import { TokenOverview } from './components/TokenOverview'
 import { tokenStore, type ModuleId } from './tokens/store'
-import type {
-  EntwicklungResult,
-  HighlightsResult,
-  ProfileResult,
-  RelationshipResult,
-  TimelineResult,
-} from './ai/types'
+import type { ProfileResult, RelationshipResult } from './ai/types'
 
 type Stage =
   | 'intro'
@@ -45,12 +32,6 @@ type Stage =
   | 'profiles'
   | 'relationship_loading'
   | 'relationship'
-  | 'highlights_loading'
-  | 'highlights'
-  | 'timeline_loading'
-  | 'timeline'
-  | 'entwicklung_loading'
-  | 'entwicklung'
   | 'tokens'
 
 function App() {
@@ -70,14 +51,8 @@ function App() {
   })
   const [aiError, setAiError] = useState<string | null>(null)
   const [profiles, setProfiles] = useState<ProfileResult[] | null>(null)
-  const [highlights, setHighlights] = useState<HighlightsResult | null>(null)
-  const [highlightsError, setHighlightsError] = useState<string | null>(null)
   const [relationship, setRelationship] = useState<RelationshipResult | null>(null)
   const [relationshipError, setRelationshipError] = useState<string | null>(null)
-  const [timeline, setTimeline] = useState<TimelineResult | null>(null)
-  const [timelineError, setTimelineError] = useState<string | null>(null)
-  const [entwicklung, setEntwicklung] = useState<EntwicklungResult | null>(null)
-  const [entwicklungError, setEntwicklungError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!currentChatId || !chat) return
@@ -87,13 +62,27 @@ function App() {
       prepared,
       profiles,
       relationship,
-      highlights,
-      timeline,
-      entwicklung,
     }
     void saveSession(currentChatId, snap)
     chatLibrary.syncModules(currentChatId, snap)
-  }, [currentChatId, fileName, chat, prepared, profiles, relationship, highlights, timeline, entwicklung])
+  }, [currentChatId, fileName, chat, prepared, profiles, relationship])
+
+  // Deep-link: `?scroll=<chatId>` opens that chat straight into scroll view.
+  // Data is local to each device, so this only resolves for chats the user
+  // has previously stored on this browser — shared links across devices would
+  // need a backend.
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const sharedId = url.searchParams.get('scroll')
+    if (!sharedId) return
+    const meta = chatLibrary.getMeta(sharedId)
+    if (!meta) return
+    chatLibrary.markExhibitSeen(sharedId) // friend skips the click-through
+    void openChat(sharedId)
+    url.searchParams.delete('scroll')
+    window.history.replaceState({}, '', url.toString())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [tokensReturnTo, setTokensReturnTo] = useState<Stage>('upload')
   const [tokensPrompt, setTokensPrompt] = useState<{ module: ModuleId } | null>(null)
   const [pendingModule, setPendingModule] = useState<ModuleId>('profiles')
@@ -115,17 +104,9 @@ function App() {
   }, [chat])
 
   const networkMode: NetworkMode =
-    stage === 'ai' ||
-    stage === 'highlights_loading' ||
-    stage === 'relationship_loading' ||
-    stage === 'timeline_loading' ||
-    stage === 'entwicklung_loading'
+    stage === 'ai' || stage === 'relationship_loading'
       ? 'ai'
-      : stage === 'profiles' ||
-          stage === 'highlights' ||
-          stage === 'relationship' ||
-          stage === 'timeline' ||
-          stage === 'entwicklung'
+      : stage === 'profiles' || stage === 'relationship'
         ? 'done'
         : 'local'
 
@@ -143,9 +124,6 @@ function App() {
       prepared: null,
       profiles: null,
       relationship: null,
-      highlights: null,
-      timeline: null,
-      entwicklung: null,
     })
     if (!ok) {
       chatLibrary.remove(meta.id)
@@ -166,14 +144,8 @@ function App() {
     setParseError(null)
     setPrepared(null)
     setProfiles(null)
-    setHighlights(null)
-    setHighlightsError(null)
     setRelationship(null)
     setRelationshipError(null)
-    setTimeline(null)
-    setTimelineError(null)
-    setEntwicklung(null)
-    setEntwicklungError(null)
     setAiError(null)
     setAiProgress({ done: 0, total: 0, current: null })
   }
@@ -194,9 +166,6 @@ function App() {
     setPrepared(snap.prepared ?? null)
     setProfiles(snap.profiles ?? null)
     setRelationship(snap.relationship ?? null)
-    setHighlights(snap.highlights ?? null)
-    setTimeline(snap.timeline ?? null)
-    setEntwicklung(snap.entwicklung ?? null)
     setStage('analysis')
   }
 
@@ -248,16 +217,10 @@ function App() {
     const existingStage: Record<ModuleId, Stage> = {
       profiles: 'profiles',
       relationship: 'relationship',
-      entwicklung: 'entwicklung',
-      highlights: 'highlights',
-      timeline: 'timeline',
     }
     const existingResult: Record<ModuleId, unknown> = {
       profiles: profiles,
       relationship: relationship,
-      entwicklung: entwicklung,
-      highlights: highlights,
-      timeline: timeline,
     }
     if (existingResult[moduleId]) {
       setStage(existingStage[moduleId])
@@ -279,14 +242,8 @@ function App() {
     switch (moduleId) {
       case 'profiles':
         return runAi()
-      case 'highlights':
-        return goToHighlights()
       case 'relationship':
         return goToRelationship()
-      case 'entwicklung':
-        return goToEntwicklung()
-      case 'timeline':
-        return goToTimeline()
     }
   }
 
@@ -318,29 +275,6 @@ function App() {
     }
   }
 
-  const goToHighlights = async () => {
-    if (!chat || !prepared) return
-    if (highlights) {
-      setStage('highlights')
-      return
-    }
-    if (!tokenStore.charge('highlights')) {
-      openTokens('profiles', { module: 'highlights' })
-      return
-    }
-    setHighlightsError(null)
-    setStage('highlights_loading')
-    try {
-      const result = await runHighlights({ chat, prepared })
-      setHighlights(result)
-      setStage('highlights')
-    } catch (e) {
-      const err = e as Error
-      tokenStore.refund('highlights')
-      setHighlightsError(err.message ?? 'highlights failed.')
-    }
-  }
-
   const goToRelationship = async () => {
     if (!chat || !prepared) return
     if (relationship) {
@@ -361,53 +295,6 @@ function App() {
       const err = e as Error
       tokenStore.refund('relationship')
       setRelationshipError(err.message ?? 'vibe read failed.')
-    }
-  }
-
-  const goToTimeline = async () => {
-    if (!chat || !prepared) return
-    if (timeline) {
-      setStage('timeline')
-      return
-    }
-    if (!tokenStore.charge('timeline')) {
-      openTokens('profiles', { module: 'timeline' })
-      return
-    }
-    setTimelineError(null)
-    setStage('timeline_loading')
-    try {
-      const result = await runTimeline({ chat, prepared })
-      setTimeline(result)
-      setStage('timeline')
-    } catch (e) {
-      const err = e as Error
-      tokenStore.refund('timeline')
-      setTimelineError(err.message ?? 'timeline failed.')
-    }
-  }
-
-  const goToEntwicklung = async () => {
-    if (!chat || !prepared || !facts) return
-    if (entwicklung) {
-      setStage('entwicklung')
-      return
-    }
-    if (!tokenStore.charge('entwicklung')) {
-      openTokens('profiles', { module: 'entwicklung' })
-      return
-    }
-    setEntwicklungError(null)
-    setStage('entwicklung_loading')
-    try {
-      const symmetry = buildSymmetryTrend(facts)
-      const result = await runEntwicklung({ chat, prepared, symmetry })
-      setEntwicklung(result)
-      setStage('entwicklung')
-    } catch (e) {
-      const err = e as Error
-      tokenStore.refund('entwicklung')
-      setEntwicklungError(err.message ?? 'evolution read failed.')
     }
   }
 
@@ -451,118 +338,22 @@ function App() {
                   onClick={goToRelationship}
                   className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
                 >
-                  Vibe read →
-                </button>
-                <button
-                  onClick={goToHighlights}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
-                >
-                  Highlights →
-                </button>
-                <button
-                  onClick={goToEntwicklung}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
-                >
-                  Evolution →
-                </button>
-                <button
-                  onClick={goToTimeline}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
-                >
-                  Timeline →
+                  Relationship →
                 </button>
               </>
             )}
             {stage === 'relationship' && (
-              <>
-                <button
-                  onClick={() => setStage('profiles')}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
-                >
-                  ← Profiles
-                </button>
-                <button
-                  onClick={goToEntwicklung}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
-                >
-                  Evolution →
-                </button>
-                <button
-                  onClick={goToHighlights}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
-                >
-                  Highlights →
-                </button>
-                <button
-                  onClick={goToTimeline}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
-                >
-                  Timeline →
-                </button>
-              </>
-            )}
-            {stage === 'highlights' && (
-              <>
-                <button
-                  onClick={() => setStage('profiles')}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
-                >
-                  ← Profiles
-                </button>
-                <button
-                  onClick={goToEntwicklung}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
-                >
-                  Evolution →
-                </button>
-                <button
-                  onClick={goToTimeline}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
-                >
-                  Timeline →
-                </button>
-              </>
-            )}
-            {stage === 'entwicklung' && (
-              <>
-                <button
-                  onClick={() => setStage('profiles')}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
-                >
-                  ← Profiles
-                </button>
-                <button
-                  onClick={goToTimeline}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
-                >
-                  Timeline →
-                </button>
-              </>
-            )}
-            {stage === 'timeline' && (
-              <>
-                <button
-                  onClick={() => setStage('profiles')}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
-                >
-                  ← Profiles
-                </button>
-                <button
-                  onClick={goToEntwicklung}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
-                >
-                  Evolution →
-                </button>
-              </>
+              <button
+                onClick={() => setStage('profiles')}
+                className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
+              >
+                ← Personal
+              </button>
             )}
             <NetworkIndicator
               mode={networkMode}
               detail={
-                (stage === 'ai' ||
-                  stage === 'highlights_loading' ||
-                  stage === 'relationship_loading' ||
-                  stage === 'timeline_loading' ||
-                  stage === 'entwicklung_loading') &&
+                (stage === 'ai' || stage === 'relationship_loading') &&
                 prepared
                   ? prepared.analyzerKind === 'fixture'
                     ? 'test mode · nothing gets sent'
@@ -616,6 +407,7 @@ function App() {
           return (
             <HardFactsView
               facts={facts}
+              chatId={currentChatId}
               onStartAi={startAiAnalysis}
               onStartModule={startModule}
               onOpenTokens={() => openTokens('analysis')}
@@ -661,7 +453,6 @@ function App() {
             profiles={profiles}
             chatId={currentChatId}
             onGoToRelationship={goToRelationship}
-            onGoToHighlights={goToHighlights}
             onOpenTokens={() => openTokens('profiles', { module: 'profiles' })}
           />
         )}
@@ -682,48 +473,6 @@ function App() {
             participants={chat.participants}
             onBack={() => setStage('profiles')}
           />
-        )}
-
-        {stage === 'highlights_loading' && (
-          <AiProgress
-            done={highlightsError ? 0 : 1}
-            total={2}
-            currentPerson={highlightsError ? null : 'ranking the moments'}
-            error={highlightsError}
-            onCancel={highlightsError ? () => setStage('profiles') : undefined}
-          />
-        )}
-
-        {stage === 'highlights' && highlights && chat && (
-          <HighlightsView result={highlights} participants={chat.participants} />
-        )}
-
-        {stage === 'timeline_loading' && (
-          <AiProgress
-            done={timelineError ? 0 : 1}
-            total={2}
-            currentPerson={timelineError ? null : 'mapping the arc'}
-            error={timelineError}
-            onCancel={timelineError ? () => setStage('profiles') : undefined}
-          />
-        )}
-
-        {stage === 'timeline' && timeline && facts && (
-          <TimelineView timeline={timeline} facts={facts} highlights={highlights} />
-        )}
-
-        {stage === 'entwicklung_loading' && (
-          <AiProgress
-            done={entwicklungError ? 0 : 1}
-            total={2}
-            currentPerson={entwicklungError ? null : 'topics & trend'}
-            error={entwicklungError}
-            onCancel={entwicklungError ? () => setStage('profiles') : undefined}
-          />
-        )}
-
-        {stage === 'entwicklung' && entwicklung && facts && (
-          <EntwicklungView result={entwicklung} facts={facts} />
         )}
 
         {stage === 'tokens' && (
@@ -767,7 +516,7 @@ function App() {
             </button>
             <button
               onClick={() => profiles && setStage('profiles')}
-              disabled={!profiles && !relationship && !highlights && !timeline && !entwicklung}
+              disabled={!profiles && !relationship}
               className={`flex items-center gap-1.5 transition-colors disabled:opacity-30 ${currentTab === 'files' ? 'text-pop-yellow' : 'text-white/50 hover:text-white'}`}
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 3 L7 3 L8 5 L14 5 L14 13 L2 13 Z"/></svg>

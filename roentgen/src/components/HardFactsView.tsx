@@ -18,11 +18,12 @@ interface Props {
   mode?: 'exhibit' | 'scroll'
   /** Called once when the user finishes the exhibit (reaches final room). */
   onExhibitComplete?: () => void
+  chatId?: string | null
 }
 
 const PERSON_COLORS = ['text-a', 'text-b', 'text-blue-400', 'text-orange-400', 'text-violet-400']
 
-export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, mode = 'exhibit', onExhibitComplete }: Props) {
+export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, mode = 'exhibit', onExhibitComplete, chatId }: Props) {
   const interpretations = interpretHardFacts(facts)
   const shareInterp = interpretations.find((i) => i.metric === 'share')
   const { balance } = useTokenState()
@@ -293,67 +294,32 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, m
       kind: 'content',
       id: 'paywall',
       render: () => (
-        <>
-          <BridgeCTA totalFindings={10} balance={balance} onStart={handleModule} onBuy={onOpenTokens} />
-          <section className="relative mt-12 space-y-10">
-            <div className="space-y-5">
-              <h3 className="font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight">
-                Go <span className="gradient-text">deeper</span>.
-              </h3>
-              <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl">
-                Who {personA} and {personB} really are, what's going on between you, and which moments explain everything.
-              </p>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <LockedCard number="02" moduleId="profiles" tone="a" emoji="🧠" title="Who's who?" subtitle="A portrait of each — no judgement"
-                lines={[
-                  `${personA}: often comes off reserved, apologizes a lot — what that actually means …`,
-                  `${personB}: needs closeness, reacts to distance — shows up as …`,
-                  `When ${personA} breaks character: usually late at night, when …`,
-                ]}
-                balance={balance} onStart={handleModule} onBuy={onOpenTokens}
-              />
-              <LockedCard number="03" moduleId="relationship" tone="a" emoji="🔗" title="What's going on between you?" subtitle="Closeness, distance, unwritten rules"
-                lines={[
-                  `${personA} structurally does more — how wide the real gap actually is …`,
-                  `One thing you never talk about — even though it keeps popping up …`,
-                  `Who leads, who follows — and how often that flips …`,
-                ]}
-                balance={balance} onStart={handleModule} onBuy={onOpenTokens}
-              />
-              <LockedCard number="04" moduleId="entwicklung" tone="a" emoji="📈" title="How has it changed?" subtitle="Chapters, turning points, what flipped"
-                lines={[
-                  'The first three months light, playful — at one point it tipped …',
-                  `One particular day changed everything: reply times jumped from minutes to hours. The reason …`,
-                  'Where you stand right now: noticeably cooler. The signs …',
-                ]}
-                balance={balance} onStart={handleModule} onBuy={onOpenTokens}
-              />
-              <LockedCard number="05" moduleId="highlights" tone="b" emoji="💥" title="The moments that explain everything" subtitle="Lines that land — silence that speaks"
-                lines={[
-                  `"I think I'm too much right now" — ${personA} at 11:41pm. What the line actually means …`,
-                  `47 hours of silence after a message from ${personB}. Why the silence itself is the signal …`,
-                  'The moment at 2:14 am where the facade drops — and why …',
-                ]}
-                balance={balance} onStart={handleModule} onBuy={onOpenTokens} featured
-              />
-              <LockedCard number="06" moduleId="timeline" tone="a" emoji="🌀" title="Your story at a glance" subtitle="The whole chat in one arc"
-                lines={[
-                  'The warmth between you: peaked in February, noticeably cooler today …',
-                  'Four clear chapters — two of them with a crisp start …',
-                  'One image that sums up your entire story …',
-                ]}
-                balance={balance} onStart={handleModule} onBuy={onOpenTokens} className="md:col-span-2"
-              />
-            </div>
-          </section>
-        </>
+        <PaywallRoom
+          facts={facts}
+          personA={personA}
+          personB={personB}
+          shareLeader={shareLeader}
+          shareLeaderPct={shareLeaderPct}
+          fasterPerson={fasterPerson}
+          slowerPerson={slowerPerson}
+          hedgeLeader={hedgeLeader}
+          hedgePct={hedgePct}
+          lateLeader={lateLeader}
+          lateLeaderPct={lateLeaderPct}
+          burstLeader={burstLeader}
+          burstLongest={burstLongest}
+          balance={balance}
+          chatId={chatId ?? null}
+          onStart={handleModule}
+          onOpenTokens={onOpenTokens}
+        />
       ),
     },
   ]
 
   const [roomIdx, setRoomIdx] = useState(0)
   const [transitioning, setTransitioning] = useState(false)
+  const [scrollPaywallPassed, setScrollPaywallPassed] = useState(false)
 
   const go = (delta: number) => {
     const target = roomIdx + delta
@@ -390,9 +356,38 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, m
 
   // Scroll mode — all content rooms stacked, gimmicks as slim dividers
   if (mode === 'scroll') {
+    const paywall = rooms.find((r) => r.kind === 'content' && r.id === 'paywall')
+    const rest = rooms.filter(
+      (r) =>
+        !(r.kind === 'content' && r.id === 'paywall') &&
+        !(r.kind === 'gimmick' && r.stamp === 'SPILL IT.'),
+    )
+
+    // Gate — paywall lives on its own page BEFORE the scroll facts.
+    if (!scrollPaywallPassed && paywall?.kind === 'content') {
+      return (
+        <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8">
+          <div className="space-y-8">{paywall.render()}</div>
+          <div className="mt-14 flex justify-center">
+            <button
+              onClick={() => setScrollPaywallPassed(true)}
+              className="btn-pop px-8 md:px-12 py-4 md:py-5 font-serif text-3xl md:text-5xl tracking-[0.04em]"
+              style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.4deg)' }}
+            >
+              <span>OR JUST READ THE NUMBERS</span>
+              <span aria-hidden className="ml-2">↓</span>
+            </button>
+          </div>
+          <div className="mt-3 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-ink/50">
+            skip the upsell · scroll the receipts
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-14">
-        {rooms.map((r, i) =>
+        {rest.map((r, i) =>
           r.kind === 'content' ? (
             <div key={`${r.id}-${i}`} className="space-y-8">
               {r.render()}
@@ -408,6 +403,16 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, m
             </div>
           ),
         )}
+        {/* A quieter paywall echo at the bottom, for those who scrolled past */}
+        <div className="pt-6 border-t-2 border-ink/20">
+          <button
+            onClick={() => setScrollPaywallPassed(false)}
+            className="w-full btn-pop py-4 text-xl md:text-2xl"
+          >
+            <span>BACK TO THE DEEP FILES</span>
+            <span aria-hidden className="ml-2">↑</span>
+          </button>
+        </div>
       </div>
     )
   }
@@ -500,6 +505,322 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, m
       </div>
 
     </div>
+  )
+}
+
+const PRICE_SINGLE = 3
+const PRICE_BUNDLE = 5
+
+function PaywallRoom({
+  personA,
+  personB,
+  shareLeader,
+  shareLeaderPct,
+  hedgeLeader,
+  hedgePct,
+  lateLeader,
+  chatId,
+  onStart,
+}: {
+  facts: HardFacts
+  personA: string
+  personB: string
+  shareLeader: string
+  shareLeaderPct: number
+  fasterPerson: string
+  slowerPerson: string
+  hedgeLeader: string
+  hedgePct: number
+  lateLeader: string
+  lateLeaderPct: number
+  burstLeader: string
+  burstLongest: number
+  balance: number
+  chatId: string | null
+  onStart: (m: ModuleId) => void
+  onOpenTokens?: () => void
+}) {
+  const [picked, setPicked] = useState<ModuleId | null>(null)
+
+  // Personalized bullet copy — 3 concrete deliverables per file
+  const youBullets = [
+    `how you write when ${personB.toLowerCase()} goes quiet`,
+    `the soft words you use ${hedgePct}% of the time — what they cover`,
+    `the move you keep making after every fight`,
+  ]
+  const usBullets = [
+    `why ${shareLeader.toLowerCase()} does ${Math.round(shareLeaderPct)}% of the talking`,
+    `the rule neither of you said out loud`,
+    `who leads, who follows, and when it flipped`,
+  ]
+
+  // After a pick: upsell — now with clear WHAT-YOU-GET on the "other" file
+  if (picked) {
+    const otherId: ModuleId = picked === 'profiles' ? 'relationship' : 'profiles'
+    const pickedName = picked === 'profiles' ? 'YOUR PATTERNS' : 'THE DYNAMIC'
+    const otherName = otherId === 'profiles' ? 'YOUR PATTERNS' : 'THE DYNAMIC'
+    const otherBullets = otherId === 'profiles' ? youBullets : usBullets
+
+    return (
+      <section className="space-y-6 md:space-y-8">
+        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
+          → picked: {pickedName.toLowerCase()}
+        </div>
+
+        <div
+          className="bg-pop-yellow border-2 border-ink relative p-5 md:p-8"
+          style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.4deg)' }}
+        >
+          <span className="exhibit-label">WAIT.</span>
+          <div
+            className="absolute -top-3 -right-3 sticker"
+            style={{ transform: 'rotate(8deg)', background: '#FFFFFF' }}
+          >
+            SAVE €{PRICE_SINGLE * 2 - PRICE_BUNDLE}
+          </div>
+
+          <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink/70">
+            add file {otherId === 'profiles' ? '01' : '02'} · {otherName.toLowerCase()}
+          </div>
+          <div className="font-serif text-5xl md:text-7xl leading-[0.9] tracking-[-0.02em] text-ink mt-1">
+            {otherName}
+          </div>
+          <p className="serif-body text-base md:text-lg mt-3 text-ink">
+            {otherId === 'profiles'
+              ? 'how you actually write — when stakes rise, when the room goes quiet.'
+              : `what's actually happening between ${personA.toLowerCase()} and ${personB.toLowerCase()}.`}
+          </p>
+
+          <ul className="mt-4 space-y-1.5 border-t-2 border-ink/30 border-dashed pt-4">
+            {otherBullets.map((b, i) => (
+              <li key={i} className="serif-body text-base md:text-lg text-ink flex gap-2">
+                <span className="text-ink/60 shrink-0">—</span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+
+          <p className="serif-body text-base md:text-lg mt-4 text-ink">
+            <span className="font-bold not-italic">+€{PRICE_BUNDLE - PRICE_SINGLE}</span> on top of the €{PRICE_SINGLE} you picked. <span className="italic">(normally €{PRICE_SINGLE}.)</span>
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            onClick={() => onStart(picked)}
+            className="border-2 border-ink bg-white px-4 md:px-6 py-4 md:py-5 flex flex-col items-start gap-1 hover:bg-ink hover:text-pop-yellow transition-colors"
+            style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+          >
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] opacity-60">just {pickedName.toLowerCase()}</span>
+            <span className="font-serif text-3xl md:text-5xl leading-[0.9]">€{PRICE_SINGLE}</span>
+          </button>
+          <button
+            onClick={() => onStart(picked)}
+            className="bg-ink text-pop-yellow border-2 border-ink px-4 md:px-6 py-4 md:py-5 flex flex-col items-start gap-1 hover:bg-pop-yellow hover:text-ink transition-colors relative"
+            style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+          >
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] opacity-70">
+              both · save €{PRICE_SINGLE * 2 - PRICE_BUNDLE}
+            </span>
+            <span className="font-serif text-3xl md:text-5xl leading-[0.9]">€{PRICE_BUNDLE}</span>
+          </button>
+        </div>
+
+        <button
+          onClick={() => setPicked(null)}
+          className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 hover:text-ink"
+        >
+          ← change pick
+        </button>
+
+        <div className="pt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-ink/50">
+          95% take the bundle · no subscription · one-time
+        </div>
+      </section>
+    )
+  }
+
+  // Initial choice — two cards, each with what-you-get
+  return (
+    <section className="space-y-6 md:space-y-8">
+      <header>
+        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-1">→ the deep cut</div>
+        <h3 className="font-serif text-[20vw] md:text-[180px] leading-[0.82] tracking-[-0.02em] text-ink">
+          GET THE WHY.
+        </h3>
+        <p className="serif-body text-lg md:text-xl text-ink mt-2 max-w-2xl">
+          the numbers were the <span className="italic">what</span>. two files are the <span className="italic">why</span>.
+        </p>
+      </header>
+
+      <div className="grid md:grid-cols-2 gap-3 md:gap-5">
+        <FileCard
+          num="01"
+          title="YOUR PATTERNS"
+          tag="about you"
+          lede="how you actually write in this chat."
+          bullets={youBullets}
+          price={PRICE_SINGLE}
+          tilt={-0.4}
+          onPick={() => setPicked('profiles')}
+        />
+        <FileCard
+          num="02"
+          title="THE DYNAMIC"
+          tag={`${personA.toLowerCase()} × ${personB.toLowerCase()}`}
+          lede={`what's actually going on between you two.`}
+          bullets={usBullets}
+          price={PRICE_SINGLE}
+          tilt={0.5}
+          onPick={() => setPicked('relationship')}
+        />
+      </div>
+
+      <MiniShare chatId={chatId} personA={personA} personB={personB} />
+    </section>
+  )
+}
+
+function FileCard({
+  num,
+  title,
+  tag,
+  lede,
+  bullets,
+  price,
+  tilt,
+  onPick,
+}: {
+  num: string
+  title: string
+  tag: string
+  lede: string
+  bullets: string[]
+  price: number
+  tilt: number
+  onPick: () => void
+}) {
+  return (
+    <button
+      onClick={onPick}
+      className="bg-white border-2 border-ink p-5 md:p-6 relative text-left hover:bg-pop-yellow transition-colors flex flex-col"
+      style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: `rotate(${tilt}deg)` }}
+    >
+      <span className="exhibit-label">FILE {num}</span>
+      <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
+        {tag}
+      </div>
+      <h4 className="mt-1 font-serif text-3xl md:text-5xl leading-[0.92] tracking-[-0.01em] text-ink">
+        {title}
+      </h4>
+      <p className="mt-2 serif-body text-sm md:text-base text-ink/80 leading-snug">
+        {lede}
+      </p>
+
+      <ul className="mt-3 space-y-1 border-t-2 border-ink/20 border-dashed pt-3 flex-1">
+        {bullets.map((b, i) => (
+          <li key={i} className="font-mono text-[11px] md:text-xs uppercase tracking-[0.06em] text-ink/80 flex gap-1.5 leading-snug">
+            <span className="text-ink/40 shrink-0">—</span>
+            <span>{b}</span>
+          </li>
+        ))}
+      </ul>
+
+      <div className="mt-4 flex items-baseline justify-between pt-3 border-t-2 border-ink">
+        <span className="font-mono text-[10px] uppercase tracking-[0.14em] font-bold">unlock</span>
+        <span className="font-serif text-3xl md:text-4xl leading-none">€{price}</span>
+      </div>
+    </button>
+  )
+}
+
+function MiniShare({ chatId, personA, personB }: { chatId: string | null; personA: string; personB: string }) {
+  const [copied, setCopied] = useState(false)
+  const canShare = Boolean(chatId)
+  const copyLink = async () => {
+    if (!chatId) return
+    const url = `${window.location.origin}/?scroll=${encodeURIComponent(chatId)}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      /* ignore */
+    }
+  }
+  void personA
+  return (
+    <button
+      onClick={copyLink}
+      disabled={!canShare}
+      className="w-full border-2 border-ink border-dashed bg-transparent px-5 py-3 flex items-center justify-between gap-3 hover:bg-white transition-colors disabled:opacity-40"
+    >
+      <span className="font-mono text-[11px] md:text-xs uppercase tracking-[0.16em] text-ink">
+        {copied ? '✓ copied · paste to ' : 'or send it to '}
+        <span className="font-bold">{personB.toLowerCase()}</span>
+      </span>
+      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/60">⎘</span>
+    </button>
+  )
+}
+
+function ShareBlock({ chatId, personA, personB }: { chatId: string | null; personA: string; personB: string }) {
+  const [state, setState] = useState<'idle' | 'copied' | 'error'>('idle')
+  const canShare = Boolean(chatId)
+
+  const copyLink = async () => {
+    if (!chatId) return
+    const url = `${window.location.origin}/?scroll=${encodeURIComponent(chatId)}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setState('copied')
+      setTimeout(() => setState('idle'), 2400)
+    } catch {
+      setState('error')
+      setTimeout(() => setState('idle'), 2400)
+    }
+  }
+
+  return (
+    <aside className="relative" style={{ transform: 'rotate(-0.4deg)' }}>
+      <div className="quote-box">
+        <span className="exhibit-label">EXHIBIT · SHARE THE TAPE</span>
+        <div className="flex flex-col md:flex-row gap-5 md:items-center mt-3">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-serif text-2xl md:text-4xl leading-tight tracking-tight mb-2 not-italic">
+              Send the scroll to {personB}.
+            </h4>
+            <p className="serif-body text-base leading-snug">
+              One link. They see the same numbers {personA} just saw — no signup, no app. Just the receipts.
+            </p>
+          </div>
+          <button
+            onClick={copyLink}
+            disabled={!canShare || state === 'copied'}
+            className="btn-pop shrink-0 self-start md:self-center disabled:opacity-40"
+          >
+            {state === 'copied' ? (
+              <>
+                <span aria-hidden>✓</span>
+                COPIED
+                <span className="text-[10px] font-mono opacity-70 ml-2">· paste it</span>
+              </>
+            ) : state === 'error' ? (
+              <>
+                <span aria-hidden>×</span>
+                CLIPBOARD BLOCKED
+              </>
+            ) : (
+              <>
+                <span aria-hidden>⎘</span>
+                COPY LINK
+                <span className="text-[10px] font-mono opacity-70 ml-2">· 1 TAP</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </aside>
   )
 }
 
@@ -687,17 +1008,11 @@ function fmtDayKey(key: string): string {
 const MODULE_TONES: Record<ModuleId, 'a' | 'b'> = {
   profiles: 'a',
   relationship: 'b',
-  highlights: 'b',
-  timeline: 'a',
-  entwicklung: 'a',
 }
 
 const MODULE_CTAS: Record<ModuleId, string> = {
-  profiles: 'x-ray them both',
+  profiles: 'the personal file',
   relationship: 'the diagnosis please',
-  highlights: 'the killer lines',
-  timeline: 'the whole movie',
-  entwicklung: 'spoilers please',
 }
 
 function InlineTeaser({
@@ -751,70 +1066,6 @@ function InlineTeaser({
   )
 }
 
-function BridgeCTA({
-  totalFindings,
-  balance,
-  onStart,
-  onBuy,
-}: {
-  totalFindings: number
-  balance: number
-  onStart: (m: ModuleId) => void
-  onBuy?: () => void
-}) {
-  const singleCost = MODULE_COSTS.profiles.cost
-  const bundleCost = 5
-  const canAffordSingle = balance >= singleCost
-  const canAffordBundle = balance >= bundleCost
-  const singleAction = canAffordSingle ? () => onStart('profiles') : onBuy
-  const bundleAction = canAffordBundle ? () => onStart('profiles') : onBuy
-
-  return (
-    <section className="relative my-20 max-w-5xl">
-      <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-2">→ paywall · spill the tea</div>
-      <h3 className="font-serif text-[16vw] md:text-[120px] leading-[0.85] tracking-[-0.01em] text-ink overflow-hidden whitespace-nowrap">
-        SPILL IT.
-      </h3>
-      <div className="grid md:grid-cols-2 gap-6 mt-6">
-        <div className="quote-box" style={{ transform: 'rotate(-0.4deg)' }}>
-          <span className="exhibit-label">EXHIBIT C: THE OFFER</span>
-          <p className="serif-body text-base mt-2">
-            <strong className="not-italic font-bold">{totalFindings} numbers</strong> were the skin. Five files are the skeleton scan: who you really are, what's really going on between you, which moments explain everything. No account. No subscription. One ticket per file — or the whole bundle at a discount.
-          </p>
-          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 mt-4">
-            profiles · vibe · evolution · highlights · timeline
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <button
-            onClick={bundleAction}
-            className="btn-pop relative justify-between text-left px-6 py-5"
-            style={{ fontSize: '24px' }}
-          >
-            <span>SPILL ALL · 5 FILES</span>
-            <span className="font-mono text-[11px] tracking-[0.14em]">
-              {canAffordBundle ? `${bundleCost} TICKETS` : `10 €`}
-            </span>
-            {!canAffordBundle && (
-              <span className="absolute -top-3 -right-3 sticker" style={{ transform: 'rotate(8deg)' }}>−25%</span>
-            )}
-          </button>
-          <button
-            onClick={singleAction}
-            className="inline-flex items-center justify-between gap-2 px-6 py-4 border-2 border-ink bg-white text-ink font-mono text-sm uppercase tracking-[0.12em] hover:bg-ink hover:text-pop-yellow transition-colors"
-            style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
-          >
-            <span>{canAffordSingle ? 'just the profiles first' : 'grab one ticket'}</span>
-            <span className="text-[10px] opacity-70">
-              {canAffordSingle ? `${singleCost} TICKET` : `${balance}/${singleCost}`}
-            </span>
-          </button>
-        </div>
-      </div>
-    </section>
-  )
-}
 
 function StickyBuyBar({
   balance,

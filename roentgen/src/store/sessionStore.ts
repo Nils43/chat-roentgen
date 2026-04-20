@@ -1,12 +1,6 @@
 import type { ParsedChat } from '../parser/types'
 import type { PrepareResult } from '../ai/profile'
-import type {
-  EntwicklungResult,
-  HighlightsResult,
-  ProfileResult,
-  RelationshipResult,
-  TimelineResult,
-} from '../ai/types'
+import type { ProfileResult, RelationshipResult } from '../ai/types'
 
 export interface SessionSnapshot {
   fileName: string | null
@@ -14,9 +8,6 @@ export interface SessionSnapshot {
   prepared: PrepareResult | null
   profiles: ProfileResult[] | null
   relationship: RelationshipResult | null
-  highlights: HighlightsResult | null
-  timeline: TimelineResult | null
-  entwicklung: EntwicklungResult | null
   savedAt: string
 }
 
