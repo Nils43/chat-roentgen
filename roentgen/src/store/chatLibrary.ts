@@ -69,7 +69,7 @@ function migrateLegacy(): ChatMeta[] {
       createdAt: parsed.savedAt ?? new Date().toISOString(),
       modulesDone: collectModules(parsed),
     }
-    saveSession(id, parsed as Omit<SessionSnapshot, 'savedAt'>)
+    void saveSession(id, parsed as Omit<SessionSnapshot, 'savedAt'>)
     localStorage.setItem(INDEX_KEY, JSON.stringify([meta]))
     localStorage.removeItem(LEGACY_SESSION_KEY)
     return [meta]
@@ -139,7 +139,7 @@ export const chatLibrary = {
   },
 
   remove(id: string): void {
-    clearSession(id)
+    void clearSession(id)
     update((list) => list.filter((m) => m.id !== id))
   },
 

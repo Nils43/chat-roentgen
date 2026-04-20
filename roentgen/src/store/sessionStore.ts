@@ -21,6 +21,9 @@ export interface SessionSnapshot {
 }
 
 const PREFIX = 'roentgen.chat.'
+const DB_NAME = 'roentgen'
+const DB_VERSION = 1
+const STORE = 'sessions'
 
 function keyFor(id: string): string {
   return `${PREFIX}${id}`
@@ -40,9 +43,93 @@ function reviveDates<T>(value: T): T {
   return value
 }
 
-export function loadSession(id: string): Partial<SessionSnapshot> | null {
+let dbPromise: Promise<IDBDatabase> | null = null
+
+function openDB(): Promise<IDBDatabase> {
+  if (dbPromise) return dbPromise
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION)
+    req.onupgradeneeded = () => {
+      const db = req.result
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE)
+      }
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+    req.onblocked = () => reject(new Error('IndexedDB open blocked'))
+  })
+  return dbPromise
+}
+
+function idbGet(key: string): Promise<string | undefined> {
+  return openDB().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key)
+        req.onsuccess = () => resolve(req.result as string | undefined)
+        req.onerror = () => reject(req.error)
+      }),
+  )
+}
+
+function idbPut(key: string, value: string): Promise<void> {
+  return openDB().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readwrite')
+        tx.objectStore(STORE).put(value, key)
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => reject(tx.error)
+        tx.onabort = () => reject(tx.error)
+      }),
+  )
+}
+
+function idbDelete(key: string): Promise<void> {
+  return openDB().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, 'readwrite')
+        tx.objectStore(STORE).delete(key)
+        tx.oncomplete = () => resolve()
+        tx.onerror = () => reject(tx.error)
+      }),
+  )
+}
+
+// One-time: copy any existing sessions from localStorage (old home) into IDB.
+let migrationPromise: Promise<void> | null = null
+function migrateFromLocalStorage(): Promise<void> {
+  if (migrationPromise) return migrationPromise
+  migrationPromise = (async () => {
+    try {
+      const keys: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k && k.startsWith(PREFIX)) keys.push(k)
+      }
+      for (const k of keys) {
+        const val = localStorage.getItem(k)
+        if (val == null) continue
+        try {
+          await idbPut(k, val)
+          localStorage.removeItem(k)
+        } catch (err) {
+          console.error('[sessionStore] migration failed for', k, err)
+        }
+      }
+    } catch (err) {
+      console.error('[sessionStore] migration scan failed:', err)
+    }
+  })()
+  return migrationPromise
+}
+
+export async function loadSession(id: string): Promise<Partial<SessionSnapshot> | null> {
   try {
-    const raw = localStorage.getItem(keyFor(id))
+    await migrateFromLocalStorage()
+    const raw = await idbGet(keyFor(id))
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<SessionSnapshot>
     return reviveDates(parsed)
@@ -51,11 +138,15 @@ export function loadSession(id: string): Partial<SessionSnapshot> | null {
   }
 }
 
-export function saveSession(id: string, snapshot: Omit<SessionSnapshot, 'savedAt'>): boolean {
+export async function saveSession(
+  id: string,
+  snapshot: Omit<SessionSnapshot, 'savedAt'>,
+): Promise<boolean> {
   try {
+    await migrateFromLocalStorage()
     const payload: SessionSnapshot = { ...snapshot, savedAt: new Date().toISOString() }
     const json = JSON.stringify(payload)
-    localStorage.setItem(keyFor(id), json)
+    await idbPut(keyFor(id), json)
     return true
   } catch (err) {
     console.error('[saveSession] failed:', (err as Error).message)
@@ -63,9 +154,9 @@ export function saveSession(id: string, snapshot: Omit<SessionSnapshot, 'savedAt
   }
 }
 
-export function clearSession(id: string): void {
+export async function clearSession(id: string): Promise<void> {
   try {
-    localStorage.removeItem(keyFor(id))
+    await idbDelete(keyFor(id))
   } catch {
     // ignore
   }

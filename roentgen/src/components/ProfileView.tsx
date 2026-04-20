@@ -1,7 +1,5 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useState } from 'react'
 import type { ProfileResult } from '../ai/types'
-import { chatLibrary } from '../store/chatLibrary'
-import { tokenStore, MODULE_COSTS } from '../tokens/store'
 
 interface Props {
   profiles: ProfileResult[]
@@ -18,83 +16,26 @@ const PERSON_COLORS = [
   { text: 'text-orange-400', bg: 'bg-orange-400', ring: 'ring-orange-400', dim: 'text-orange-400/60', glow: 'bg-orange-400/10' },
 ]
 
-export function ProfileView({ profiles, chatId, onGoToHighlights, onGoToRelationship, onOpenTokens }: Props) {
-  // subscribe to chatLibrary so unlock state updates re-render
-  const library = useSyncExternalStore(
-    (l) => chatLibrary.subscribe(l),
-    () => chatLibrary.get(),
-    () => chatLibrary.get(),
-  )
-  const meta = chatId ? library.find((m) => m.id === chatId) : undefined
-  const selfPerson = meta?.selfPerson ?? null
-  const unlocked = new Set(meta?.unlockedProfiles ?? [])
-
-  const setSelf = (person: string) => {
-    if (chatId) chatLibrary.setSelf(chatId, person)
-  }
-
-  const unlock = (person: string) => {
-    if (!chatId) return
-    if (!tokenStore.charge('profiles')) {
-      onOpenTokens?.()
-      return
-    }
-    chatLibrary.unlockProfile(chatId, person)
-  }
+export function ProfileView({ profiles, onGoToHighlights, onGoToRelationship }: Props) {
+  // tea profiles only the user themselves. Render the first (and only)
+  // result — the other participants are never analyzed.
+  const result = profiles[0]
 
   return (
     <div className="max-w-4xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-12">
       <header className="space-y-6">
         <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
-          files · personal portraits
+          files · your portrait
         </div>
-        <h2 className="font-serif text-[14vw] md:text-[120px] leading-[0.85] tracking-tight">
-          PROFILES
+        <h2 className="font-serif italic text-[14vw] md:text-[120px] leading-[0.85] tracking-tight">
+          you.
         </h2>
         <p className="serif-body text-base md:text-lg max-w-2xl mt-2">
-          An honest portrait for each person. No labels, no judgement — only what the chat shows. <strong className="not-italic font-bold">Your own profile is free.</strong>
+          An honest portrait — only for you. The other person didn't agree to be read, so I don't read them.
         </p>
       </header>
 
-      {chatId && !selfPerson && profiles.length > 1 && (
-        <div className="card" style={{ transform: 'rotate(-0.4deg)', boxShadow: '6px 6px 0 #0A0A0A' }}>
-          <span className="exhibit-label">EXHIBIT 00: WHO ARE YOU?</span>
-          <p className="serif-body text-base mt-2 mb-4">
-            Tell us who you are in this chat. Your own profile is free. The others cost 1 ticket each.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {profiles.map((p) => (
-              <button
-                key={p.profile.person}
-                onClick={() => setSelf(p.profile.person)}
-                className="btn-pop"
-              >
-                I AM {p.profile.person.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {profiles.map((result, i) => {
-        const person = result.profile.person
-        const isSelf = selfPerson === person
-        const isLocked = selfPerson != null && !isSelf && !unlocked.has(person)
-        return (
-          <div key={person} className="relative">
-            <ProfileCard result={result} colorIdx={i} />
-            {isLocked && <ProfileLock person={person} onUnlock={() => unlock(person)} balance={tokenStore.get().balance} />}
-            {isSelf && (
-              <span
-                className="absolute top-4 right-4 sticker sticker-tilt"
-                style={{ transform: 'rotate(4deg)' }}
-              >
-                ✦ THAT'S YOU
-              </span>
-            )}
-          </div>
-        )
-      })}
+      {result && <ProfileCard result={result} colorIdx={0} />}
 
       {onGoToRelationship && (
         <section className="card relative overflow-hidden text-center">
@@ -126,7 +67,7 @@ export function ProfileView({ profiles, chatId, onGoToHighlights, onGoToRelation
               The <span className="italic text-ink-muted">moments</span> that stick.
             </h3>
             <p className="serif-body text-base text-ink-muted max-w-xl mx-auto mb-6">
-              The messages that explain everything in hindsight — pulled out, decoded, placed in context.
+              The moments that say a lot — not loud, but dense. Pulled out, placed in context.
             </p>
             <button
               onClick={onGoToHighlights}
@@ -139,37 +80,7 @@ export function ProfileView({ profiles, chatId, onGoToHighlights, onGoToRelation
       )}
 
       <div className="text-center serif-body text-ink-muted italic pt-6 border-t border-line/40">
-        "This is a read of your chat — not a diagnosis. For real questions, always ask a professional."
-      </div>
-    </div>
-  )
-}
-
-function ProfileLock({ person, onUnlock, balance }: { person: string; onUnlock: () => void; balance: number }) {
-  const cost = MODULE_COSTS.profiles.cost
-  const canAfford = balance >= cost
-  return (
-    <div
-      className="absolute inset-0 z-10 flex items-center justify-center backdrop-blur-md"
-      style={{ background: 'rgba(255, 144, 187, 0.55)' }}
-    >
-      <div
-        className="card max-w-sm mx-4 text-center"
-        style={{ transform: 'rotate(-1deg)', boxShadow: '6px 6px 0 #0A0A0A' }}
-      >
-        <span className="exhibit-label">EXHIBIT · LOCKED</span>
-        <div className="font-serif text-3xl mt-3 mb-2 leading-tight">
-          {person.toUpperCase()}'S PROFILE
-        </div>
-        <p className="serif-body text-base mb-5 text-ink/80">
-          Who {person} really is — attachment style, communication patterns, what's behind the words. Names hidden locally, shown locally.
-        </p>
-        <button onClick={onUnlock} className="btn-pop w-full justify-center">
-          {canAfford ? `UNLOCK ${person.toUpperCase()}` : 'TOP UP TICKETS'}
-          <span className="text-[10px] font-mono opacity-70 ml-2">
-            {canAfford ? `· ${cost} TICKET` : `· ${balance}/${cost}`}
-          </span>
-        </button>
+        "A read, not a diagnosis. For the real stuff, see a professional."
       </div>
     </div>
   )

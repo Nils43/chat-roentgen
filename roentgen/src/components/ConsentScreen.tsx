@@ -34,7 +34,7 @@ export function ConsentScreen({
         <div className={`pill-pop mb-6 ${isFixture ? 'text-a' : 'text-b'}`}>
           <span className={`inline-block w-1.5 h-1.5 rounded-full animate-pulse-soft ${isFixture ? 'bg-a' : 'bg-b'}`} />
           <span className="font-mono uppercase tracking-[0.14em]">
-            {isFixture ? 'test mode · nothing leaves' : 'Decode is about to send slices to the AI'}
+            {isFixture ? 'test mode · nothing leaves' : 'tea is about to send slices to the AI'}
           </span>
         </div>
 
@@ -45,7 +45,7 @@ export function ConsentScreen({
         </h2>
 
         <p className="serif-body text-lg md:text-xl text-ink-muted mb-10">
-          So the AI can read you, Decode sends a handful of messages over. Here's exactly what goes — and what doesn't.
+          So the AI can read you, tea sends a handful of messages over. Here's exactly what goes — and what doesn't.
         </p>
 
         {/* The number block */}
@@ -84,7 +84,7 @@ export function ConsentScreen({
 
         {/* Trust reassurance — plain language */}
         <div className="bg-bg-surface/60 border border-line/60 rounded-xl p-5 mb-10">
-          <div className="label-mono mb-3 text-b">What Decode never does</div>
+          <div className="label-mono mb-3 text-b">What tea never does</div>
           <ul className="serif-body text-base md:text-lg text-ink space-y-2">
             <li>
               <span className="text-a">✓</span> Save your chat on our servers — no way.

@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tea · the tape</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --pink: #FF90BB;
+      --black: #0A0A0A;
+      --white: #FFFFFF;
+      --yellow: #FFE234;
+      --acid: #ECFD38;
+      --sky: #7CC9FF;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+    body {
+      background: var(--pink);
+      color: var(--black);
+      font-family: 'Courier Prime', monospace;
+      font-size: 15px;
+      line-height: 1.5;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Halftone print pattern over everything */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image: radial-gradient(rgba(10,10,10,0.5) 1px, transparent 1.5px);
+      background-size: 8px 8px;
+      opacity: 0.08;
+    }
+
+    /* ---- typography roles ---- */
+    .display { font-family: 'Bebas Neue', sans-serif; letter-spacing: -0.01em; line-height: 0.9; }
+    .italic-body { font-family: 'Courier Prime', monospace; font-style: italic; line-height: 1.5; }
+    .label-mono {
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+      font-weight: 700;
+    }
+    .kicker {
+      font-family: 'Courier Prime', monospace;
+      font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: rgba(10,10,10,0.6);
+    }
+
+    /* ---- mark (acid yellow highlighter) ---- */
+    .mark {
+      background-image: linear-gradient(
+        100deg,
+        rgba(255, 226, 52, 0) 0%,
+        var(--yellow) 6%,
+        var(--yellow) 94%,
+        rgba(255, 226, 52, 0.55) 100%
+      );
+      padding: 0 0.18em;
+      margin: 0 -0.08em;
+      color: var(--black);
+      display: inline-block;
+      transform: rotate(-0.3deg);
+    }
+
+    /* ---- card ---- */
+    .card {
+      background: var(--white);
+      border: 2px solid var(--black);
+      padding: 32px 28px;
+      box-shadow: 6px 6px 0 var(--black);
+      position: relative;
+    }
+
+    /* Exhibit label — the rotated black tab on every card */
+    .exhibit-label {
+      position: absolute;
+      top: -10px; left: 20px;
+      background: var(--black);
+      color: var(--white);
+      padding: 4px 10px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      transform: rotate(-2deg);
+      font-style: normal;
+      z-index: 2;
+    }
+
+    /* ---- sticker ---- */
+    .sticker {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 12px;
+      background: var(--yellow);
+      color: var(--black);
+      border: 1.5px solid var(--black);
+      box-shadow: 2px 2px 0 var(--black);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+    }
+
+    /* ---- pill-pop ---- */
+    .pill-pop {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 5px 11px;
+      background: var(--black);
+      color: var(--white);
+      font-family: 'Courier Prime', monospace;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    .pill-pop .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--yellow);
+      animation: pulse-soft 2.5s ease-in-out infinite;
+    }
+    @keyframes pulse-soft { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+    /* ---- btn-pop ---- */
+    .btn-pop {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 22px;
+      background: var(--yellow);
+      color: var(--black);
+      border: 2px solid var(--black);
+      box-shadow: 3px 3px 0 var(--black);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: all 160ms;
+      text-decoration: none;
+      user-select: none;
+    }
+    .btn-pop:hover:not(:disabled) {
+      background: var(--white);
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0 var(--black);
+    }
+    .btn-pop:active:not(:disabled) {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0 var(--black);
+    }
+    .btn-pop:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--black);
+      border: none;
+      padding: 10px 14px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-weight: 700;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+    .btn-ghost:hover { opacity: 1; }
+    .btn-ghost:disabled { opacity: 0.2; cursor: not-allowed; }
+
+    /* ---- black box (inverse card) ---- */
+    .black-box {
+      background: var(--black);
+      color: var(--white);
+      padding: 28px 24px;
+      box-shadow: 6px 6px 0 var(--black);
+      border: 2px solid var(--black);
+      position: relative;
+    }
+
+    /* ---- stage & rooms ---- */
+    #stage {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .room {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(20px, 4vw, 64px) clamp(16px, 4vw, 48px);
+      padding-top: 80px;
+      padding-bottom: 90px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 500ms ease;
+      overflow-y: auto;
+    }
+    .room.is-active { opacity: 1; pointer-events: auto; }
+    .room .card {
+      width: 100%;
+      max-width: 820px;
+      margin: auto;
+    }
+
+    /* Per-room card tilts — the receipts "tacked to the wall" feel */
+    .room[data-room="0"] .card { transform: rotate(-0.8deg); }
+    .room[data-room="1"] .card { transform: rotate(0.4deg); }
+    .room[data-room="2"] .card { transform: rotate(-0.5deg); }
+    .room[data-room="3"] .card { transform: rotate(0.8deg); }
+    .room[data-room="4"] .card { transform: rotate(-0.6deg); }
+    .room[data-room="5"] .card { transform: rotate(0.3deg); }
+    .room[data-room="6"] .card { transform: rotate(-0.9deg); }
+    .room[data-room="7"] .card { transform: rotate(0.5deg); }
+    .room[data-room="8"] .card { transform: rotate(-0.4deg); }
+    .room[data-room="9"] .card { transform: rotate(0.6deg); }
+    .room[data-room="10"] .card { transform: rotate(-0.7deg); }
+
+    /* ---- room content: hero word ---- */
+    .hero-word {
+      font-family: 'Bebas Neue', sans-serif;
+      line-height: 0.85;
+      letter-spacing: -0.01em;
+      color: var(--black);
+      font-size: clamp(72px, 14vw, 160px);
+      overflow: hidden;
+      white-space: nowrap;
+      margin: 12px 0 18px;
+    }
+
+    .meta-row {
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(10,10,10,0.6);
+      margin-bottom: 4px;
+    }
+
+    /* Room 0 — threshold */
+    .r-threshold .wordmark {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(140px, 26vw, 320px);
+      line-height: 0.85;
+      color: var(--black);
+      text-align: center;
+      letter-spacing: -0.02em;
+      padding: 20px 0 0;
+    }
+    .r-threshold .dot-mark {
+      display: inline-block;
+      background: var(--yellow);
+      padding: 0 0.1em;
+      margin-left: -0.04em;
+      border: 2px solid var(--black);
+    }
+    .r-threshold .sub {
+      text-align: center;
+      margin-top: 18px;
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: clamp(14px, 1.6vw, 18px);
+      color: var(--black);
+    }
+    .r-threshold .sticker {
+      position: absolute;
+      top: 20px; right: 16px;
+      transform: rotate(6deg);
+      font-size: 12px;
+    }
+
+    /* Room 1 — figure */
+    .figure-list { list-style: none; padding: 0; margin: 16px 0 0; }
+    .figure-list li {
+      padding: 14px 0;
+      border-bottom: 1px dashed rgba(10,10,10,0.3);
+    }
+    .figure-list li:last-child { border-bottom: none; }
+    .figure-list .trait {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(28px, 4vw, 40px);
+      line-height: 1;
+      letter-spacing: 0.02em;
+      color: var(--black);
+    }
+    .figure-list .note {
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: 14px;
+      color: rgba(10,10,10,0.72);
+      margin-top: 4px;
+    }
+
+    /* Room 2 — modes */
+    .modes-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 16px;
+    }
+    @media (max-width: 600px) { .modes-grid { grid-template-columns: 1fr; } }
+    .mode-card {
+      background: var(--pink);
+      border: 2px solid var(--black);
+      padding: 20px 18px;
+      position: relative;
+      box-shadow: 3px 3px 0 var(--black);
+    }
+    .mode-card .when {
+      font-family: 'Courier Prime', monospace;
+      font-size: 10px; letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--black); opacity: 0.6;
+      margin-bottom: 6px;
+    }
+    .mode-card .name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(30px, 4vw, 42px);
+      line-height: 1; margin-bottom: 8px;
+    }
+    .mode-card .desc {
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: 13px; line-height: 1.45;
+      color: var(--black);
+    }
+
+    /* Room 3 — voice rules */
+    .rules { list-style: none; padding: 0; margin: 16px 0 0; }
+    .rules li {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 14px;
+      padding: 14px 0;
+      border-bottom: 1px dashed rgba(10,10,10,0.3);
+    }
+    .rules .num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      line-height: 1;
+      color: var(--black);
+      opacity: 0.4;
+      padding-top: 2px;
+    }
+    .rules .rule {
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: clamp(15px, 1.8vw, 17px);
+      line-height: 1.5;
+      color: var(--black);
+    }
+
+    /* Room 4 — voice library */
+    .insights { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+    .insight {
+      background: var(--pink);
+      border: 2px solid var(--black);
+      padding: 16px 18px;
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: clamp(15px, 1.9vw, 19px);
+      line-height: 1.45;
+      box-shadow: 3px 3px 0 var(--black);
+      position: relative;
+    }
+    .insight:nth-child(1) { transform: rotate(-0.4deg); }
+    .insight:nth-child(2) { transform: rotate(0.3deg); }
+    .insight:nth-child(3) { transform: rotate(-0.2deg); }
+    .insight:nth-child(4) { transform: rotate(0.5deg); }
+
+    /* Room 5 — highlighter */
+    .r-highlighter .sentence {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(40px, 6vw, 72px);
+      line-height: 1.05;
+      letter-spacing: -0.01em;
+      margin: 14px 0 16px;
+      color: var(--black);
+    }
+    .highlight-sweep {
+      position: relative;
+      display: inline-block;
+      padding: 0 0.12em;
+      margin: 0 -0.04em;
+    }
+    .highlight-sweep::before {
+      content: '';
+      position: absolute;
+      inset: 2px 0;
+      background: var(--acid);
+      transform: scaleX(0);
+      transform-origin: left;
+      z-index: 0;
+    }
+    .room[data-room="5"].is-active .highlight-sweep::before {
+      animation: sweep 700ms cubic-bezier(.6,0,.2,1) 1000ms forwards;
+    }
+    .highlight-sweep > span { position: relative; z-index: 1; }
+    @keyframes sweep { to { transform: scaleX(1); } }
+
+    .r-highlighter .caption {
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgba(10,10,10,0.8);
+      max-width: 560px;
+    }
+
+    /* Room 6 — gate (interactive) */
+    .gate-prompt {
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: clamp(17px, 2.2vw, 21px);
+      line-height: 1.45;
+      margin: 14px 0 20px;
+    }
+    .gate-choices {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 600px) { .gate-choices { grid-template-columns: repeat(2, 1fr); } }
+    .gate-choice {
+      font-family: 'Courier Prime', monospace;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 14px 10px;
+      background: var(--pink);
+      border: 2px solid var(--black);
+      color: var(--black);
+      cursor: pointer;
+      transition: all 200ms;
+      font-weight: 700;
+    }
+    .gate-choice:hover:not(.is-picked) {
+      background: var(--white);
+      transform: translate(-1px, -1px);
+      box-shadow: 2px 2px 0 var(--black);
+    }
+    .gate-choice.is-picked {
+      background: var(--yellow);
+      box-shadow: 3px 3px 0 var(--black);
+    }
+    .gate-reveal {
+      opacity: 0;
+      transition: opacity 500ms ease;
+      padding-top: 18px;
+      border-top: 2px dashed rgba(10,10,10,0.3);
+    }
+    .gate-reveal.is-shown { opacity: 1; }
+    .gate-reveal .big {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(80px, 13vw, 140px);
+      line-height: 0.9;
+      color: var(--black);
+    }
+    .gate-reveal .caption {
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: 14px; line-height: 1.55;
+      color: rgba(10,10,10,0.8);
+      max-width: 520px;
+      margin-top: 8px;
+    }
+
+    /* Room 7 — refusal */
+    .r-refusal .black-box {
+      margin-top: 16px;
+      max-width: 620px;
+    }
+    .r-refusal .black-box .label-mono {
+      color: var(--acid);
+      display: block;
+      margin-bottom: 12px;
+    }
+    .r-refusal .black-box .body {
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: clamp(17px, 2.1vw, 22px);
+      line-height: 1.5;
+    }
+    .r-refusal .explain {
+      margin-top: 20px;
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(10,10,10,0.72);
+      max-width: 520px;
+    }
+
+    /* Room 8 — trust */
+    .trust-list { list-style: none; padding: 0; margin: 16px 0 0; counter-reset: t; }
+    .trust-list li {
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px dashed rgba(10,10,10,0.3);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    .trust-list li:last-child { border-bottom: none; }
+    .trust-list li::before {
+      counter-increment: t;
+      content: "0" counter(t);
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 28px;
+      color: var(--black);
+      opacity: 0.4;
+      line-height: 1;
+      padding-top: 2px;
+    }
+    .trust-list b {
+      font-family: 'Bebas Neue', sans-serif;
+      font-weight: 400;
+      font-size: 22px;
+      letter-spacing: 0.02em;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .trust-list span.label-mono {
+      background: var(--black);
+      color: var(--acid);
+      padding: 1px 6px;
+      font-size: 10px;
+    }
+
+    /* Room 9 — one rule */
+    .r-onerule .big-q {
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: clamp(22px, 3vw, 28px);
+      line-height: 1.3;
+      margin: 16px 0 18px;
+    }
+    .examples {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 600px) { .examples { grid-template-columns: 1fr; } }
+    .example {
+      background: var(--pink);
+      border: 2px solid var(--black);
+      padding: 14px 14px;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .example .q {
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: 14px;
+      line-height: 1.4;
+      flex: 1;
+    }
+    .example .a-no {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 0.04em;
+      color: var(--black);
+    }
+    .example .a-yes {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 20px;
+      letter-spacing: 0.04em;
+      color: var(--black);
+      background: var(--yellow);
+      padding: 0 6px;
+    }
+
+    /* Room 10 — close */
+    .r-close .outro {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(60px, 10vw, 120px);
+      line-height: 0.92;
+      letter-spacing: -0.02em;
+      color: var(--black);
+      margin-top: 12px;
+    }
+    .r-close .note {
+      font-family: 'Courier Prime', monospace;
+      font-style: italic;
+      font-size: 14px;
+      color: rgba(10,10,10,0.72);
+      margin-top: 14px;
+    }
+    .r-close .ctas {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+
+    /* ---- curtain for forced pause ---- */
+    #curtain {
+      position: fixed; inset: 0;
+      background: var(--black);
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 700ms cubic-bezier(.5,.0,.25,1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #curtain.is-open { opacity: 1; pointer-events: auto; }
+    #curtain .stamp {
+      font-family: 'Bebas Neue', sans-serif;
+      color: var(--yellow);
+      font-size: clamp(40px, 7vw, 80px);
+      border: 3px solid var(--yellow);
+      padding: 10px 24px;
+      letter-spacing: 0.1em;
+      transform: rotate(-6deg);
+      opacity: 0;
+    }
+    #curtain.is-open .stamp { animation: stamp-in 700ms ease forwards; }
+    @keyframes stamp-in {
+      0% { opacity: 0; transform: rotate(-6deg) scale(1.4); }
+      60% { opacity: 1; transform: rotate(-6deg) scale(0.94); }
+      100% { opacity: 1; transform: rotate(-6deg) scale(1); }
+    }
+
+    /* ---- HUD ---- */
+    #hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20;
+    }
+    #hud > * { pointer-events: auto; }
+
+    #top-bar {
+      position: absolute;
+      top: 16px; left: 16px; right: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    #bottom-bar {
+      position: absolute;
+      bottom: 16px; left: 16px; right: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    #counter {
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--black);
+    }
+    #counter .current { font-weight: 700; }
+    #counter .total { opacity: 0.45; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--pink); }
+    ::-webkit-scrollbar-thumb { background: var(--black); border: 2px solid var(--pink); }
+
+    ::selection { background: var(--yellow); color: var(--black); }
+  </style>
+</head>
+<body>
+
+  <div id="stage">
+
+    <!-- 01 — Threshold -->
+    <section class="room r-threshold" data-room="0" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 00: THE TAPE</span>
+        <span class="sticker">✦ OPEN ME</span>
+        <div class="wordmark">tea<span class="dot-mark">.</span></div>
+        <div class="sub">eleven exhibits · forced pauses · take it slow</div>
+      </div>
+    </section>
+
+    <!-- 02 — Figure -->
+    <section class="room r-figure" data-room="1" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 01: THE FIGURE</span>
+        <div class="meta-row">dossier · who is tea</div>
+        <div class="hero-word">THE FIGURE</div>
+        <ul class="figure-list">
+          <li>
+            <div class="trait">GENDERLESS.</div>
+            <div class="note">No avatar. No face. No mascot. Only voice.</div>
+          </li>
+          <li>
+            <div class="trait">SINGLE — NEVER BEEN.</div>
+            <div class="note">Feature, not bug. No projection, no sentiment.</div>
+          </li>
+          <li>
+            <div class="trait">OBSERVANT.</div>
+            <div class="note">Has watched you write, fight, love, ghost.</div>
+          </li>
+          <li>
+            <div class="trait">LEICHT AMÜSIERT.</div>
+            <div class="note">Rolls eyes with you — not at you. Never mean.</div>
+          </li>
+          <li>
+            <div class="trait">HARD. FACTUAL.</div>
+            <div class="note">Never "maybe." If tea doesn't know: <span class="mark">"keine Ahnung."</span></div>
+          </li>
+          <li>
+            <div class="trait">QUIET.</div>
+            <div class="note">Speaks when there's something to say. Otherwise, doesn't.</div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 03 — Modes -->
+    <section class="room r-modes" data-room="2" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 02: FOUR MODES</span>
+        <div class="meta-row">same tea · different weather</div>
+        <div class="hero-word">MODES</div>
+        <div class="modes-grid">
+          <div class="mode-card">
+            <div class="when">Default · most of the time</div>
+            <div class="name">READING</div>
+            <div class="desc">Quiet, precise, fact-based. tea delivers an observation. That's the baseline.</div>
+          </div>
+          <div class="mode-card">
+            <div class="when">When patterns are harmless</div>
+            <div class="name">TEASING</div>
+            <div class="desc">Dry. Light eye-roll. The friend who notices everything and says it anyway.</div>
+          </div>
+          <div class="mode-card">
+            <div class="when">When the insight stings</div>
+            <div class="name">CARING</div>
+            <div class="desc">Soft at the edges, hard in the fact. The data doesn't change. The tone does.</div>
+          </div>
+          <div class="mode-card">
+            <div class="when">When you're not okay</div>
+            <div class="name">GATEKEEPING</div>
+            <div class="desc">Firm. Non-negotiable. Loving. "It's 2am. We talk tomorrow."</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 — Voice -->
+    <section class="room r-voice" data-room="3" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 03: THE VOICE</span>
+        <div class="meta-row">six rules · read slow</div>
+        <div class="hero-word">RULES</div>
+        <ol class="rules">
+          <li><span class="num">01</span><span class="rule">Facts first. Opinion after. Never reversed.</span></li>
+          <li><span class="num">02</span><span class="rule">Short sentences. If one runs past 15 words, cut it.</span></li>
+          <li><span class="num">03</span><span class="rule">Never "maybe." Never "it seems." Uncertainty: <span class="mark">"keine Ahnung."</span></span></li>
+          <li><span class="num">04</span><span class="rule">Never "you should." Suggest an experiment. Or ask.</span></li>
+          <li><span class="num">05</span><span class="rule">Never "how does that make you feel?" That's therapy-speak.</span></li>
+          <li><span class="num">06</span><span class="rule">If something's unreadable, say so. Only you know what happened.</span></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- 05 — Voice library -->
+    <section class="room r-library" data-room="4" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 04: ON THE RECORD</span>
+        <div class="meta-row">four sentences · tea speaking</div>
+        <div class="hero-word">SAMPLES</div>
+        <div class="insights">
+          <div class="insight">"47 from you. 12 from him. That's the week."</div>
+          <div class="insight">"Pop quiz: who said <span class="mark">sorry</span> first? You. For the fifth time in a row."</div>
+          <div class="insight">"Tim uses 'haha' once in 847 messages. Today. To you."</div>
+          <div class="insight">"No analysis for this one. Sometimes it's just nothing."</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06 — Highlighter -->
+    <section class="room r-highlighter" data-room="5" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 05: THE MARK</span>
+        <div class="meta-row">signature · one stroke, one word</div>
+        <div class="hero-word">HIGHLIGHTER</div>
+        <div class="sentence">
+          You reply <span class="highlight-sweep"><span>4× faster</span></span> than tim. three months straight.
+        </div>
+        <div class="caption">
+          No avatar. No mascot. No logo pattern. One signature — an acid-yellow stroke behind one word, like a physical marker on a line. Max two per insight. If everything's marked, nothing is.
+        </div>
+      </div>
+    </section>
+
+    <!-- 07 — Gate (interactive) -->
+    <section class="room r-gate" data-room="6" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 06: THE GATE</span>
+        <div class="meta-row">interaction · earn the number</div>
+        <div class="hero-word">GUESS IT</div>
+        <div class="gate-prompt">
+          Before I tell you — how much faster does tim reply than you, on average?
+        </div>
+        <div class="gate-choices" id="gate-choices">
+          <button class="gate-choice" data-val="0.5">About same</button>
+          <button class="gate-choice" data-val="2">2× faster</button>
+          <button class="gate-choice" data-val="4">4× faster</button>
+          <button class="gate-choice" data-val="8">8× faster</button>
+        </div>
+        <div class="gate-reveal" id="gate-reveal">
+          <div class="label-mono" style="margin-bottom:6px; opacity:0.6;">Actual</div>
+          <div class="big" id="gate-answer">4×</div>
+          <div class="caption" id="gate-caption">
+            That's the Gate. Before a hard number, tea asks you to guess. Calibrates the impact. Turns you from consumer into participant. Skip is always one click away — otherwise it's a dark pattern.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 — Refusal -->
+    <section class="room r-refusal" data-room="7" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 07: REFUSAL</span>
+        <div class="meta-row">interaction · the no</div>
+        <div class="hero-word">NO.</div>
+        <div class="black-box">
+          <span class="label-mono">tea · 02:14</span>
+          <div class="body">
+            "You're asking me this for the third time today. The answer isn't going to change. Do something else for an hour."
+          </div>
+        </div>
+        <div class="explain">
+          Max once per user per month. More than that and it's condescending. Triggers: past 1am, same question 3+ times in a day, detected fight in the last 24h. Proves tea protects you — not just watches.
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 — Trust -->
+    <section class="room r-trust" data-room="8" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 08: NON-NEGOTIABLES</span>
+        <div class="meta-row">five rules · house style</div>
+        <div class="hero-word">TRUST</div>
+        <ul class="trust-list">
+          <li><span><b>TEA TAKES TIME.</b> Nothing lands before tea has "read." The pause is the product.</span></li>
+          <li><span><b>TEA ADMITS LIMITS.</b> "Den Teil versteh ich nicht." beats false authority.</span></li>
+          <li><span><b>TEA TAKES NO SIDES.</b> Both people get truths that sting. Never becomes a weapon in a breakup.</span></li>
+          <li><span><b>TEA SHOWS WHERE DATA LIVES.</b> A persistent <span class="label-mono">· local only</span> badge. Not buried in settings.</span></li>
+          <li><span><b>TEA HAS NO LOOPS.</b> No streaks. No badges. No "come back tomorrow." Visit-able, never notify-able.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 10 — One rule -->
+    <section class="room r-onerule" data-room="9" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 09: THE FILTER</span>
+        <div class="meta-row">one question · above all</div>
+        <div class="hero-word">WOULD TEA?</div>
+        <div class="big-q">Would tea do this? Run it through. If no → not the product.</div>
+        <div class="examples">
+          <div class="example"><div class="q">A rainbow loading spinner?</div><div class="a-no">NO</div></div>
+          <div class="example"><div class="q">Celebrate a streak?</div><div class="a-no">NEVER</div></div>
+          <div class="example"><div class="q">Ask "how was your day?"</div><div class="a-no">NOPE</div></div>
+          <div class="example"><div class="q">Send you to sleep at 2am?</div><div class="a-yes">YES</div></div>
+          <div class="example"><div class="q">Admit an error?</div><div class="a-yes">YES</div></div>
+          <div class="example"><div class="q">Say "the pattern is unclear"?</div><div class="a-yes">YES</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11 — Close -->
+    <section class="room r-close" data-room="10" aria-hidden="true">
+      <div class="card">
+        <span class="exhibit-label">EXHIBIT 99: END OF TAPE</span>
+        <div class="meta-row">that's the brief</div>
+        <div class="outro">THAT'S <span style="background: var(--yellow); padding: 0 0.08em;">TEA.</span></div>
+        <div class="note">Eleven exhibits. One voice. No loops.</div>
+        <div class="ctas">
+          <button class="btn-pop" id="restart-btn">
+            <span aria-hidden>↺</span> WALK THROUGH AGAIN
+          </button>
+          <button class="btn-pop" id="enter-btn" style="display:none;">
+            INTO YOUR CHAT →
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Curtain — the forced pause -->
+  <div id="curtain" aria-hidden="true">
+    <div class="stamp">PAUSE</div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div id="top-bar">
+      <button id="back-btn" class="btn-ghost" disabled aria-label="Previous">← BACK</button>
+      <div class="pill-pop"><span class="dot"></span><span>tea · the tape</span></div>
+    </div>
+    <div id="bottom-bar">
+      <div id="counter"><span class="current">01</span> <span class="total">/ 11</span></div>
+      <button id="next-btn" class="btn-pop" aria-label="Next">ENTER →</button>
+    </div>
+  </div>
+
+  <script>
+    const TOTAL = 11;
+    const PAUSE_MS = 1300;
+    const ROOM_LOCK_MS = 800;
+    let current = 0;
+    let locked = false;
+
+    const rooms = Array.from(document.querySelectorAll('.room'));
+    const curtain = document.getElementById('curtain');
+    const backBtn = document.getElementById('back-btn');
+    const nextBtn = document.getElementById('next-btn');
+    const counter = document.querySelector('#counter .current');
+    const restartBtn = document.getElementById('restart-btn');
+    const enterBtn = document.getElementById('enter-btn');
+
+    function paint() {
+      rooms.forEach((r, i) => {
+        r.classList.toggle('is-active', i === current);
+        r.setAttribute('aria-hidden', i !== current);
+      });
+      counter.textContent = String(current + 1).padStart(2, '0');
+      backBtn.disabled = current === 0;
+      if (current === 0) nextBtn.textContent = 'ENTER →';
+      else nextBtn.textContent = 'CONTINUE →';
+      nextBtn.style.display = current === TOTAL - 1 ? 'none' : '';
+    }
+
+    function lock(ms) {
+      locked = true;
+      nextBtn.disabled = true;
+      backBtn.disabled = true;
+      setTimeout(() => {
+        locked = false;
+        nextBtn.disabled = false;
+        backBtn.disabled = current === 0;
+      }, ms);
+    }
+
+    function go(delta) {
+      if (locked) return;
+      const target = current + delta;
+      if (target < 0 || target >= TOTAL) return;
+      locked = true;
+      nextBtn.disabled = true;
+      backBtn.disabled = true;
+      curtain.classList.add('is-open');
+      setTimeout(() => {
+        current = target;
+        paint();
+        curtain.classList.remove('is-open');
+        lock(ROOM_LOCK_MS);
+      }, PAUSE_MS);
+    }
+
+    nextBtn.addEventListener('click', () => go(1));
+    backBtn.addEventListener('click', () => go(-1));
+    restartBtn.addEventListener('click', () => {
+      if (locked) return;
+      locked = true;
+      curtain.classList.add('is-open');
+      setTimeout(() => {
+        current = 0;
+        paint();
+        curtain.classList.remove('is-open');
+        lock(ROOM_LOCK_MS);
+      }, PAUSE_MS);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        go(1);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        go(-1);
+      }
+    });
+
+    // Gate interaction
+    const gateChoices = document.getElementById('gate-choices');
+    const gateReveal = document.getElementById('gate-reveal');
+    const gateAnswer = document.getElementById('gate-answer');
+    const gateCaption = document.getElementById('gate-caption');
+    gateChoices.addEventListener('click', (e) => {
+      const btn = e.target.closest('.gate-choice');
+      if (!btn) return;
+      Array.from(gateChoices.children).forEach(c => c.classList.remove('is-picked'));
+      btn.classList.add('is-picked');
+      const guess = parseFloat(btn.dataset.val);
+      gateAnswer.textContent = '4×';
+      const diff = Math.abs(guess - 4);
+      let msg = "That's the Gate. Before a hard number, tea asks you to guess. Calibrates the impact. Turns you from consumer into participant.";
+      if (diff < 0.5) msg = "You called it. Not everyone does. " + msg;
+      else if (guess < 4) msg = "Higher than you thought. " + msg;
+      else msg = "Lower than you thought. " + msg;
+      gateCaption.textContent = msg;
+      gateReveal.classList.add('is-shown');
+    });
+
+    // Embed mode — swap restart for "into your chat"
+    const isEmbed = new URLSearchParams(location.search).get('embed') === '1';
+    if (isEmbed) {
+      restartBtn.style.display = 'none';
+      enterBtn.style.display = '';
+      enterBtn.addEventListener('click', () => {
+        window.parent.postMessage('tea-intro-done', '*');
+      });
+    }
+
+    paint();
+    lock(1100);
+  </script>
+</body>
+</html>

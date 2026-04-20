@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { HardFacts } from '../analysis/hardFacts'
 import { formatDuration } from '../analysis/hardFacts'
 import { interpretHardFacts } from '../analysis/interpretation'
@@ -7,7 +7,6 @@ import { SplitBar } from './charts/SplitBar'
 import { Heatmap } from './charts/Heatmap'
 import { EngagementCurve } from './charts/EngagementCurve'
 import { ReplyDistribution } from './charts/ReplyDistribution'
-import { PowerGauge } from './charts/PowerGauge'
 import { MODULE_COSTS, useTokenState, type ModuleId } from '../tokens/store'
 
 interface Props {
@@ -22,7 +21,6 @@ const PERSON_COLORS = ['text-a', 'text-b', 'text-blue-400', 'text-orange-400', '
 export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens }: Props) {
   const interpretations = interpretHardFacts(facts)
   const shareInterp = interpretations.find((i) => i.metric === 'share')
-  const deltaInterp = interpretations.find((i) => i.metric === 'delta')
   const { balance } = useTokenState()
   const personA = facts.perPerson[0]?.author ?? 'Person A'
   const personB = facts.perPerson[1]?.author ?? 'Person B'
@@ -84,430 +82,368 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens }:
         ? 'rose'
         : 'stayed steady'
 
-  return (
-    <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-12">
-      {/* Opener — RECEIPTS bleed */}
-      <header>
-        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-2">
-          intel · {personA.toLowerCase()} & {personB.toLowerCase()} · as of 04.18.2026
-        </div>
-        <h2 className="font-serif text-[20vw] md:text-[180px] leading-[0.85] tracking-[-0.01em] text-ink overflow-hidden whitespace-nowrap">
-          RECEIPTS
-        </h2>
-        <div className="quote-box mt-6 max-w-2xl" style={{ transform: 'rotate(-0.3deg)' }}>
-          <span className="exhibit-label">EXHIBIT 0: PREMISE</span>
-          <p className="serif-body text-base md:text-lg mt-2">
-            Honey. <strong className="not-italic font-bold">{facts.totalMessages.toLocaleString('en-US')} messages</strong> across <strong className="not-italic font-bold">{facts.durationDays} days</strong> between <span className="circled">{personA}</span> and <span className="circled">{personB}</span>. In a minute you'll be sharper than 90% of people reading their own chat.
-          </p>
-        </div>
-      </header>
+  type RoomDef =
+    | { kind: 'content'; id: string; render: () => ReactNode }
+    | { kind: 'gimmick'; stamp: string; sub?: string }
 
-      {/* Topline grid */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <Tile
-          label="Messages"
-          value={<CountUp value={facts.totalMessages} format={(n) => Math.round(n).toLocaleString('en-US')} />}
-        />
-        <Tile
-          label="Words"
-          value={<CountUp value={facts.totalWords} format={(n) => Math.round(n).toLocaleString('en-US')} />}
-        />
-        <Tile
-          label="Active days"
-          value={<CountUp value={facts.activeDays} format={(n) => Math.round(n).toLocaleString('en-US')} />}
-        />
-        <Tile
-          label="Emojis"
-          value={<CountUp value={facts.totalEmojis} format={(n) => Math.round(n).toLocaleString('en-US')} />}
-        />
-      </section>
-
-      <Whisper>every number below is real. nothing polished, nothing invented.</Whisper>
-
-      {/* Split: message distribution */}
-      <Section
-        kicker="01 · Distribution"
-        title="Who writes more?"
-        body={shareInterp?.body}
-      >
-        <SplitBar perPerson={facts.perPerson} metric="share" label="Share of messages" />
-        <div className="mt-10">
-          <SplitBar perPerson={facts.perPerson} metric="words" label="Share of words" />
-        </div>
-      </Section>
-
-      <InlineTeaser
-        finding={`${shareLeader} sends ${Math.round(shareLeaderPct)}% of the messages.`}
-        question="Who actually puts more in — and who keeps the closeness? The vibe read shows it."
-        moduleId="relationship"
-        balance={balance}
-        onStart={handleModule}
-        onBuy={onOpenTokens}
-      />
-
-      {/* Response times */}
-      <Section
-        kicker="02 · Speed"
-        title="Who replies how fast?"
-        body={interpretations.find((i) => i.metric.startsWith('reply:'))?.body}
-      >
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-10">
-          {facts.perPerson.map((p, i) => (
-            <Tile
-              key={p.author}
-              label={`${p.author} · typical`}
-              accent={PERSON_COLORS[i % PERSON_COLORS.length]}
-              value={formatDuration(p.medianReplyMs)}
-            />
-          ))}
-          {facts.perPerson.length === 2 && <div className="hidden md:block" />}
-        </div>
-        <ReplyDistribution perPerson={facts.perPerson} />
-      </Section>
-
-      {/* Initiation & questions */}
-      <Section
-        kicker="03 · Initiative"
-        title="Who thinks of the other?"
-        body={interpretations.find((i) => i.metric.startsWith('init:'))?.body}
-      >
-        <SplitBar
-          perPerson={facts.perPerson}
-          metric="initiation"
-          label={`First message after a pause · ${facts.perPerson.reduce((s, p) => s + p.initiations, 0)} times`}
-        />
-        <div className="mt-10 grid md:grid-cols-2 gap-4">
-          {facts.perPerson.map((p, i) => (
-            <div key={p.author} className="bg-bg-surface rounded-xl p-5">
-              <div className="label-mono mb-1">Questions</div>
-              <div className="flex items-baseline gap-3">
-                <span className={`metric-num text-3xl ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>
-                  {(p.questionRatio * 100).toFixed(0)}%
-                </span>
-                <span className="font-sans text-sm text-ink-muted">of messages · {p.author}</span>
-              </div>
+  const rooms: RoomDef[] = [
+    {
+      kind: 'content',
+      id: 'opener',
+      render: () => (
+        <>
+          <header>
+            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-2">
+              intel · {personA.toLowerCase()} & {personB.toLowerCase()} · filed
             </div>
-          ))}
-        </div>
-      </Section>
-
-      <InlineTeaser
-        finding={`${fasterPerson} replies faster than ${slowerPerson}.`}
-        question={`What's behind the speed gap? The profiles show who ${fasterPerson} and ${slowerPerson} really are.`}
-        moduleId="profiles"
-        balance={balance}
-        onStart={handleModule}
-        onBuy={onOpenTokens}
-      />
-
-      {/* Hedges & emoji */}
-      <Section
-        kicker="04 · How they write"
-        title="Words, emojis, hedges"
-        body={interpretations.find((i) => i.metric.startsWith('hedge:'))?.body ?? interpretations.find((i) => i.metric.startsWith('emoji:'))?.body}
-      >
-        <div className="grid md:grid-cols-2 gap-4">
-          {facts.perPerson.map((p, i) => (
-            <div key={p.author} className="bg-bg-surface rounded-xl p-6 space-y-5">
-              <div className={`font-sans ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
-              <MiniRow label="Avg words per message" value={p.avgWords.toFixed(1)} />
-              <MiniRow label={'Soft words ("maybe", "actually")'} value={`${(p.hedgeRatio * 100).toFixed(0)}%`} />
-              <MiniRow label="Emojis per message" value={p.emojiPerMsg.toFixed(2)} />
-              {p.topEmojis.length > 0 && (
-                <div>
-                  <div className="label-mono mb-2">Top emojis</div>
-                  <div className="flex gap-3 text-2xl">
-                    {p.topEmojis.map((e) => (
-                      <span key={e.emoji} title={`${e.count}×`}>
-                        {e.emoji}
-                      </span>
-                    ))}
+            <h2 className="font-serif text-[20vw] md:text-[180px] leading-[0.85] tracking-[-0.01em] text-ink overflow-hidden whitespace-nowrap">
+              RECEIPTS
+            </h2>
+          </header>
+          <div className="quote-box mt-6 max-w-2xl" style={{ transform: 'rotate(-0.3deg)' }}>
+            <span className="exhibit-label">EXHIBIT 0: PREMISE</span>
+            <p className="serif-body text-base md:text-lg mt-2">
+              Honey. <strong className="not-italic font-bold">{facts.totalMessages.toLocaleString('en-US')} messages</strong> across <strong className="not-italic font-bold">{facts.durationDays} days</strong> between <span className="circled">{personA}</span> and <span className="circled">{personB}</span>. Ten findings coming up — one per room.
+            </p>
+          </div>
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-8">
+            <Tile label="Messages" value={<CountUp value={facts.totalMessages} format={(n) => Math.round(n).toLocaleString('en-US')} />} />
+            <Tile label="Words" value={<CountUp value={facts.totalWords} format={(n) => Math.round(n).toLocaleString('en-US')} />} />
+            <Tile label="Active days" value={<CountUp value={facts.activeDays} format={(n) => Math.round(n).toLocaleString('en-US')} />} />
+            <Tile label="Emojis" value={<CountUp value={facts.totalEmojis} format={(n) => Math.round(n).toLocaleString('en-US')} />} />
+          </section>
+        </>
+      ),
+    },
+    { kind: 'gimmick', stamp: 'TEN FINDINGS', sub: 'no judgement · just receipts' },
+    {
+      kind: 'content',
+      id: 'distribution',
+      render: () => (
+        <Section kicker="01 · Distribution" title="Who writes more?" body={shareInterp?.body}>
+          <SplitBar perPerson={facts.perPerson} metric="share" label="Share of messages" />
+          <div className="mt-10">
+            <SplitBar perPerson={facts.perPerson} metric="words" label="Share of words" />
+          </div>
+        </Section>
+      ),
+    },
+    {
+      kind: 'content',
+      id: 'speed',
+      render: () => (
+        <Section kicker="02 · Speed" title="Who replies how fast?" body={interpretations.find((i) => i.metric.startsWith('reply:'))?.body}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-10">
+            {facts.perPerson.map((p, i) => (
+              <Tile
+                key={p.author}
+                label={`${p.author} · typical`}
+                accent={PERSON_COLORS[i % PERSON_COLORS.length]}
+                value={formatDuration(p.medianReplyMs)}
+              />
+            ))}
+            {facts.perPerson.length === 2 && <div className="hidden md:block" />}
+          </div>
+          <ReplyDistribution perPerson={facts.perPerson} />
+        </Section>
+      ),
+    },
+    {
+      kind: 'content',
+      id: 'initiative',
+      render: () => (
+        <Section kicker="03 · Initiative" title="Who thinks of the other?" body={interpretations.find((i) => i.metric.startsWith('init:'))?.body}>
+          <SplitBar
+            perPerson={facts.perPerson}
+            metric="initiation"
+            label={`First message after a pause · ${facts.perPerson.reduce((s, p) => s + p.initiations, 0)} times`}
+          />
+          <div className="mt-10 grid md:grid-cols-2 gap-4">
+            {facts.perPerson.map((p, i) => (
+              <div key={p.author} className="bg-bg-surface rounded-xl p-5">
+                <div className="label-mono mb-1">Questions</div>
+                <div className="flex items-baseline gap-3">
+                  <span className={`metric-num text-3xl ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>
+                    {(p.questionRatio * 100).toFixed(0)}%
+                  </span>
+                  <span className="font-sans text-sm text-ink-muted">of messages · {p.author}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      ),
+    },
+    { kind: 'gimmick', stamp: 'PLOT THICKENS', sub: 'keep going' },
+    {
+      kind: 'content',
+      id: 'howwrite',
+      render: () => (
+        <Section kicker="04 · How they write" title="Words, emojis, hedges" body={interpretations.find((i) => i.metric.startsWith('hedge:'))?.body ?? interpretations.find((i) => i.metric.startsWith('emoji:'))?.body}>
+          <div className="grid md:grid-cols-2 gap-4">
+            {facts.perPerson.map((p, i) => (
+              <div key={p.author} className="bg-bg-surface rounded-xl p-6 space-y-5">
+                <div className={`font-sans ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
+                <MiniRow label="Avg words per message" value={p.avgWords.toFixed(1)} />
+                <MiniRow label={'Soft words ("maybe", "actually")'} value={`${(p.hedgeRatio * 100).toFixed(0)}%`} />
+                <MiniRow label="Emojis per message" value={p.emojiPerMsg.toFixed(2)} />
+                {p.topEmojis.length > 0 && (
+                  <div>
+                    <div className="label-mono mb-2">Top emojis</div>
+                    <div className="flex gap-3 text-2xl">
+                      {p.topEmojis.map((e) => (
+                        <span key={e.emoji} title={`${e.count}×`}>{e.emoji}</span>
+                      ))}
+                    </div>
                   </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Section>
+      ),
+    },
+    {
+      kind: 'content',
+      id: 'rhythm',
+      render: () => (
+        <Section kicker="05 · Rhythm" title="When do they write?" body={`Most active day: ${fmtDayKey(facts.peakDay.date)} with ${facts.peakDay.count} messages. Messages sent on ${facts.activeDays} of ${facts.durationDays} days.`}>
+          <Heatmap matrix={facts.heatmap} />
+        </Section>
+      ),
+    },
+    {
+      kind: 'content',
+      id: 'arc',
+      render: () => (
+        <Section kicker="06 · Arc" title="How much was written — over time?" body="Each line a month, every tall spike a weekend you couldn't stop. Is it going up, holding steady, or quieting down?">
+          <EngagementCurve facts={facts} />
+        </Section>
+      ),
+    },
+    { kind: 'gimmick', stamp: 'NOW IT GETS SPICY', sub: 'nobody dares look at these' },
+    {
+      kind: 'content',
+      id: 'latenight',
+      render: () => (
+        <Section kicker="08 · After midnight" title="Who writes while the world sleeps?" body="11pm to 5am. The daytime facade drops. What's written now carries different weight.">
+          <div className="grid grid-cols-2 gap-3 md:gap-4">
+            {facts.perPerson.map((p, i) => (
+              <Tile
+                key={p.author}
+                label={`${p.author} · late`}
+                accent={PERSON_COLORS[i % PERSON_COLORS.length]}
+                value={`${p.lateNightCount} (${Math.round(p.lateNightRatio * 100)}%)`}
+              />
+            ))}
+          </div>
+        </Section>
+      ),
+    },
+    {
+      kind: 'content',
+      id: 'bursts',
+      render: () => (
+        <Section kicker="09 · Bursts" title="Who spams a run of messages without a reply?" body="Three or more messages in a row before the other person responds. Bursts say a lot — urgency, worry, need, pressure.">
+          <div className="grid grid-cols-2 gap-3 md:gap-4">
+            {facts.perPerson.map((p, i) => (
+              <div key={p.author} className="bg-bg-surface rounded-xl p-5">
+                <div className={`label-mono mb-2 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
+                <div className="metric-num text-2xl mb-1">{p.burstCount}</div>
+                <div className="text-sm text-ink-muted">
+                  Burst sequences · longest: <span className="text-ink">{p.longestBurst}</span> messages in a row
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      ),
+    },
+    ...(drift.firstHalfLeader && drift.secondHalfLeader
+      ? [
+          {
+            kind: 'content' as const,
+            id: 'shift',
+            render: () => (
+              <Section kicker="10 · Shift" title="Who started — back then vs. now?" body="Whoever sends the first message after a pause is the one holding the contact. When that changes, the relationship is shifting too.">
+                <div className="grid grid-cols-2 gap-3 md:gap-4">
+                  <Tile label="First half · leader" value={`${drift.firstHalfLeader} (${Math.round(drift.firstHalfShare * 100)}%)`} />
+                  <Tile
+                    label="Second half · leader"
+                    value={`${drift.secondHalfLeader} (${Math.round(drift.secondHalfShare * 100)}%)`}
+                    accent={drift.swap ? 'text-b' : undefined}
+                  />
+                </div>
+                <p className="serif-body text-base text-ink-muted mt-4">
+                  {drift.swap
+                    ? `Initiative flipped: first ${drift.firstHalfLeader}, now ${drift.secondHalfLeader}.`
+                    : `${drift.firstHalfLeader}'s initiative ${driftDirection} by ${Math.abs(driftDeltaPct)} points.`}
+                </p>
+              </Section>
+            ),
+          },
+        ]
+      : []),
+    { kind: 'gimmick', stamp: "SPILL IT.", sub: 'the real read starts now' },
+    {
+      kind: 'content',
+      id: 'paywall',
+      render: () => (
+        <>
+          <BridgeCTA totalFindings={10} balance={balance} onStart={handleModule} onBuy={onOpenTokens} />
+          <section className="relative mt-12 space-y-10">
+            <div className="space-y-5">
+              <h3 className="font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight">
+                Go <span className="gradient-text">deeper</span>.
+              </h3>
+              <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl">
+                Who {personA} and {personB} really are, what's going on between you, and which moments explain everything.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <LockedCard number="02" moduleId="profiles" tone="a" emoji="🧠" title="Who's who?" subtitle="A portrait of each — no judgement"
+                lines={[
+                  `${personA}: often comes off reserved, apologizes a lot — what that actually means …`,
+                  `${personB}: needs closeness, reacts to distance — shows up as …`,
+                  `When ${personA} breaks character: usually late at night, when …`,
+                ]}
+                balance={balance} onStart={handleModule} onBuy={onOpenTokens}
+              />
+              <LockedCard number="03" moduleId="relationship" tone="a" emoji="🔗" title="What's going on between you?" subtitle="Closeness, distance, unwritten rules"
+                lines={[
+                  `${personA} structurally does more — how wide the real gap actually is …`,
+                  `One thing you never talk about — even though it keeps popping up …`,
+                  `Who leads, who follows — and how often that flips …`,
+                ]}
+                balance={balance} onStart={handleModule} onBuy={onOpenTokens}
+              />
+              <LockedCard number="04" moduleId="entwicklung" tone="a" emoji="📈" title="How has it changed?" subtitle="Chapters, turning points, what flipped"
+                lines={[
+                  'The first three months light, playful — at one point it tipped …',
+                  `One particular day changed everything: reply times jumped from minutes to hours. The reason …`,
+                  'Where you stand right now: noticeably cooler. The signs …',
+                ]}
+                balance={balance} onStart={handleModule} onBuy={onOpenTokens}
+              />
+              <LockedCard number="05" moduleId="highlights" tone="b" emoji="💥" title="The moments that explain everything" subtitle="Lines that land — silence that speaks"
+                lines={[
+                  `"I think I'm too much right now" — ${personA} at 11:41pm. What the line actually means …`,
+                  `47 hours of silence after a message from ${personB}. Why the silence itself is the signal …`,
+                  'The moment at 2:14 am where the facade drops — and why …',
+                ]}
+                balance={balance} onStart={handleModule} onBuy={onOpenTokens} featured
+              />
+              <LockedCard number="06" moduleId="timeline" tone="a" emoji="🌀" title="Your story at a glance" subtitle="The whole chat in one arc"
+                lines={[
+                  'The warmth between you: peaked in February, noticeably cooler today …',
+                  'Four clear chapters — two of them with a crisp start …',
+                  'One image that sums up your entire story …',
+                ]}
+                balance={balance} onStart={handleModule} onBuy={onOpenTokens} className="md:col-span-2"
+              />
+            </div>
+          </section>
+        </>
+      ),
+    },
+  ]
+
+  const [roomIdx, setRoomIdx] = useState(0)
+  const [curtain, setCurtain] = useState(false)
+  const [curtainStamp, setCurtainStamp] = useState('FILED')
+
+  const TRANSITION_STAMPS = ['FILED ✓', 'NEXT EXHIBIT', 'KEEP GOING', 'READ', 'HOLD UP']
+
+  const go = (delta: number) => {
+    const target = roomIdx + delta
+    if (target < 0 || target >= rooms.length) return
+    setCurtainStamp(TRANSITION_STAMPS[Math.floor(Math.random() * TRANSITION_STAMPS.length)])
+    setCurtain(true)
+    setTimeout(() => {
+      setRoomIdx(target)
+      setCurtain(false)
+    }, 900)
+  }
+
+  const currentRoom = rooms[roomIdx]
+  const progressPct = Math.round(((roomIdx + 1) / rooms.length) * 100)
+
+  return (
+    <div className="relative min-h-[calc(100vh-80px)]">
+      {/* Curtain transition */}
+      {curtain && (
+        <div
+          className="fixed inset-0 z-[55] bg-black flex items-center justify-center animate-fade-in"
+          style={{ animation: 'fadeIn 180ms ease forwards' }}
+        >
+          <div
+            className="font-serif text-pop-yellow border-4 border-pop-yellow px-6 py-3 text-5xl md:text-7xl tracking-[0.08em]"
+            style={{ transform: 'rotate(-6deg)', animation: 'popIn 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both' }}
+          >
+            {curtainStamp}
+          </div>
+        </div>
+      )}
+
+      {/* Progress strip */}
+      <div className="sticky top-[52px] z-20 bg-bg/95 backdrop-blur border-b-2 border-ink">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-2 flex items-center justify-between gap-4">
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink">
+            <span className="font-bold">{String(roomIdx + 1).padStart(2, '0')}</span>
+            <span className="opacity-50"> / {String(rooms.length).padStart(2, '0')}</span>
+            <span className="opacity-50 hidden md:inline ml-3">· {currentRoom.kind === 'content' ? currentRoom.id : 'intermission'}</span>
+          </div>
+          <div className="flex-1 h-1 bg-ink/10 relative">
+            <div className="absolute inset-y-0 left-0 bg-ink transition-all duration-500" style={{ width: `${progressPct}%` }} />
+          </div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 hidden md:block">{progressPct}%</div>
+        </div>
+      </div>
+
+      {/* Room content */}
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 pb-32">
+        {currentRoom.kind === 'gimmick' ? (
+          <div className="min-h-[60vh] flex items-center justify-center py-12">
+            <div className="text-center">
+              <div
+                className="inline-block font-serif text-ink border-4 border-ink px-6 py-3 text-5xl md:text-8xl tracking-[0.04em] bg-pop-yellow"
+                style={{ transform: 'rotate(-3deg)', boxShadow: '8px 8px 0 #0A0A0A', animation: 'popIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both' }}
+              >
+                {currentRoom.stamp}
+              </div>
+              {currentRoom.sub && (
+                <div className="mt-8 font-mono italic text-base md:text-lg text-ink-muted">
+                  {currentRoom.sub}
                 </div>
               )}
             </div>
-          ))}
-        </div>
-      </Section>
+          </div>
+        ) : (
+          <div className="space-y-8 animate-fade-in">{currentRoom.render()}</div>
+        )}
+      </div>
 
-      {/* Heatmap */}
-      <Section
-        kicker="05 · Rhythm"
-        title="When do they write?"
-        body={`Most active day: ${fmtDayKey(facts.peakDay.date)} with ${facts.peakDay.count} messages. Messages sent on ${facts.activeDays} of ${facts.durationDays} days.`}
-      >
-        <Heatmap matrix={facts.heatmap} />
-      </Section>
-
-      <InlineTeaser
-        finding={`${lateLeader} sends ${lateLeaderCount} messages after midnight — ${lateLeaderPct}% of all messages.`}
-        question={`Things that come out late at night that would never be said during the day? The highlights show exactly those moments.`}
-        moduleId="highlights"
-        balance={balance}
-        onStart={handleModule}
-        onBuy={onOpenTokens}
-      />
-
-      <InlineTeaser
-        finding={`${hedgeLeader} softens ${hedgePct}% of their messages — "maybe", "actually", "I think".`}
-        question={`What's behind those soft words — the portrait of ${hedgeLeader} has the answer.`}
-        moduleId="profiles"
-        balance={balance}
-        onStart={handleModule}
-        onBuy={onOpenTokens}
-      />
-
-      {/* Engagement curve */}
-      <Section
-        kicker="06 · Arc"
-        title="How much was written — over time?"
-        body="Each line a month, every tall spike a weekend you couldn't stop. Is it going up, holding steady, or quieting down?"
-      >
-        <EngagementCurve facts={facts} />
-      </Section>
-
-      <InlineTeaser
-        finding={`Most active day: ${fmtDayKey(facts.peakDay.date)} with ${facts.peakDay.count} messages. Quietest stretch: ${facts.longestSilenceDays} days of silence.`}
-        question="What really happened between the peaks and the dips — the timeline shows it."
-        moduleId="timeline"
-        balance={balance}
-        onStart={handleModule}
-        onBuy={onOpenTokens}
-      />
-
-      <InlineTeaser
-        finding={`${burstLeader} sometimes fires off ${burstLongest} messages in a row without waiting for a reply — ${burstCount} times total.`}
-        question={`What drives that "keep typing without an answer" mode? The portrait of ${burstLeader} makes it clear.`}
-        moduleId="profiles"
-        balance={balance}
-        onStart={handleModule}
-        onBuy={onOpenTokens}
-      />
-
-      <InlineTeaser
-        finding={`Initiative ${driftDirection}: first half it was ${Math.round(drift.firstHalfShare * 100)}%, second half ${Math.round(drift.secondHalfShare * 100)}%.`}
-        question="When that flipped — and why? The evolution module shows exactly the moment."
-        moduleId="entwicklung"
-        balance={balance}
-        onStart={handleModule}
-        onBuy={onOpenTokens}
-      />
-
-      {/* Power score */}
-      <Section
-        kicker="07 · Who gives more?"
-        title="Effort, compared"
-        body={
-          deltaInterp?.body ??
-          "This measures who invests more in the chat: volume, first message after pauses, response speed. Whoever gives less is often the more laid-back one. No judgement — just a comparison."
-        }
-      >
-        <PowerGauge perPerson={facts.perPerson} />
-      </Section>
-
-      <Whisper>now it gets spicy. the next three are the ones nobody dares to look at.</Whisper>
-
-      {/* 08 Late-night */}
-      <Section
-        kicker="08 · After midnight"
-        title="Who writes while the world sleeps?"
-        body="11pm to 5am. The daytime facade drops. What's written now carries different weight."
-      >
-        <div className="grid grid-cols-2 gap-3 md:gap-4">
-          {facts.perPerson.map((p, i) => (
-            <Tile
-              key={p.author}
-              label={`${p.author} · late`}
-              accent={PERSON_COLORS[i % PERSON_COLORS.length]}
-              value={`${p.lateNightCount} (${Math.round(p.lateNightRatio * 100)}%)`}
-            />
-          ))}
-        </div>
-      </Section>
-
-      <InlineTeaser
-        finding={`${lateLeader} sends ${lateLeaderCount} messages between 11pm and 5am — ${lateLeaderPct}% of all messages.`}
-        question="Which lines actually fell at night — and what they give away — the highlights have them."
-        moduleId="highlights"
-        balance={balance}
-        onStart={handleModule}
-        onBuy={onOpenTokens}
-      />
-
-      {/* 09 Bursts */}
-      <Section
-        kicker="09 · Bursts"
-        title="Who spams a run of messages without a reply?"
-        body="Three or more messages in a row before the other person responds. Bursts say a lot — urgency, worry, need, pressure."
-      >
-        <div className="grid grid-cols-2 gap-3 md:gap-4">
-          {facts.perPerson.map((p, i) => (
-            <div key={p.author} className="bg-bg-surface rounded-xl p-5">
-              <div className={`label-mono mb-2 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
-              <div className="metric-num text-2xl mb-1">{p.burstCount}</div>
-              <div className="text-sm text-ink-muted">
-                Burst sequences · longest: <span className="text-ink">{p.longestBurst}</span> messages in a row
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <InlineTeaser
-        finding={
-          burstLongest >= 3
-            ? `${burstLeader} once fires off ${burstLongest} messages in a row — no reply in between. ${burstCount} bursts total.`
-            : `Bursts barely happen here — the rhythm is even.`
-        }
-        question={`What drives ${burstLeader} in those moments is in the profile.`}
-        moduleId="profiles"
-        balance={balance}
-        onStart={handleModule}
-        onBuy={onOpenTokens}
-      />
-
-      {/* 10 Initiation Drift */}
-      {drift.firstHalfLeader && drift.secondHalfLeader && (
-        <>
-          <Section
-            kicker="10 · Shift"
-            title="Who started — back then vs. now?"
-            body="Whoever sends the first message after a pause is the one holding the contact. When that changes, the relationship is shifting too."
+      {/* Navigation bar */}
+      <div className="fixed bottom-14 left-0 right-0 z-30 pointer-events-none">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between gap-4 pointer-events-none">
+          <button
+            onClick={() => go(-1)}
+            disabled={roomIdx === 0 || curtain}
+            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-ink font-mono text-xs uppercase tracking-[0.16em] font-bold disabled:opacity-30"
+            style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
           >
-            <div className="grid grid-cols-2 gap-3 md:gap-4">
-              <Tile
-                label="First half · leader"
-                value={`${drift.firstHalfLeader} (${Math.round(drift.firstHalfShare * 100)}%)`}
-              />
-              <Tile
-                label="Second half · leader"
-                value={`${drift.secondHalfLeader} (${Math.round(drift.secondHalfShare * 100)}%)`}
-                accent={drift.swap ? 'text-b' : undefined}
-              />
-            </div>
-          </Section>
-
-          <InlineTeaser
-            finding={
-              drift.swap
-                ? `Initiative flipped: first ${drift.firstHalfLeader}, now ${drift.secondHalfLeader}.`
-                : `${drift.firstHalfLeader}'s initiative ${driftDirection} by ${Math.abs(driftDeltaPct)} points.`
-            }
-            question="What shifted topically — and which day was the turning point — the evolution shows it."
-            moduleId="entwicklung"
-            balance={balance}
-            onStart={handleModule}
-            onBuy={onOpenTokens}
-          />
-        </>
-      )}
-
-      {/* Bridge — turning point between free findings and paid modules */}
-      <BridgeCTA
-        totalFindings={10}
-        balance={balance}
-        onStart={handleModule}
-        onBuy={onOpenTokens}
-      />
-
-      {/* Lock gallery — what's still hidden */}
-      <section className="relative mt-24 space-y-10">
-        <div className="space-y-5">
-          <h3 className="font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight">
-            Go <span className="gradient-text">deeper</span>.
-          </h3>
-          <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl">
-            Who {personA} and {personB} really are, what's going on between you, and which moments explain everything.
-          </p>
+            ← BACK
+          </button>
+          <button
+            onClick={() => go(1)}
+            disabled={roomIdx === rooms.length - 1 || curtain}
+            className="pointer-events-auto btn-pop"
+          >
+            {roomIdx === 0 ? 'OPEN' : roomIdx >= rooms.length - 2 ? 'FINAL' : 'NEXT'} →
+          </button>
         </div>
+      </div>
 
-        <div className="grid md:grid-cols-2 gap-4">
-          <LockedCard
-            number="02"
-            moduleId="profiles"
-            tone="a"
-            emoji="🧠"
-            title="Who's who?"
-            subtitle="A portrait of each — no judgement"
-            lines={[
-              `${personA}: often comes off reserved, apologizes a lot — what that actually means …`,
-              `${personB}: needs closeness, reacts to distance — shows up as …`,
-              `When ${personA} breaks character: usually late at night, when …`,
-            ]}
-            balance={balance}
-            onStart={handleModule}
-            onBuy={onOpenTokens}
-          />
-          <LockedCard
-            number="03"
-            moduleId="relationship"
-            tone="a"
-            emoji="🔗"
-            title="What's going on between you?"
-            subtitle="Closeness, distance, unwritten rules"
-            lines={[
-              `${personA} structurally does more — how wide the real gap actually is …`,
-              `One thing you never talk about — even though it keeps popping up …`,
-              `Who leads, who follows — and how often that flips …`,
-            ]}
-            balance={balance}
-            onStart={handleModule}
-            onBuy={onOpenTokens}
-          />
-          <LockedCard
-            number="04"
-            moduleId="entwicklung"
-            tone="a"
-            emoji="📈"
-            title="How has it changed?"
-            subtitle="Chapters, turning points, what flipped"
-            lines={[
-              'The first three months light, playful — at one point it tipped …',
-              `One particular day changed everything: reply times jumped from minutes to hours. The reason …`,
-              'Where you stand right now: noticeably cooler. The signs …',
-            ]}
-            balance={balance}
-            onStart={handleModule}
-            onBuy={onOpenTokens}
-          />
-          <LockedCard
-            number="05"
-            moduleId="highlights"
-            tone="b"
-            emoji="💥"
-            title="The moments that explain everything"
-            subtitle="Lines that land — silence that speaks"
-            lines={[
-              `"I think I'm too much right now" — ${personA} at 11:41pm. What the line actually means …`,
-              `47 hours of silence after a message from ${personB}. Why the silence itself is the signal …`,
-              'The moment at 2:14 am where the facade drops — and why …',
-            ]}
-            balance={balance}
-            onStart={handleModule}
-            onBuy={onOpenTokens}
-            featured
-          />
-          <LockedCard
-            number="06"
-            moduleId="timeline"
-            tone="a"
-            emoji="🌀"
-            title="Your story at a glance"
-            subtitle="The whole chat in one arc"
-            lines={[
-              'The warmth between you: peaked in February, noticeably cooler today …',
-              'Four clear chapters — two of them with a crisp start …',
-              'One image that sums up your entire story …',
-            ]}
-            balance={balance}
-            onStart={handleModule}
-            onBuy={onOpenTokens}
-            className="md:col-span-2"
-          />
-        </div>
-      </section>
-
-      <StickyBuyBar balance={balance} onStart={handleModule} onBuy={onOpenTokens} />
     </div>
   )
 }

@@ -38,23 +38,33 @@ export interface RunProfilesOptions {
   prepared: PrepareResult
   onProgress?: (done: number, total: number, currentPerson: string | null) => void
   signal?: AbortSignal
+  // If set, only profile these specific participants. Per product concept,
+  // the app only profiles the *user themselves* — never the other person,
+  // who has not consented to being psychologically analyzed.
+  targetPersons?: string[]
 }
 
-// Run one profile analysis per participant, in parallel. Returns real-name results.
+// Run one profile analysis per target participant, in parallel. Returns real-name results.
 export async function runProfileAnalyses({
   chat,
   prepared,
   onProgress,
   signal,
+  targetPersons,
 }: RunProfilesOptions): Promise<ProfileResult[]> {
   const { sample, pseudonymMap } = prepared
   const pseudoMessages = pseudonymizeMessages(sample.messages, pseudonymMap)
 
-  const total = chat.participants.length
-  let done = 0
-  onProgress?.(0, total, chat.participants[0] ?? null)
+  const targets =
+    targetPersons && targetPersons.length > 0
+      ? targetPersons.filter((p) => chat.participants.includes(p))
+      : chat.participants
 
-  const tasks = chat.participants.map(async (realName) => {
+  const total = targets.length
+  let done = 0
+  onProgress?.(0, total, targets[0] ?? null)
+
+  const tasks = targets.map(async (realName) => {
     const pseudoName = pseudonymMap.forward[realName]
     const userMessage = buildProfileUserMessage(pseudoName, pseudoMessages)
 
@@ -88,7 +98,7 @@ export async function runProfileAnalyses({
     profile.person = realName
 
     done++
-    onProgress?.(done, total, chat.participants[done] ?? null)
+    onProgress?.(done, total, targets[done] ?? null)
 
     const result: ProfileResult = {
       profile,
