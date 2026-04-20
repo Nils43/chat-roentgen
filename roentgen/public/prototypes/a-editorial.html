@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Röntgen · № 04 · Eine Lektüre</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #f4ecd8;
+      --paper-edge: #ebe1c8;
+      --ink: #1c1614;
+      --ink-soft: #4a3f38;
+      --ochre: #a08c6e;
+      --teal: #1a4848;
+      --vermillion: #a83a2c;
+      --rule: #d9cdb0;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Fraunces', Georgia, serif;
+      font-variation-settings: 'opsz' 14, 'SOFT' 30, 'WONK' 0;
+      font-weight: 400;
+      font-size: 18px;
+      line-height: 1.55;
+      background-image:
+        radial-gradient(rgba(28, 22, 20, 0.04) 1px, transparent 1px),
+        radial-gradient(rgba(28, 22, 20, 0.025) 1px, transparent 1px);
+      background-size: 3px 3px, 7px 7px;
+      background-position: 0 0, 1px 1px;
+    }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ochre); }
+    .container { max-width: 720px; margin: 0 auto; padding: 0 32px; }
+    .container-wide { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+
+    /* MASTHEAD */
+    .masthead {
+      border-bottom: 1px solid var(--ink);
+      padding: 28px 0 22px;
+      margin-bottom: 60px;
+    }
+    .masthead-inner { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; flex-wrap: wrap; }
+    .wordmark {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'opsz' 144, 'WONK' 1;
+      font-weight: 800;
+      font-size: 42px;
+      letter-spacing: -0.04em;
+      line-height: 0.9;
+    }
+    .wordmark .dot { color: var(--vermillion); }
+    .masthead-meta { display: flex; gap: 24px; align-items: baseline; }
+    .masthead-meta > span { display: block; }
+
+    /* ISSUE STRIP */
+    .issue-strip {
+      border-top: 3px double var(--ink);
+      border-bottom: 1px solid var(--ink);
+      padding: 8px 0;
+      margin-bottom: 80px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+
+    /* LIBRARY (Inhaltsverzeichnis) */
+    .toc-label {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'opsz' 144, 'WONK' 1;
+      font-weight: 700;
+      font-style: italic;
+      font-size: 64px;
+      line-height: 0.95;
+      margin: 0 0 8px;
+      letter-spacing: -0.03em;
+    }
+    .toc-sub { font-style: italic; color: var(--ink-soft); margin: 0 0 40px; max-width: 520px; }
+    .toc-list { list-style: none; padding: 0; margin: 0 0 120px; border-top: 1px solid var(--rule); }
+    .toc-row {
+      display: grid;
+      grid-template-columns: 56px 1fr auto auto;
+      gap: 24px;
+      align-items: baseline;
+      padding: 22px 0;
+      border-bottom: 1px solid var(--rule);
+      cursor: pointer;
+      transition: background 200ms;
+    }
+    .toc-row:hover { background: rgba(26, 72, 72, 0.06); }
+    .toc-num { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ochre); padding-top: 4px; }
+    .toc-title { font-size: 26px; font-weight: 500; line-height: 1.15; font-variation-settings: 'opsz' 60; }
+    .toc-author { display: block; font-size: 13px; color: var(--ink-soft); margin-top: 4px; font-style: italic; }
+    .toc-page { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--ochre); white-space: nowrap; }
+    .toc-status { font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 4px 8px; border: 1px solid var(--ink); white-space: nowrap; }
+    .toc-status.done { background: var(--ink); color: var(--paper); }
+    .toc-status.partial { color: var(--ink); }
+    .toc-status.fresh { color: var(--ochre); border-color: var(--ochre); }
+
+    /* SECTION OPENER */
+    .section-opener { text-align: center; padding: 80px 0 60px; margin-bottom: 0; }
+    .ornament { font-size: 18px; color: var(--ochre); letter-spacing: 1em; padding-left: 1em; }
+    .chapter-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ochre); letter-spacing: 0.4em; margin-bottom: 24px; }
+    .chapter-title {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'opsz' 144;
+      font-weight: 700;
+      font-style: italic;
+      font-size: clamp(48px, 8vw, 112px);
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+    }
+    .chapter-deck { font-size: 18px; font-style: italic; color: var(--ink-soft); max-width: 480px; margin: 0 auto; }
+
+    /* HERO STATEMENT */
+    .hero-stat {
+      padding: 60px 0 100px;
+      text-align: left;
+    }
+    .hero-stat .lead {
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.18;
+      font-weight: 400;
+      font-variation-settings: 'opsz' 100;
+      margin: 0;
+      letter-spacing: -0.015em;
+    }
+    .hero-stat .lead::first-letter {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'opsz' 144, 'WONK' 1;
+      font-weight: 800;
+      font-style: normal;
+      float: left;
+      font-size: 7em;
+      line-height: 0.78;
+      padding: 8px 14px 0 0;
+      color: var(--teal);
+      shape-outside: margin-box;
+    }
+    .hero-stat .num {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'opsz' 144;
+      font-style: italic;
+      color: var(--vermillion);
+      font-weight: 400;
+    }
+    .hero-stat .meta {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+      padding-top: 24px;
+      border-top: 1px solid var(--rule);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    .hero-stat .meta .v { display: block; font-family: 'Fraunces', serif; font-style: italic; font-size: 26px; color: var(--ink); margin-top: 6px; letter-spacing: -0.01em; text-transform: none; }
+
+    /* DATA SECTIONS */
+    .essay-section { padding: 80px 0; border-bottom: 1px solid var(--rule); position: relative; }
+    .section-kicker {
+      display: flex;
+      gap: 14px;
+      align-items: baseline;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ochre);
+      margin-bottom: 18px;
+    }
+    .section-kicker .roman { color: var(--vermillion); font-style: italic; font-family: 'Fraunces', serif; font-size: 16px; letter-spacing: 0; text-transform: none; }
+    .section-h {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'opsz' 144;
+      font-weight: 600;
+      font-size: clamp(32px, 4vw, 52px);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      margin: 0 0 28px;
+      max-width: 680px;
+    }
+    .section-h em { font-style: italic; color: var(--teal); font-variation-settings: 'opsz' 144, 'WONK' 1; }
+    .essay-body { columns: 2; column-gap: 40px; column-rule: 1px solid var(--rule); font-size: 17px; max-width: 680px; }
+    .essay-body p { margin: 0 0 16px; }
+    .essay-body sup { color: var(--vermillion); font-weight: 500; padding: 0 2px; }
+
+    /* SPLIT BAR — done as a typographic chart */
+    .split-fig {
+      margin: 32px 0 0;
+      max-width: 680px;
+    }
+    .split-bar { display: flex; height: 38px; border: 1px solid var(--ink); margin-bottom: 12px; }
+    .split-a { background: var(--teal); color: var(--paper); }
+    .split-b { background: var(--paper); color: var(--ink); border-left: 1px solid var(--ink); }
+    .split-a, .split-b {
+      display: flex; align-items: center; padding: 0 12px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      font-weight: 500;
+    }
+    .fig-caption { font-size: 13px; font-style: italic; color: var(--ink-soft); border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 12px; }
+
+    /* SIDENOTE */
+    .with-sidenote { display: grid; grid-template-columns: 1fr 200px; gap: 40px; align-items: start; max-width: 920px; }
+    .sidenote {
+      font-family: 'Fraunces', serif;
+      font-style: italic;
+      font-size: 13px;
+      color: var(--vermillion);
+      line-height: 1.4;
+      padding-top: 4px;
+      border-left: 2px solid var(--vermillion);
+      padding-left: 12px;
+      transform: rotate(-0.4deg);
+      position: relative;
+    }
+    .sidenote::before { content: '✎'; position: absolute; left: -22px; top: 0; font-size: 14px; }
+    @media (max-width: 800px) {
+      .with-sidenote { grid-template-columns: 1fr; }
+      .essay-body { columns: 1; }
+      .hero-stat .meta { grid-template-columns: repeat(2, 1fr); }
+      .hero-stat .lead::first-letter { font-size: 4.5em; }
+    }
+
+    /* PULL QUOTE */
+    .pull-quote {
+      max-width: 540px;
+      margin: 60px auto;
+      text-align: center;
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'opsz' 144, 'WONK' 1;
+      font-style: italic;
+      font-weight: 500;
+      font-size: clamp(28px, 4vw, 40px);
+      line-height: 1.15;
+      letter-spacing: -0.015em;
+      color: var(--teal);
+      position: relative;
+    }
+    .pull-quote::before, .pull-quote::after {
+      content: '◊';
+      display: block;
+      font-size: 14px;
+      color: var(--ochre);
+      letter-spacing: 1em;
+      padding-left: 1em;
+      font-style: normal;
+    }
+    .pull-quote::before { margin-bottom: 24px; }
+    .pull-quote::after { margin-top: 24px; }
+
+    /* BURST FIGURE — typographic stack */
+    .burst-fig { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--ink); margin: 32px 0; }
+    .burst-cell { padding: 24px; border-right: 1px solid var(--ink); }
+    .burst-cell:last-child { border-right: none; background: var(--paper-edge); }
+    .burst-name { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ochre); margin-bottom: 12px; }
+    .burst-num { font-family: 'Fraunces', serif; font-variation-settings: 'opsz' 144; font-weight: 700; font-size: 64px; line-height: 1; color: var(--ink); }
+    .burst-num-sub { font-style: italic; font-size: 14px; color: var(--ink-soft); margin-top: 8px; }
+    .burst-row {
+      margin: 18px 0 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+    }
+    .burst-bar { display: inline-flex; gap: 2px; vertical-align: middle; margin-left: 8px; }
+    .burst-bar span { display: block; width: 4px; height: 12px; background: var(--vermillion); }
+    .burst-bar span.dim { background: var(--ochre); opacity: 0.4; }
+
+    /* SUBSCRIPTION CARD (Inline CTA) */
+    .sub-card {
+      margin: 48px 0;
+      max-width: 680px;
+      padding: 40px;
+      background: var(--ink);
+      color: var(--paper);
+      border: 4px double var(--paper);
+      outline: 1px solid var(--ink);
+      outline-offset: 6px;
+      position: relative;
+    }
+    .sub-kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: var(--ochre);
+      margin-bottom: 20px;
+    }
+    .sub-h {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'opsz' 144;
+      font-style: italic;
+      font-weight: 500;
+      font-size: 30px;
+      line-height: 1.15;
+      margin: 0 0 18px;
+      max-width: 480px;
+    }
+    .sub-body { font-size: 16px; color: rgba(244, 236, 216, 0.78); margin: 0 0 28px; max-width: 460px; line-height: 1.5; }
+    .sub-action {
+      display: inline-flex; gap: 12px; align-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--paper); cursor: pointer;
+      padding: 14px 24px;
+      background: transparent;
+      border: 1px solid var(--paper);
+      transition: all 200ms;
+    }
+    .sub-action:hover { background: var(--paper); color: var(--ink); }
+    .sub-stamp {
+      position: absolute; top: 16px; right: 24px;
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 12px; color: var(--vermillion);
+      transform: rotate(8deg);
+      border: 2px solid var(--vermillion);
+      padding: 4px 10px;
+      letter-spacing: 0.05em;
+    }
+
+    /* BRIDGE — major section break */
+    .bridge {
+      margin: 120px 0;
+      padding: 80px 0;
+      border-top: 3px double var(--ink);
+      border-bottom: 3px double var(--ink);
+      text-align: center;
+      background-image: linear-gradient(to bottom, transparent 0%, rgba(26, 72, 72, 0.04) 50%, transparent 100%);
+    }
+    .bridge .leading { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.4em; color: var(--ochre); margin-bottom: 28px; text-transform: uppercase; }
+    .bridge h3 {
+      font-family: 'Fraunces', serif;
+      font-variation-settings: 'opsz' 144, 'WONK' 1;
+      font-weight: 700;
+      font-size: clamp(48px, 7vw, 88px);
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+      margin: 0 0 24px;
+    }
+    .bridge h3 em { font-style: italic; color: var(--teal); }
+    .bridge .lede { font-style: italic; font-size: 22px; color: var(--ink-soft); max-width: 540px; margin: 0 auto 40px; line-height: 1.4; }
+    .bridge-actions { display: inline-flex; flex-direction: column; gap: 12px; align-items: center; }
+    .bridge-cta {
+      font-family: 'Fraunces', serif; font-variation-settings: 'opsz' 100; font-weight: 500;
+      font-size: 18px; padding: 16px 36px; background: var(--teal); color: var(--paper);
+      border: none; cursor: pointer; letter-spacing: 0.02em;
+      transition: transform 200ms;
+      box-shadow: 6px 6px 0 var(--ink);
+    }
+    .bridge-cta:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 var(--ink); }
+    .bridge-secondary {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink-soft); cursor: pointer;
+      background: none; border: none; padding: 4px;
+    }
+    .bridge-secondary:hover { color: var(--vermillion); }
+
+    /* COLOPHON / FOOTER */
+    .colophon {
+      margin-top: 100px;
+      padding: 60px 0 40px;
+      border-top: 1px solid var(--ink);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 32px;
+    }
+    .colophon strong { display: block; color: var(--ink); margin-bottom: 8px; font-weight: 500; }
+    .colophon p { margin: 0; line-height: 1.6; text-transform: none; letter-spacing: 0.04em; font-size: 11px; }
+    @media (max-width: 700px) { .colophon { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="masthead">
+    <div class="container-wide masthead-inner">
+      <div>
+        <div class="wordmark">röntgen<span class="dot">.</span></div>
+        <div class="mono" style="margin-top: 6px;">Eine Lektüre der Chats · Seit MMXXVI</div>
+      </div>
+      <div class="masthead-meta mono">
+        <span>№ 04 · April 2026</span>
+        <span>·</span>
+        <span>Drei Tickets verbleibend</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="container-wide issue-strip">
+    <span>Ausgabe drei · Eine vorsichtige Diagnostik</span>
+    <span>Lokal gerechnet · 2.9 % der Sprache verlässt das Gerät</span>
+  </div>
+
+  <main class="container">
+
+    <!-- ============ LIBRARY / TOC ============ -->
+    <section>
+      <p class="mono" style="margin: 0 0 16px;">Inhaltsverzeichnis · Drei Lektüren in deinem Archiv</p>
+      <h1 class="toc-label">Bibliothek<em style="font-style: italic; color: var(--teal);">.</em></h1>
+      <p class="toc-sub">Drei Konversationen warten. Jede ein anderes Kapitel deiner Sprache. Klick auf eine, um sie wieder aufzuschlagen.</p>
+
+      <ul class="toc-list">
+        <li class="toc-row">
+          <span class="toc-num">I</span>
+          <span>
+            <span class="toc-title">Lena & Jonas</span>
+            <span class="toc-author">14. Februar 2025 — 12. April 2026 · 13 327 Nachrichten</span>
+          </span>
+          <span class="toc-page">S. 12</span>
+          <span class="toc-status done">5/5 gelesen</span>
+        </li>
+        <li class="toc-row">
+          <span class="toc-num">II</span>
+          <span>
+            <span class="toc-title">Mama</span>
+            <span class="toc-author">3. Januar 2024 — heute · 4 521 Nachrichten</span>
+          </span>
+          <span class="toc-page">S. 48</span>
+          <span class="toc-status partial">1/5 gelesen</span>
+        </li>
+        <li class="toc-row">
+          <span class="toc-num">III</span>
+          <span>
+            <span class="toc-title">WG-Chaos</span>
+            <span class="toc-author">1. September 2023 — heute · 8 092 Nachrichten</span>
+          </span>
+          <span class="toc-page">S. 73</span>
+          <span class="toc-status fresh">noch ungelesen</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ============ CHAPTER OPENER ============ -->
+    <div class="section-opener">
+      <div class="ornament">◊ ◊ ◊</div>
+      <div class="chapter-num">Kapitel I · Lena & Jonas</div>
+      <h2 class="chapter-title">Eine Beziehung,<br/><em>vermessen.</em></h2>
+      <p class="chapter-deck">Was vierzehn Monate Sprache über zwei Menschen verraten — Zahl für Zahl, ohne Urteil.</p>
+    </div>
+
+    <!-- ============ HERO STAT ============ -->
+    <section class="hero-stat">
+      <p class="lead">
+        Dreizehntausend dreihundertsiebenundzwanzig Nachrichten in <span class="num">412</span> Tagen.
+        Das sind, sagen wir es einmal ehrlich, etwa vier Stunden ununterbrochenes Lesen — wenn man flott liest und keine Pausen macht.
+      </p>
+
+      <div class="meta">
+        <div>Nachrichten<span class="v">13 327</span></div>
+        <div>Wörter<span class="v">89 450</span></div>
+        <div>Aktive Tage<span class="v">312</span></div>
+        <div>Emojis<span class="v">2 108</span></div>
+      </div>
+    </section>
+
+    <!-- ============ SECTION I — Verteilung ============ -->
+    <section class="essay-section">
+      <div class="section-kicker">
+        <span class="roman">i.</span>
+        <span>Wer schreibt mehr</span>
+      </div>
+      <h3 class="section-h">Lena trägt zwei Drittel <em>der Sprache</em>.</h3>
+
+      <div class="with-sidenote">
+        <div>
+          <div class="essay-body">
+            <p>Von dreizehntausend dreihundertsiebenundzwanzig Nachrichten stammen <strong>67 Prozent</strong> von Lena<sup>1</sup>. Es ist keine Hälfte, kein Drittel, kein elegantes Verhältnis — es ist ein Ungleichgewicht, das sich in Wochen aufaddiert: zwei Drittel der Stimme gehört einer Person.</p>
+            <p>Bei den Wörtern wird es deutlicher. Lena schreibt im Schnitt sechzehn Wörter pro Nachricht, Jonas neun. Was wie ein kleiner Unterschied aussieht, ergibt am Ende des Jahres <em>einundsiebzig zu neunundzwanzig</em> in der Wortanzahl. Lena erzählt; Jonas reagiert.</p>
+          </div>
+
+          <figure class="split-fig">
+            <div class="split-bar" role="img" aria-label="Nachrichtenanteil 67/33">
+              <div class="split-a" style="flex: 67;">Lena · 67 %</div>
+              <div class="split-b" style="flex: 33;">Jonas · 33 %</div>
+            </div>
+            <div class="split-bar">
+              <div class="split-a" style="flex: 71;">Lena · 71 % der Wörter</div>
+              <div class="split-b" style="flex: 29;">Jonas · 29 %</div>
+            </div>
+            <figcaption class="fig-caption">Nachrichten- und Wortanteil über vierzehn Monate hinweg.</figcaption>
+          </figure>
+        </div>
+
+        <aside class="sidenote">
+          ¹ &nbsp;Wer mehr schreibt, ist nicht zwangsläufig der, der mehr investiert. Aber häufig der, der weniger entspannt ist.
+        </aside>
+      </div>
+    </section>
+
+    <!-- ============ INLINE SUBSCRIPTION CARD ============ -->
+    <div class="sub-card">
+      <span class="sub-stamp">Modul III</span>
+      <div class="sub-kicker">Eine Erkenntnis · Beziehungsebene</div>
+      <h4 class="sub-h">Wer wirklich mehr investiert — und wer nur mehr schreibt — ist nicht dieselbe Person.</h4>
+      <p class="sub-body">Die Beziehungsebene liest die Dynamik, nicht die Statistik. Bids, Repair-Versuche, Demand–Withdraw. Eine Diagnose der Dyade, vorsichtig formuliert, in vier Seiten.</p>
+      <button class="sub-action">Beziehungsebene lesen <span style="color: var(--ochre);">→ 1 Ticket</span></button>
+    </div>
+
+    <!-- PULL QUOTE -->
+    <blockquote class="pull-quote">
+      Das Lesen eines Chats ist, am Ende, eine sehr private Form der Lektüre.
+    </blockquote>
+
+    <!-- ============ SECTION II — Bursts ============ -->
+    <section class="essay-section">
+      <div class="section-kicker">
+        <span class="roman">ix.</span>
+        <span>Bursts · Wenn niemand antwortet</span>
+      </div>
+      <h3 class="section-h">Elf Nachrichten <em>am Stück.</em></h3>
+
+      <div class="essay-body">
+        <p>Es gibt einen Tag im Oktober, an dem Lena innerhalb von vierundzwanzig Minuten elf Nachrichten schreibt, ohne dass Jonas auch nur einmal antwortet. Solche Sequenzen — drei oder mehr Nachrichten ohne Erwiderung — nennen wir <em>Bursts</em>. Bei Lena sind es zweiundzwanzig insgesamt, bei Jonas sechs.</p>
+        <p>Bursts sind selten harmlos. Sie sind oft Drang, manchmal Sorge, gelegentlich nur ein Gedanke, der sich beim Schreiben in mehrere Gedanken zerlegt. Was sie genau für <em>diese</em> beiden bedeuten, lässt sich aus Zahlen nicht ablesen.</p>
+      </div>
+
+      <figure class="burst-fig">
+        <div class="burst-cell">
+          <div class="burst-name">Lena</div>
+          <div class="burst-num">22</div>
+          <div class="burst-num-sub">Burst-Sequenzen — die längste mit elf Nachrichten am Stück.</div>
+          <div class="burst-row">
+            Längste &nbsp;
+            <span class="burst-bar" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </span>
+          </div>
+        </div>
+        <div class="burst-cell">
+          <div class="burst-name">Jonas</div>
+          <div class="burst-num">6</div>
+          <div class="burst-num-sub">Burst-Sequenzen — die längste mit vier Nachrichten am Stück.</div>
+          <div class="burst-row">
+            Längste &nbsp;
+            <span class="burst-bar" aria-hidden="true">
+              <span class="dim"></span><span class="dim"></span><span class="dim"></span><span class="dim"></span>
+            </span>
+          </div>
+        </div>
+      </figure>
+    </section>
+
+    <!-- ============ BRIDGE — turning point ============ -->
+    <section class="bridge">
+      <div class="leading">Übergang · zum bezahlten Teil</div>
+      <h3>Du hast die <em>Symptome</em> gelesen.<br/>Die Diagnostik kommt jetzt.</h3>
+      <p class="lede">Fünf Module. Profile, Beziehungsebene, Highlights, Verlauf, Entwicklung. Einzeln à ein Ticket — oder das ganze Paket zu einem reduzierten Preis.</p>
+      <div class="bridge-actions">
+        <button class="bridge-cta">Vollständige Lektüre eröffnen — 5 Tickets</button>
+        <button class="bridge-secondary">oder mit den Profilen anfangen</button>
+      </div>
+    </section>
+
+    <!-- COLOPHON -->
+    <footer class="colophon">
+      <div>
+        <strong>Röntgen</strong>
+        <p>Eine Lektüre der Chats. Lokal gerechnet, vorsichtig formuliert. Kein Konto, kein Abonnement.</p>
+      </div>
+      <div>
+        <strong>Diese Ausgabe</strong>
+        <p>Lena & Jonas, Kapitel I. Geöffnet am 18. April 2026. 2.9 % der Sprache verließ das Gerät.</p>
+      </div>
+      <div>
+        <strong>Hinweis</strong>
+        <p>Diese Lektüre ersetzt keine therapeutische Begleitung. Sie ergänzt das Lesen, das du ohnehin tust.</p>
+      </div>
+    </footer>
+  </main>
+</body>
+</html>

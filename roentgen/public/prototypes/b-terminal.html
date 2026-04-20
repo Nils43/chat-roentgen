@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>röntgen :: ~/chats/lena_jonas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Departure+Mono&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --bg-alt: #131313;
+      --line: #2a2a2a;
+      --text: #e8e8e8;
+      --dim: #6a6a6a;
+      --faint: #3d3d3d;
+      --green: #7df9aa;
+      --green-glow: rgba(125, 249, 170, 0.18);
+      --amber: #ffb147;
+      --red: #ff4d4d;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Departure Mono', 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 14px;
+      line-height: 1.5;
+      letter-spacing: 0.01em;
+      min-height: 100vh;
+      padding-bottom: 80px;
+    }
+    /* CRT scanline effect — subtle */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 100;
+      background-image: repeating-linear-gradient(
+        180deg,
+        transparent 0,
+        transparent 2px,
+        rgba(255, 255, 255, 0.012) 2px,
+        rgba(255, 255, 255, 0.012) 4px
+      );
+    }
+    a, button { color: inherit; font: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+    .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+    .green { color: var(--green); }
+    .dim { color: var(--dim); }
+    .faint { color: var(--faint); }
+    .amber { color: var(--amber); }
+    .red { color: var(--red); }
+    .ul-green { box-shadow: inset 0 -2px 0 var(--green); }
+
+    /* TOPBAR */
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--bg);
+      border-bottom: 1px solid var(--line);
+      padding: 10px 24px;
+      display: flex; gap: 24px; align-items: center; justify-content: space-between;
+      font-size: 12px;
+    }
+    .topbar .left { display: flex; gap: 18px; align-items: center; }
+    .brand { font-weight: 700; letter-spacing: 0.05em; color: var(--green); }
+    .brand::before { content: '['; color: var(--dim); margin-right: 4px; }
+    .brand::after { content: ']'; color: var(--dim); margin-left: 4px; }
+    .breadcrumb { color: var(--dim); }
+    .breadcrumb b { color: var(--text); font-weight: 400; }
+    .topbar .right { display: flex; gap: 18px; align-items: center; color: var(--dim); }
+    .ticket-pill {
+      border: 1px solid var(--green); color: var(--green);
+      padding: 3px 9px;
+      letter-spacing: 0.1em;
+    }
+
+    /* PAGE GUTTER */
+    main { padding-top: 28px; }
+    section { margin: 0 0 56px; }
+
+    /* SHELL PROMPT */
+    .prompt {
+      color: var(--dim);
+      margin: 0 0 12px;
+      font-size: 13px;
+    }
+    .prompt::before { content: '$ '; color: var(--green); }
+
+    /* H1 — boot screen */
+    .boot {
+      border: 1px solid var(--line);
+      padding: 28px 28px 24px;
+      margin: 0 0 40px;
+      position: relative;
+      background: linear-gradient(180deg, rgba(125,249,170,0.03), transparent);
+    }
+    .boot pre {
+      font-family: inherit;
+      font-size: 11px;
+      line-height: 1.25;
+      color: var(--green);
+      margin: 0 0 14px;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .boot .subline { color: var(--dim); font-size: 12px; margin-bottom: 4px; }
+    .boot .blink { display: inline-block; width: 8px; height: 12px; background: var(--green); margin-left: 4px; vertical-align: -2px; animation: blink 1s steps(2) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* LIBRARY — directory listing */
+    .ls-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .ls-table th, .ls-table td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px dashed var(--line);
+      font-weight: 400;
+    }
+    .ls-table th { color: var(--dim); border-bottom: 1px solid var(--line); font-weight: 400; padding-bottom: 8px; padding-top: 4px; letter-spacing: 0.05em; }
+    .ls-table tr.row { cursor: pointer; transition: background 100ms; }
+    .ls-table tr.row:hover { background: rgba(125, 249, 170, 0.04); }
+    .ls-table tr.row:hover .name { color: var(--green); }
+    .ls-table .perm { color: var(--dim); }
+    .ls-table .name { color: var(--text); font-weight: 500; }
+    .ls-table .size { color: var(--dim); }
+    .ls-table .modules-bar { display: inline-flex; gap: 1px; margin-right: 8px; vertical-align: -1px; }
+    .ls-table .modules-bar span { width: 8px; height: 10px; background: var(--faint); }
+    .ls-table .modules-bar span.on { background: var(--green); }
+
+    /* HARD FACTS — Hero */
+    .h-hero {
+      border: 1px solid var(--line);
+      padding: 0;
+      margin: 0 0 40px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    .h-hero .cell { padding: 28px; border-right: 1px dashed var(--line); }
+    .h-hero .cell:last-child { border-right: none; background:
+      repeating-linear-gradient(45deg, transparent 0, transparent 8px, rgba(125,249,170,0.025) 8px, rgba(125,249,170,0.025) 9px); }
+    .h-hero .label { color: var(--dim); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 18px; }
+    .h-hero .num {
+      font-size: 88px; line-height: 0.9; color: var(--green);
+      letter-spacing: -0.04em;
+      text-shadow: 0 0 28px var(--green-glow);
+      margin: 0 0 12px;
+      font-family: 'Departure Mono', monospace;
+    }
+    .h-hero .meta { color: var(--text); font-size: 14px; }
+    .h-hero .meta b { color: var(--green); font-weight: 400; }
+
+    /* TILE GRID */
+    .tile-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border: 1px solid var(--line);
+      margin: 0 0 56px;
+    }
+    .tile-grid > div {
+      padding: 18px 16px;
+      border-right: 1px dashed var(--line);
+    }
+    .tile-grid > div:last-child { border-right: none; }
+    .tile-label { color: var(--dim); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 10px; }
+    .tile-val { font-size: 28px; color: var(--text); letter-spacing: -0.02em; line-height: 1; }
+    .tile-val.tagged::after { content: ''; }
+
+    /* SECTION HEADERS — like markdown */
+    .section-h {
+      display: flex; align-items: baseline; gap: 12px;
+      margin: 0 0 8px;
+      font-size: 15px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .section-h .hash { color: var(--green); font-weight: 500; }
+    .section-h .num { color: var(--dim); }
+    .section-h .title { color: var(--text); }
+    .section-deck { color: var(--dim); font-size: 13px; margin: 0 0 24px; max-width: 60ch; }
+
+    /* DATA TABLE — split / power */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+    .data-table th, .data-table td {
+      padding: 8px 12px;
+      text-align: left;
+    }
+    .data-table tr { border-bottom: 1px dashed var(--line); }
+    .data-table th { color: var(--dim); font-weight: 400; padding-bottom: 6px; }
+    .data-table .num-cell { font-feature-settings: 'tnum'; text-align: right; color: var(--green); }
+    .data-table .name-cell { color: var(--text); }
+    .data-table .barcell { padding: 0 12px; vertical-align: middle; }
+    .bar { height: 8px; background: var(--faint); position: relative; }
+    .bar > span { display: block; height: 100%; background: var(--green); box-shadow: 0 0 12px var(--green-glow); }
+    .bar.alt > span { background: var(--amber); box-shadow: 0 0 12px rgba(255, 177, 71, 0.3); }
+
+    /* INLINE TEASER — terminal style */
+    .teaser-cli {
+      border: 1px solid var(--green);
+      padding: 0;
+      margin: 32px 0;
+      background: rgba(125, 249, 170, 0.04);
+    }
+    .teaser-head {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 14px;
+      background: var(--green);
+      color: var(--bg);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .teaser-body {
+      padding: 18px 20px 20px;
+    }
+    .teaser-finding {
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1.45;
+      margin: 0 0 6px;
+    }
+    .teaser-finding b { color: var(--green); font-weight: 400; }
+    .teaser-question { color: var(--dim); font-size: 13px; margin: 0 0 16px; }
+    .teaser-action {
+      display: inline-block;
+      border: 1px solid var(--green);
+      color: var(--green);
+      padding: 8px 14px;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: all 120ms;
+    }
+    .teaser-action:hover { background: var(--green); color: var(--bg); box-shadow: 0 0 24px var(--green-glow); }
+
+    /* BURST stack — ASCII bar */
+    .burst-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); margin: 8px 0 0; }
+    .burst-grid > div { padding: 18px; border-right: 1px dashed var(--line); }
+    .burst-grid > div:last-child { border-right: none; }
+    .burst-name { color: var(--dim); letter-spacing: 0.14em; text-transform: uppercase; font-size: 10px; margin-bottom: 12px; }
+    .burst-name b { color: var(--text); font-weight: 400; }
+    .burst-stack { font-size: 12px; line-height: 1.7; color: var(--green); white-space: pre; margin: 0; }
+    .burst-stack .dim { color: var(--dim); }
+    .burst-meta { color: var(--dim); font-size: 11px; margin-top: 12px; }
+    .burst-meta b { color: var(--text); font-weight: 400; }
+
+    /* BRIDGE — terminal banner */
+    .bridge {
+      margin: 80px 0 40px;
+      border: 1px solid var(--green);
+      padding: 0;
+      background: linear-gradient(180deg, rgba(125,249,170,0.04), transparent 60%);
+    }
+    .bridge-banner {
+      padding: 6px 14px;
+      background: var(--green);
+      color: var(--bg);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .bridge-body { padding: 36px 28px 32px; }
+    .bridge-h {
+      font-size: clamp(34px, 5vw, 56px);
+      line-height: 1;
+      letter-spacing: -0.04em;
+      color: var(--text);
+      margin: 0 0 20px;
+      font-family: 'Departure Mono', monospace;
+    }
+    .bridge-h em { font-style: normal; color: var(--green); text-shadow: 0 0 24px var(--green-glow); }
+    .bridge-body p { color: var(--dim); font-size: 14px; max-width: 60ch; margin: 0 0 28px; }
+    .bridge-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .bridge-primary {
+      background: var(--green); color: var(--bg);
+      padding: 12px 22px;
+      letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; font-weight: 700;
+      box-shadow: 0 0 32px var(--green-glow);
+    }
+    .bridge-primary:hover { background: var(--text); }
+    .bridge-secondary {
+      border: 1px dashed var(--line); color: var(--dim);
+      padding: 12px 18px;
+      font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .bridge-secondary:hover { color: var(--text); border-color: var(--text); }
+    .bridge-foot {
+      color: var(--faint); font-size: 11px; margin-top: 24px;
+      letter-spacing: 0.06em;
+    }
+
+    /* STATUS BAR (vim-style) */
+    .statusbar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--green); color: var(--bg);
+      font-size: 11px;
+      padding: 4px 16px;
+      display: flex; gap: 18px; align-items: center; justify-content: space-between;
+      letter-spacing: 0.08em;
+      z-index: 50;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .statusbar .ok { background: var(--bg); color: var(--green); padding: 1px 8px; }
+
+    @media (max-width: 800px) {
+      .h-hero, .burst-grid { grid-template-columns: 1fr; }
+      .h-hero .cell, .burst-grid > div { border-right: none; border-bottom: 1px dashed var(--line); }
+      .h-hero .cell:last-child, .burst-grid > div:last-child { border-bottom: none; }
+      .tile-grid { grid-template-columns: 1fr 1fr; }
+      .tile-grid > div { border-right: 1px dashed var(--line); border-bottom: 1px dashed var(--line); }
+      .tile-grid > div:nth-child(2n) { border-right: none; }
+      .tile-grid > div:nth-last-child(-n+2) { border-bottom: none; }
+      .h-hero .num { font-size: 64px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="left">
+      <span class="brand">röntgen</span>
+      <span class="breadcrumb">~/chats/<b>lena_jonas</b></span>
+    </div>
+    <div class="right">
+      <span>v0.4.1</span>
+      <span class="ticket-pill">3 tickets</span>
+      <span>local · 2.9% out</span>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- BOOT -->
+    <section>
+      <div class="boot">
+        <pre>  __ __  ___   _   _ _____ _____ ____ _____ _   _
+ |  V  |/ _ \\ | \\ | |_   _| ____/ ___| ____| \\ | |
+ |  |  | | | ||  \\| | | | |  _|| |  _|  _| |  \\| |
+ |  |  | |_| || |\\  | | | | |__| |_| | |___| |\\  |
+ |__|__|\\___/ |_| \\_| |_| |_____\\____|_____|_| \\_|</pre>
+        <div class="subline">röntgen :: chat psychology console :: build 0.4.1</div>
+        <div class="subline">→ session loaded · 3 chat archives indexed · 0 errors<span class="blink"></span></div>
+      </div>
+    </section>
+
+    <!-- LIBRARY: directory listing -->
+    <section>
+      <p class="prompt">ls -la ~/chats/ <span class="dim">--sort=last-touched</span></p>
+      <table class="ls-table">
+        <thead>
+          <tr>
+            <th style="width:120px;">PERM</th>
+            <th>NAME</th>
+            <th style="width:140px;">SIZE</th>
+            <th style="width:120px;">LAST</th>
+            <th style="width:200px;">MODULES</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="row">
+            <td class="perm">drwxr-xr-x</td>
+            <td><span class="name">lena_jonas/</span> <span class="dim">— Lena & Jonas</span></td>
+            <td class="size">13.327 msg</td>
+            <td class="dim">14m ago</td>
+            <td>
+              <span class="modules-bar"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></span>
+              <span class="green">5/5 done</span>
+            </td>
+          </tr>
+          <tr class="row">
+            <td class="perm">drwxr-xr-x</td>
+            <td><span class="name">mama/</span> <span class="dim">— Mama</span></td>
+            <td class="size">4.521 msg</td>
+            <td class="dim">3d ago</td>
+            <td>
+              <span class="modules-bar"><span class="on"></span><span></span><span></span><span></span><span></span></span>
+              <span class="amber">1/5 partial</span>
+            </td>
+          </tr>
+          <tr class="row">
+            <td class="perm">drwxr-xr-x</td>
+            <td><span class="name">wg_chaos/</span> <span class="dim">— WG-Chaos</span></td>
+            <td class="size">8.092 msg</td>
+            <td class="dim">8d ago</td>
+            <td>
+              <span class="modules-bar"><span></span><span></span><span></span><span></span><span></span></span>
+              <span class="dim">0/5 fresh</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- HARD FACTS — main numbers -->
+    <section>
+      <p class="prompt">cat ~/chats/lena_jonas/report.txt <span class="dim">| less</span></p>
+
+      <div class="h-hero">
+        <div class="cell">
+          <div class="label">// total messages</div>
+          <div class="num">13.327</div>
+          <div class="meta"><b>89.450</b> words · <b>2.108</b> emojis</div>
+        </div>
+        <div class="cell">
+          <div class="label">// duration</div>
+          <div class="num">412</div>
+          <div class="meta"><b>312</b> active days · <b>100</b> silent</div>
+        </div>
+      </div>
+
+      <div class="tile-grid">
+        <div><div class="tile-label">peak day</div><div class="tile-val">17.10.</div></div>
+        <div><div class="tile-label">longest silence</div><div class="tile-val">11d</div></div>
+        <div><div class="tile-label">avg/day</div><div class="tile-val">42</div></div>
+        <div><div class="tile-label">power Δ</div><div class="tile-val amber">33</div></div>
+      </div>
+    </section>
+
+    <!-- SECTION 01 — Verteilung -->
+    <section>
+      <div class="section-h">
+        <span class="hash">##</span>
+        <span class="num">01</span>
+        <span class="title">// verteilung</span>
+      </div>
+      <p class="section-deck">wer schreibt mehr — und wer ist nur lauter?</p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>person</th>
+            <th>msg %</th>
+            <th>word %</th>
+            <th>median reply</th>
+            <th style="width:30%;">balance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="name-cell">lena</td>
+            <td class="num-cell">67%</td>
+            <td class="num-cell">71%</td>
+            <td class="num-cell">4 min</td>
+            <td class="barcell"><div class="bar"><span style="width:67%"></span></div></td>
+          </tr>
+          <tr>
+            <td class="name-cell">jonas</td>
+            <td class="num-cell">33%</td>
+            <td class="num-cell">29%</td>
+            <td class="num-cell">47 min</td>
+            <td class="barcell"><div class="bar alt"><span style="width:33%"></span></div></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- INLINE TEASER -->
+      <div class="teaser-cli">
+        <div class="teaser-head">[ insight ] · module = relationship</div>
+        <div class="teaser-body">
+          <p class="teaser-finding"><b>67% / 33%</b> — kein zufälliger split. wer mehr schreibt, ist selten der mit der entspannteren position.</p>
+          <p class="teaser-question">die beziehungsebene zeigt: bids, repair, demand-withdraw. dyaden-diagnose, statt einzel-statistik.</p>
+          <button class="teaser-action">$ ./run --module=relationship --cost=1</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 09 — Bursts -->
+    <section>
+      <div class="section-h">
+        <span class="hash">##</span>
+        <span class="num">09</span>
+        <span class="title">// bursts</span>
+      </div>
+      <p class="section-deck">consecutive messages without other-side reply. unanswered drang.</p>
+
+      <div class="burst-grid">
+        <div>
+          <div class="burst-name"><b>lena</b> · burst sequences</div>
+          <pre class="burst-stack">▓▓▓▓▓▓▓▓▓▓▓  longest: 11
+▓▓▓▓▓▓▓▓     8
+▓▓▓▓▓▓▓      7
+▓▓▓▓▓▓▓      7
+▓▓▓▓▓▓       6
+<span class="dim">▓▓▓▓▓▓       6</span>
+<span class="dim">…16 more</span></pre>
+          <div class="burst-meta"><b>22</b> bursts total · <b>11</b> max · <b>okt 17</b> peak</div>
+        </div>
+        <div>
+          <div class="burst-name"><b>jonas</b> · burst sequences</div>
+          <pre class="burst-stack">▓▓▓▓         longest: 4
+▓▓▓          3
+▓▓▓          3
+▓▓▓          3
+▓▓▓          3
+<span class="dim">▓▓▓          3</span></pre>
+          <div class="burst-meta"><b>6</b> bursts total · <b>4</b> max · evenly spread</div>
+        </div>
+      </div>
+
+      <!-- INLINE TEASER -->
+      <div class="teaser-cli">
+        <div class="teaser-head">[ insight ] · module = profiles</div>
+        <div class="teaser-body">
+          <p class="teaser-finding"><b>11 nachrichten am stück</b> ohne antwort von jonas. 22-mal in 14 monaten dieser pattern bei lena.</p>
+          <p class="teaser-question">was lena dabei antreibt — drang, sorge, kontrollverlust — steht im profil.</p>
+          <button class="teaser-action">$ ./run --module=profiles --cost=1</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- BRIDGE -->
+    <section class="bridge">
+      <div class="bridge-banner">[ paywall ] :: 5 modules locked</div>
+      <div class="bridge-body">
+        <h3 class="bridge-h">10 metrics found.<br/><em>5 interpretations locked.</em></h3>
+        <p>profile · relationship · highlights · timeline · entwicklung. one ticket each. no account, no subscription, no email. local-first since v0.1.</p>
+        <div class="bridge-row">
+          <button class="bridge-primary">→ unlock all · 5 tickets · €10</button>
+          <button class="bridge-secondary">or: profiles only · 1 ticket</button>
+        </div>
+        <div class="bridge-foot">// pricing tip: bundle = 25% off · solo modules also available · refund on api error</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- vim-style status bar -->
+  <div class="statusbar">
+    <span><span class="ok">NORMAL</span> &nbsp; ~/chats/lena_jonas/report.txt</span>
+    <span>line 312 / 312 · 100% · UTF-8 · Apr 18 16:42</span>
+  </div>
+
+</body>
+</html>

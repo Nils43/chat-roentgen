@@ -1,34 +1,59 @@
 import type { Message, ParsedChat } from '../parser/types'
 
-// Intelligent sampling for AI analysis. Runs in the browser (Zone 1) — the
-// server only ever sees the sampled subset, never the full chat.
-//
-// Strategy (from concept §11):
-//   - First N messages (Kennenlernen-Phase, sets tone)
-//   - Last N messages (current state)
-//   - Messages at unusual hours (late night Goffman back-stage candidates)
-//   - Long messages (emotional ladung)
-//   - Messages around response-time kipppunkte
-//   - Random middle filler to fill quota
-//
-// Target: ~500 messages or ~20k input tokens, whichever comes first.
+// Smart-Sessions sampler. Treats conversations (gaps < 4h) as the unit instead
+// of individual messages — preserves dialogue structure for the AI. Picks the
+// emotionally densest sessions, then balances by speaker so quiet voices aren't
+// lost. Runs entirely in the browser (Zone 1).
 
 export interface SampleResult {
   messages: Message[]
   totalAvailable: number
   approxTokens: number
   strategy: {
-    start: number
-    end: number
-    longTail: number
-    offHours: number
-    kipppunkte: number
-    random: number
+    sessionsTotal: number
+    sessionsPicked: number
+    forced: number
+    signal: number
+    balanced: number
+    avgSessionScore: number
   }
 }
 
 const TARGET_TOKENS = 20_000
-const TOKEN_ESTIMATE_PER_CHAR = 0.28 // conservative upper bound for mixed German/English
+const TOKEN_ESTIMATE_PER_CHAR = 0.28
+const SESSION_GAP_MS = 4 * 60 * 60 * 1000
+const MIN_SPEAKER_WORD_SHARE = 0.25 // each participant should have ≥ this share
+
+interface Session {
+  index: number
+  messages: Message[]
+  startTs: Date
+  endTs: Date
+  wordCount: number
+  emojiCount: number
+  hedgeCount: number
+  questionCount: number
+  lateNightCount: number
+  speakerWordCount: Record<string, number>
+  bothActive: boolean
+  score: number
+  approxTokens: number
+}
+
+const HEDGE_RE = /\b(vielleicht|eigentlich|irgendwie|halt|fast|sozusagen|maybe|kinda|just|i\s+think|i\s+guess)\b/gi
+// eslint-disable-next-line no-misleading-character-class
+const EMOJI_RE = /(\p{Extended_Pictographic})(\uFE0F|\u200D\p{Extended_Pictographic})*/gu
+
+function countWords(s: string): number {
+  const t = s.trim()
+  return t ? t.split(/\s+/).length : 0
+}
+
+function countMatches(s: string, re: RegExp): number {
+  re.lastIndex = 0
+  const m = s.match(re)
+  return m ? m.length : 0
+}
 
 function estimateTokens(msgs: Message[]): number {
   let chars = 0
@@ -36,120 +61,212 @@ function estimateTokens(msgs: Message[]): number {
   return Math.round(chars * TOKEN_ESTIMATE_PER_CHAR)
 }
 
-function isOffHours(d: Date): boolean {
-  const h = d.getHours()
-  return h < 6 || h >= 23
+function splitSessions(messages: Message[], participants: string[]): Session[] {
+  const sessions: Session[] = []
+  let current: Message[] = []
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i]
+    if (current.length === 0) {
+      current.push(msg)
+      continue
+    }
+    const gap = +msg.ts - +current[current.length - 1].ts
+    if (gap > SESSION_GAP_MS) {
+      sessions.push(buildSession(current, sessions.length, participants))
+      current = [msg]
+    } else {
+      current.push(msg)
+    }
+  }
+  if (current.length > 0) sessions.push(buildSession(current, sessions.length, participants))
+  return sessions
 }
 
-function findKipppunkte(messages: Message[], topN: number): Set<number> {
-  // A kipppunkt is an index where the trailing-average response time jumps sharply.
-  // Local heuristic only — AI does the real interpretation.
-  if (messages.length < 50) return new Set()
-  const windowSize = 20
-  const avgAt: number[] = []
-  for (let i = windowSize; i < messages.length; i++) {
-    const gaps: number[] = []
-    for (let j = i - windowSize; j < i; j++) {
-      if (messages[j + 1].author !== messages[j].author) {
-        gaps.push(+messages[j + 1].ts - +messages[j].ts)
-      }
+function buildSession(msgs: Message[], index: number, participants: string[]): Session {
+  const speakerWordCount: Record<string, number> = {}
+  for (const p of participants) speakerWordCount[p] = 0
+  let wordCount = 0
+  let emojiCount = 0
+  let hedgeCount = 0
+  let questionCount = 0
+  let lateNightCount = 0
+  const seenSpeakers = new Set<string>()
+
+  for (const m of msgs) {
+    const w = countWords(m.text)
+    wordCount += w
+    speakerWordCount[m.author] = (speakerWordCount[m.author] ?? 0) + w
+    seenSpeakers.add(m.author)
+    emojiCount += countMatches(m.text, EMOJI_RE)
+    hedgeCount += countMatches(m.text, HEDGE_RE)
+    if (m.text.includes('?')) questionCount++
+    const h = m.ts.getHours()
+    if (h < 6 || h >= 23) lateNightCount++
+  }
+
+  const session: Session = {
+    index,
+    messages: msgs,
+    startTs: msgs[0].ts,
+    endTs: msgs[msgs.length - 1].ts,
+    wordCount,
+    emojiCount,
+    hedgeCount,
+    questionCount,
+    lateNightCount,
+    speakerWordCount,
+    bothActive: seenSpeakers.size >= 2,
+    score: 0,
+    approxTokens: estimateTokens(msgs),
+  }
+  session.score = scoreSession(session)
+  return session
+}
+
+function scoreSession(s: Session): number {
+  // Composite signal score. Each factor is a multiplier on a base of log(words).
+  // Logarithmic base keeps verbose-but-empty sessions from dominating.
+  const base = Math.log(1 + s.wordCount)
+  const msgs = s.messages.length
+  const emojiDensity = msgs ? s.emojiCount / msgs : 0
+  const hedgeDensity = msgs ? s.hedgeCount / msgs : 0
+  const questionDensity = msgs ? s.questionCount / msgs : 0
+  const lateNightFraction = msgs ? s.lateNightCount / msgs : 0
+
+  const multiplier =
+    1 +
+    0.6 * Math.min(1, emojiDensity * 4) +
+    0.5 * Math.min(1, hedgeDensity * 4) +
+    0.4 * Math.min(1, questionDensity * 4) +
+    0.7 * lateNightFraction +
+    (s.bothActive ? 0.5 : 0)
+
+  return base * multiplier
+}
+
+function wordShareInPicked(picked: Set<number>, sessions: Session[]): Record<string, number> {
+  const totals: Record<string, number> = {}
+  let sum = 0
+  for (const i of picked) {
+    for (const [author, w] of Object.entries(sessions[i].speakerWordCount)) {
+      totals[author] = (totals[author] ?? 0) + w
+      sum += w
     }
-    if (gaps.length === 0) continue
-    avgAt.push(gaps.reduce((a, b) => a + b, 0) / gaps.length)
   }
-  // Find biggest relative jumps
-  const jumps: { idx: number; delta: number }[] = []
-  for (let i = 1; i < avgAt.length; i++) {
-    const prev = avgAt[i - 1] || 1
-    const curr = avgAt[i]
-    jumps.push({ idx: i + windowSize, delta: curr / prev })
-  }
-  jumps.sort((a, b) => b.delta - a.delta)
-  return new Set(jumps.slice(0, topN).map((j) => j.idx))
+  const share: Record<string, number> = {}
+  if (sum === 0) return share
+  for (const [a, w] of Object.entries(totals)) share[a] = w / sum
+  return share
 }
 
 export function sampleForAI(chat: ParsedChat): SampleResult {
-  const { messages } = chat
+  const { messages, participants } = chat
   const N = messages.length
-  const picked = new Set<number>()
 
-  // 1. First 80 messages (setup)
-  const startCount = Math.min(80, Math.floor(N * 0.15))
-  for (let i = 0; i < startCount; i++) picked.add(i)
-
-  // 2. Last 150 messages (recent state — highest signal for current dynamic)
-  const endCount = Math.min(150, Math.floor(N * 0.25))
-  for (let i = Math.max(0, N - endCount); i < N; i++) picked.add(i)
-
-  // 3. Long messages (top 5% by length)
-  const sortedByLen = messages
-    .map((m, i) => ({ i, len: m.text.length }))
-    .sort((a, b) => b.len - a.len)
-  const longCount = Math.max(10, Math.floor(N * 0.05))
-  for (let k = 0; k < Math.min(longCount, sortedByLen.length); k++) {
-    picked.add(sortedByLen[k].i)
-  }
-
-  // 4. Off-hours messages (top 30 scattered throughout)
-  const offHoursIdx = messages
-    .map((m, i) => (isOffHours(m.ts) ? i : -1))
-    .filter((i) => i >= 0)
-  const offPick = Math.min(30, offHoursIdx.length)
-  // Evenly distributed across time
-  for (let k = 0; k < offPick; k++) {
-    const pos = Math.floor((k / offPick) * offHoursIdx.length)
-    picked.add(offHoursIdx[pos])
-  }
-
-  // 5. Kipppunkte — pull surrounding 3 messages on each side
-  const kipp = findKipppunkte(messages, 5)
-  for (const idx of kipp) {
-    for (let d = -3; d <= 3; d++) {
-      const j = idx + d
-      if (j >= 0 && j < N) picked.add(j)
+  // Tiny chats: just send everything.
+  if (estimateTokens(messages) <= TARGET_TOKENS) {
+    return {
+      messages: [...messages],
+      totalAvailable: N,
+      approxTokens: estimateTokens(messages),
+      strategy: {
+        sessionsTotal: 0,
+        sessionsPicked: 0,
+        forced: 0,
+        signal: 0,
+        balanced: 0,
+        avgSessionScore: 0,
+      },
     }
   }
 
-  // 6. Random middle filler until we hit token budget
-  const midStart = startCount
-  const midEnd = N - endCount
-  const midIdx = []
-  for (let i = midStart; i < midEnd; i++) if (!picked.has(i)) midIdx.push(i)
-  // Shuffle deterministically (don't want true random in privacy-sensitive code)
-  for (let i = midIdx.length - 1; i > 0; i--) {
-    const j = (i * 2654435761) % (i + 1)
-    ;[midIdx[i], midIdx[j]] = [midIdx[j], midIdx[i]]
-  }
-  const sortedIndices = () => [...picked].sort((a, b) => a - b).map((i) => messages[i])
-  let r = 0
-  while (r < midIdx.length && estimateTokens(sortedIndices()) < TARGET_TOKENS) {
-    picked.add(midIdx[r])
-    r++
+  const sessions = splitSessions(messages, participants)
+  const sessionCount = sessions.length
+
+  // Force-include first session and last two — preserve setup + current state.
+  const forcedIdx = new Set<number>()
+  if (sessionCount > 0) forcedIdx.add(0)
+  if (sessionCount > 1) forcedIdx.add(sessionCount - 1)
+  if (sessionCount > 2) forcedIdx.add(sessionCount - 2)
+
+  const picked = new Set(forcedIdx)
+  let usedTokens = [...picked].reduce((s, i) => s + sessions[i].approxTokens, 0)
+
+  // Greedy by signal score until budget hit.
+  const ranked = sessions
+    .filter((s) => !picked.has(s.index))
+    .sort((a, b) => b.score - a.score)
+
+  let signalAdded = 0
+  for (const s of ranked) {
+    if (usedTokens + s.approxTokens > TARGET_TOKENS) continue
+    picked.add(s.index)
+    usedTokens += s.approxTokens
+    signalAdded++
   }
 
-  // Final: sort by original order so the AI sees chronology
-  const sortedPicked = [...picked].sort((a, b) => a - b)
-  // If we blew past budget (can happen with many long messages), trim from middle
-  const sampled: Message[] = sortedPicked.map((i) => messages[i])
+  // Speaker balance: if a participant is under-represented, swap in their best sessions.
+  let balancedAdded = 0
+  for (const p of participants) {
+    let share = wordShareInPicked(picked, sessions)
+    let safety = 50
+    while ((share[p] ?? 0) < MIN_SPEAKER_WORD_SHARE && safety-- > 0) {
+      // Find the highest-score not-yet-picked session where p contributed the most words.
+      const candidate = sessions
+        .filter((s) => !picked.has(s.index) && (s.speakerWordCount[p] ?? 0) > 0)
+        .sort((a, b) => {
+          // prefer sessions where p's relative contribution is high
+          const aShare = (a.speakerWordCount[p] ?? 0) / (a.wordCount || 1)
+          const bShare = (b.speakerWordCount[p] ?? 0) / (b.wordCount || 1)
+          if (Math.abs(aShare - bShare) > 0.05) return bShare - aShare
+          return b.score - a.score
+        })[0]
+      if (!candidate) break
+      // Make room if needed: drop the lowest-score picked session that isn't forced.
+      while (usedTokens + candidate.approxTokens > TARGET_TOKENS) {
+        const droppable = [...picked]
+          .filter((i) => !forcedIdx.has(i))
+          .sort((a, b) => sessions[a].score - sessions[b].score)[0]
+        if (droppable === undefined) break
+        usedTokens -= sessions[droppable].approxTokens
+        picked.delete(droppable)
+      }
+      if (usedTokens + candidate.approxTokens > TARGET_TOKENS) break
+      picked.add(candidate.index)
+      usedTokens += candidate.approxTokens
+      balancedAdded++
+      share = wordShareInPicked(picked, sessions)
+    }
+  }
+
+  // Final: collect messages chronologically.
+  const sortedSessionIdx = [...picked].sort((a, b) => a - b)
+  const sampled = sortedSessionIdx.flatMap((i) => sessions[i].messages)
+
+  // Hard trim if still over budget (rare).
   while (estimateTokens(sampled) > TARGET_TOKENS && sampled.length > 200) {
-    // Drop every other message in the middle third
     const third = Math.floor(sampled.length / 3)
     for (let i = sampled.length - third - 1; i >= third; i -= 2) {
       sampled.splice(i, 1)
     }
   }
 
+  const avgScore =
+    picked.size > 0
+      ? [...picked].reduce((s, i) => s + sessions[i].score, 0) / picked.size
+      : 0
+
   return {
     messages: sampled,
     totalAvailable: N,
     approxTokens: estimateTokens(sampled),
     strategy: {
-      start: startCount,
-      end: endCount,
-      longTail: longCount,
-      offHours: offPick,
-      kipppunkte: kipp.size * 7,
-      random: r,
+      sessionsTotal: sessionCount,
+      sessionsPicked: picked.size,
+      forced: forcedIdx.size,
+      signal: signalAdded,
+      balanced: balancedAdded,
+      avgSessionScore: Math.round(avgScore * 10) / 10,
     },
   }
 }

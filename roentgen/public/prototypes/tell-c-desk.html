@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tell. — laid out</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@1,9..144,300..600,30..100&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #F0EBE0;
+      --paper-dim: #E3DCCB;
+      --ink: #16140F;
+      --ink-warm: #2A1F17;
+      --ink-faded: #877D6B;
+      --acid: #ECFD38;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    /* paper grain */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      opacity: 0.5; mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.06'/></svg>");
+    }
+    /* faint ruled lines on the desk */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image: repeating-linear-gradient(180deg, transparent 0, transparent 31px, rgba(22,20,15,0.04) 31px, rgba(22,20,15,0.04) 32px);
+    }
+
+    a, button { font: inherit; color: inherit; cursor: pointer; }
+    button { background: none; border: none; padding: 0; }
+
+    .meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faded); }
+    .mark {
+      background-image: linear-gradient(100deg, rgba(236,253,56,0) 0%, var(--acid) 6%, var(--acid) 94%, rgba(236,253,56,0.55) 100%);
+      padding: 0 0.18em; margin: 0 -0.08em;
+      box-decoration-break: clone; -webkit-box-decoration-break: clone;
+      display: inline-block; transform: rotate(-0.2deg);
+    }
+
+    /* TOPBAR */
+    header.bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      padding: 14px 26px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--paper);
+      border-bottom: 1px dashed rgba(22,20,15,0.18);
+    }
+    .wm {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100;
+      font-weight: 600;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+    }
+    .wm .dot { background: var(--acid); padding: 0 0.1em; font-style: normal; }
+    .bar-meta .ind { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); margin-right: 6px; vertical-align: 1px; }
+
+    /* DESK STAGE */
+    .desk {
+      position: relative;
+      width: 100vw; height: 100vh;
+      padding-top: 50px;
+      overflow: hidden;
+    }
+    /* shadow cards in the back — atmosphere of "everything's been laid out" */
+    .desk::after {
+      content: '';
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 500px; height: 360px;
+      box-shadow:
+        -90px -60px 0 -10px rgba(22,20,15,0.04),
+         90px -50px 0 -10px rgba(22,20,15,0.05),
+        -110px 80px 0 -10px rgba(22,20,15,0.04),
+         110px 90px 0 -10px rgba(22,20,15,0.05);
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    /* CARD WRAPPER — central stage where one card lives at a time */
+    .card-stage {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(560px, 92vw);
+    }
+    .tcard {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(0deg) scale(0.96);
+      width: 100%;
+      background: var(--paper);
+      box-shadow:
+        0 1px 0 rgba(22,20,15,0.06),
+        0 8px 24px rgba(22,20,15,0.10),
+        0 32px 80px rgba(22,20,15,0.10);
+      padding: 32px 34px;
+      opacity: 0; visibility: hidden;
+      transition: opacity 500ms ease, transform 600ms cubic-bezier(.2,.9,.25,1), visibility 0s linear 600ms;
+    }
+    .tcard.active {
+      opacity: 1; visibility: visible;
+      transform: translate(-50%, -50%) var(--rot, rotate(0deg)) scale(1);
+      transition-delay: 0s;
+    }
+
+    /* per-card random rotations (set via CSS var --rot) */
+
+    .tcard .k { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 14px; }
+
+    /* OPENER */
+    .tcard.opener {
+      background: transparent !important;
+      box-shadow: none !important;
+      padding: 16px 0;
+    }
+    .tcard.opener .hello {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100;
+      font-weight: 400;
+      font-size: clamp(40px, 6vw, 64px); line-height: 1.05;
+      letter-spacing: -0.025em;
+      margin: 0 0 18px;
+    }
+    .tcard.opener .sub {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 19px; line-height: 1.4; color: var(--ink-warm);
+      max-width: 460px; margin: 0;
+    }
+    .tcard.opener .sig {
+      margin-top: 22px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      color: var(--ink-faded); letter-spacing: 0.18em; text-transform: uppercase;
+    }
+
+    /* WARM */
+    .tcard.warm .num {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100; font-weight: 400;
+      font-size: clamp(96px, 18vw, 156px);
+      line-height: 0.85; letter-spacing: -0.05em; margin: 0 0 18px;
+    }
+    .tcard.warm .talk {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 22px; line-height: 1.3; margin: 0 0 14px;
+    }
+    .tcard.warm .small { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faded); }
+
+    /* ORDER */
+    .tcard.order {
+      background: var(--paper-dim);
+    }
+    .tcard.order .h {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 400;
+      font-size: 26px; line-height: 1.2; margin: 0 0 18px;
+    }
+    .tcard.order ul { list-style: none; margin: 0; padding: 0; }
+    .tcard.order li {
+      padding: 14px 0; border-top: 1px dashed rgba(22,20,15,0.22);
+      display: flex; gap: 12px; align-items: baseline;
+      cursor: pointer; transition: padding-left 200ms;
+    }
+    .tcard.order li:first-child { border-top: none; }
+    .tcard.order li:hover { padding-left: 8px; }
+    .tcard.order li:hover .lab { background: var(--acid); padding: 0 4px; }
+    .tcard.order li .x { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faded); letter-spacing: 0.12em; }
+    .tcard.order li .lab { font-family: 'Fraunces', serif; font-style: italic; font-size: 19px; }
+    .tcard.order li.skip { color: var(--ink-faded); }
+    .tcard.order li.skip:hover .lab { background: transparent; }
+
+    /* GATE */
+    .tcard.gate {
+      background: var(--ink); color: var(--paper);
+    }
+    .tcard.gate .badge {
+      display: inline-block;
+      background: var(--acid); color: var(--ink);
+      padding: 4px 10px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500;
+      margin-bottom: 16px;
+    }
+    .tcard.gate h3 {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 400;
+      font-size: 24px; line-height: 1.2; margin: 0 0 22px;
+    }
+    .tcard.gate .field {
+      display: flex; align-items: baseline; gap: 10px;
+      border-bottom: 1px solid var(--paper);
+      padding-bottom: 10px; margin-bottom: 18px;
+    }
+    .tcard.gate input {
+      flex: 1; min-width: 0;
+      background: transparent; border: none; outline: none; padding: 0;
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 44px; color: var(--paper); letter-spacing: -0.02em;
+    }
+    .tcard.gate .unit { font-family: 'JetBrains Mono', monospace; font-size: 10px; opacity: 0.6; letter-spacing: 0.1em; text-transform: uppercase; }
+    .tcard.gate .submit { background: var(--paper); color: var(--ink); padding: 10px 18px; font-size: 13px; font-weight: 500; border-radius: 999px; }
+    .tcard.gate .skip-l { font-size: 12px; color: rgba(240,235,224,0.5); margin-left: 12px; }
+    .tcard.gate .answer {
+      margin-top: 22px; padding: 18px 20px;
+      background: var(--paper); color: var(--ink);
+      opacity: 0; max-height: 0; overflow: hidden;
+      transition: opacity 500ms 100ms, max-height 500ms;
+    }
+    .tcard.gate.revealed .answer { opacity: 1; max-height: 200px; }
+    .tcard.gate .answer .l { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 8px; }
+    .tcard.gate .answer .a { font-family: 'Fraunces', serif; font-style: italic; font-size: 20px; line-height: 1.25; margin: 0; }
+
+    /* BUFFER */
+    .tcard.buffer { text-align: center; padding: 28px 32px 32px; }
+    .tcard.buffer .pre { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 16px; }
+    .tcard.buffer .saying {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 19px; line-height: 1.3; margin: 0 0 28px; color: var(--ink-warm);
+      max-width: 380px; margin-left: auto; margin-right: auto;
+    }
+    .breath {
+      width: 140px; height: 140px; border-radius: 50%; background: var(--ink); color: var(--paper);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      margin: 0 auto 18px;
+      animation: breathe 8s ease-in-out infinite;
+    }
+    @keyframes breathe { 0%, 100% { transform: scale(0.85); } 50% { transform: scale(1); } }
+    .tcard.buffer .timer { font-family: 'Fraunces', serif; font-style: italic; font-size: 40px; line-height: 1; margin: 0 0 14px; }
+    .tcard.buffer .skip-line { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-faded); letter-spacing: 0.14em; text-transform: uppercase; }
+    .tcard.buffer .skip-line a { padding: 4px 8px; cursor: pointer; }
+
+    /* HARD */
+    .tcard.hard { padding: 32px 34px; }
+    .tcard.hard .row { display: flex; gap: 36px; align-items: flex-end; margin: 12px 0 22px; }
+    .tcard.hard .cell .l { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 4px; }
+    .tcard.hard .cell .num {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100; font-weight: 400;
+      font-size: clamp(80px, 13vw, 130px);
+      line-height: 0.88; letter-spacing: -0.05em;
+    }
+    .tcard.hard .cell.them .num { color: var(--ink-faded); }
+    .tcard.hard .talk {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 21px; line-height: 1.3; max-width: 460px; margin: 0;
+    }
+
+    /* FIX (taped note) */
+    .tcard.fix-tape {
+      background: var(--paper-dim);
+      padding: 28px 30px 30px;
+    }
+    .tcard.fix-tape::before {
+      content: '';
+      position: absolute; top: -10px; left: 50%; transform: translateX(-50%) rotate(-3deg);
+      width: 90px; height: 18px;
+      background: rgba(236,253,56,0.85);
+      box-shadow: 0 1px 2px rgba(22,20,15,0.1);
+    }
+    .tcard.fix-tape .text {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 21px; line-height: 1.3; margin: 0 0 22px;
+    }
+    .tcard.fix-tape .check { display: flex; gap: 10px; align-items: center; font-size: 14px; color: var(--ink-warm); margin: 8px 0; }
+    .tcard.fix-tape .check .box { width: 16px; height: 16px; border: 1.5px solid var(--ink); display: inline-block; }
+    .tcard.fix-tape .actions { display: flex; gap: 12px; margin-top: 22px; align-items: center; }
+    .tcard.fix-tape .yes { background: var(--ink); color: var(--paper); padding: 10px 18px; border-radius: 999px; font-size: 13px; font-weight: 500; }
+    .tcard.fix-tape .later { color: var(--ink-faded); font-size: 13px; padding: 4px 8px; }
+
+    /* REFUSAL */
+    .tcard.refusal { background: var(--ink); color: var(--paper); padding: 28px 30px 30px; }
+    .tcard.refusal .k { color: rgba(240,235,224,0.5); }
+    .tcard.refusal h2 {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 400;
+      font-size: 26px; line-height: 1.2; margin: 0 0 14px;
+    }
+    .tcard.refusal p {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 19px; line-height: 1.35; margin: 0 0 22px;
+      color: rgba(240,235,224,0.7);
+    }
+    .tcard.refusal .ack-row { display: flex; gap: 12px; align-items: center; }
+    .tcard.refusal .ack { padding: 10px 16px; border: 1px solid var(--paper); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; }
+    .tcard.refusal .ack:hover { background: var(--paper); color: var(--ink); }
+    .tcard.refusal .small { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(240,235,224,0.4); letter-spacing: 0.14em; text-transform: uppercase; }
+
+    /* OUTRO */
+    .tcard.outro {
+      background: transparent !important; box-shadow: none !important;
+      padding: 16px 0;
+    }
+    .tcard.outro h2 {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 400;
+      font-size: clamp(36px, 5vw, 52px); line-height: 1.05; letter-spacing: -0.025em;
+      margin: 0 0 18px;
+    }
+    .tcard.outro p {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 19px; line-height: 1.4; color: var(--ink-warm);
+      max-width: 460px; margin: 0 0 24px;
+    }
+    .tcard.outro .actions { display: flex; gap: 12px; }
+    .tcard.outro .primary { background: var(--ink); color: var(--paper); padding: 12px 22px; font-size: 13px; font-weight: 500; border-radius: 999px; }
+    .tcard.outro .ghost { color: var(--ink-faded); padding: 12px 18px; font-size: 13px; }
+
+    /* MARGINALIA — small handwritten-mono notes around the active card */
+    .marginalia {
+      position: absolute;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--ink-warm);
+      max-width: 200px;
+      line-height: 1.5;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 600ms 200ms;
+    }
+    .marginalia::before { content: '→ '; color: var(--ink-faded); }
+    .stage-active.show-margin .marginalia { opacity: 1; }
+    .marg-1 { top: 12%; left: 8%; transform: rotate(-2.4deg); }
+    .marg-2 { bottom: 18%; right: 8%; transform: rotate(1.8deg); }
+
+    @media (max-width: 720px) {
+      .marginalia { display: none; }
+      .desk::after { display: none; }
+      .tcard.hard .row { gap: 24px; }
+      .tcard.hard .cell .num { font-size: 72px; }
+    }
+
+    /* BOTTOM NAV — controls */
+    .controls {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+      padding: 16px 26px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--paper);
+      border-top: 1px dashed rgba(22,20,15,0.18);
+    }
+    .controls .left, .controls .right { display: flex; gap: 12px; align-items: center; }
+    .controls .nav-dots { display: flex; gap: 6px; align-items: center; }
+    .controls .nav-dots .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(22,20,15,0.18);
+      transition: all 320ms;
+      cursor: pointer;
+    }
+    .controls .nav-dots .dot.on { background: var(--ink); width: 16px; border-radius: 3px; }
+    .controls .nav-dots .dot.done { background: var(--ink-faded); }
+    .controls .marker { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-warm); }
+    .controls button.next {
+      background: var(--ink); color: var(--paper);
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 13px; font-weight: 500;
+    }
+    .controls button.prev { color: var(--ink-faded); padding: 8px 14px; font-size: 12px; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.14em; text-transform: uppercase; }
+    .controls button.prev:hover { color: var(--ink); }
+    .controls button.next[disabled] { opacity: 0.3; cursor: not-allowed; }
+
+    /* dark mode chrome on refusal */
+    body.dark { background: var(--ink); }
+    body.dark::before, body.dark::after { display: none; }
+    body.dark header.bar, body.dark .controls { background: var(--ink); border-color: rgba(240,235,224,0.15); }
+    body.dark .wm { color: var(--paper); }
+    body.dark .controls .marker { color: rgba(240,235,224,0.6); }
+    body.dark .controls .nav-dots .dot { background: rgba(240,235,224,0.2); }
+    body.dark .controls .nav-dots .dot.on { background: var(--paper); }
+    body.dark .controls button.next { background: var(--paper); color: var(--ink); }
+    body.dark .controls button.prev { color: rgba(240,235,224,0.5); }
+    body.dark .desk::after { display: none; }
+  </style>
+</head>
+<body>
+
+  <header class="bar">
+    <span class="wm">tell<span class="dot">.</span></span>
+    <span class="meta bar-meta"><span class="ind"></span>local · 24h delete · no account</span>
+  </header>
+
+  <main class="desk stage-active" id="desk">
+    <div class="card-stage" id="cardStage">
+
+      <article class="tcard opener active" data-screen="0" style="--rot: rotate(-1.6deg);">
+        <h1 class="hello">Ich hab schon mal alles<br/>auf den Tisch gelegt.</h1>
+        <p class="sub">Schau, wann du soweit bist. Du musst nichts klicken. Tipp dich durch.</p>
+        <div class="sig">— tell · do, 18 apr · 19:34</div>
+      </article>
+
+      <article class="tcard order" data-screen="1" style="--rot: rotate(-2.6deg);">
+        <div class="k">→ vor allem anderen</div>
+        <h3 class="h">Was zuerst — gut oder schwer?</h3>
+        <ul>
+          <li data-pick><span class="x">a.</span><span class="lab">Bad first. Ich halt das aus.</span></li>
+          <li data-pick><span class="x">b.</span><span class="lab">Good first. Bitte sanft.</span></li>
+          <li class="skip" data-pick><span class="x">c.</span><span class="lab">Nur das Gute heute.</span></li>
+        </ul>
+      </article>
+
+      <article class="tcard warm" data-screen="2" style="--rot: rotate(1.4deg);">
+        <div class="k">→ etwas warmes</div>
+        <div class="num">847</div>
+        <p class="talk">Tim hat in <span class="mark">847 Nachrichten</span> einmal "haha" benutzt. Einmal. Heute zu dir.</p>
+        <div class="small">→ heute · confidence: high</div>
+      </article>
+
+      <article class="tcard gate" data-screen="3" id="gateScreen" style="--rot: rotate(0.8deg);">
+        <span class="badge">pop quiz</span>
+        <h3>Bevor ich's dir sage — wie viel <span class="mark">schneller</span> antwortet Tim als du?</h3>
+        <div class="field">
+          <input type="text" value="2" />
+          <span class="unit">× schneller</span>
+        </div>
+        <div>
+          <button class="submit" id="gateSubmit">Tell mir die Wahrheit</button>
+          <button class="skip-l" data-advance>überspringen</button>
+        </div>
+        <div class="answer">
+          <div class="l">→ die zahl</div>
+          <p class="a"><span class="mark">Du.</span> Du antwortest 4× schneller als Tim. Seit drei Monaten konstant.</p>
+        </div>
+      </article>
+
+      <article class="tcard buffer" data-screen="4" id="bufferScreen" style="--rot: rotate(-0.8deg);">
+        <div class="pre">→ atemzeichen</div>
+        <p class="saying">Das hier wird dich ärgern. Eine Minute atmen?</p>
+        <div class="breath">atme</div>
+        <div class="timer" id="bufferTimer">00:60</div>
+        <div class="skip-line"><a data-advance>ich brauch's jetzt</a></div>
+      </article>
+
+      <article class="tcard hard" data-screen="5" style="--rot: rotate(-0.4deg);">
+        <div class="k">→ this week · you & tim</div>
+        <div class="row">
+          <div class="cell"><div class="l">VON DIR</div><div class="num">47</div></div>
+          <div class="cell them"><div class="l">VON IHM</div><div class="num">12</div></div>
+        </div>
+        <p class="talk"><span class="mark">47 von dir.</span> 12 von ihm. Das ist die Woche. Nicht die schlimmste, aber die ehrlichste seit dem 14. März.</p>
+      </article>
+
+      <article class="tcard fix-tape" data-screen="6" style="--rot: rotate(2.2deg);">
+        <div class="k">→ ein experiment</div>
+        <p class="text">Schreib ihm die nächsten drei Tage nicht zuerst. Nicht als Strafe. Als Experiment. Schau, was passiert.</p>
+        <label class="check"><span class="box"></span> Ich versuch das.</label>
+        <div class="actions">
+          <button class="yes" data-advance>erinner mich Sonntag</button>
+          <button class="later" data-advance>vielleicht später</button>
+        </div>
+      </article>
+
+      <article class="tcard refusal" data-screen="7" data-bg="dark" style="--rot: rotate(-1.2deg);">
+        <div class="k">→ this i won't tell you</div>
+        <h2>Du fragst mich das zum dritten Mal heute.</h2>
+        <p>Die Antwort ändert sich nicht. Mach was anderes, eine Stunde. Wir reden, wenn du wiederkommst.</p>
+        <div class="ack-row">
+          <button class="ack" data-advance>verstanden</button>
+          <span class="small">tell · gatekeeping</span>
+        </div>
+      </article>
+
+      <article class="tcard outro" data-screen="8" style="--rot: rotate(-0.4deg);">
+        <h2>Das war's für heute.<br/>Pass auf dich auf.</h2>
+        <p>Dein Chat liegt bei dir. In 24 Stunden ist er weg, sofern du ihn nicht behältst.</p>
+        <div class="actions">
+          <button class="primary" onclick="goTo(0)">behalten · 24h</button>
+          <button class="ghost" onclick="goTo(0)">jetzt löschen</button>
+        </div>
+      </article>
+
+    </div>
+
+    <!-- Marginalia — show only on Hard reveal as ambient context -->
+    <div class="marginalia marg-1" id="m1">deine median: 4 min · seine: 47 min · seit jan stetig auseinander</div>
+    <div class="marginalia marg-2" id="m2">"haha" ist kein lachen. "haha" ist sozialer kitt. einer in 847.</div>
+  </main>
+
+  <footer class="controls">
+    <div class="left">
+      <button class="prev" id="prevBtn">← zurück</button>
+    </div>
+    <div class="nav-dots" id="dots"></div>
+    <div class="right">
+      <span class="marker" id="marker">01 / 09</span>
+      <button class="next" id="nextBtn">weiter →</button>
+    </div>
+  </footer>
+
+  <script>
+    const cards = document.querySelectorAll('.tcard');
+    const total = cards.length;
+    const dotsContainer = document.getElementById('dots');
+    const nextBtn = document.getElementById('nextBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const marker = document.getElementById('marker');
+    const desk = document.getElementById('desk');
+    let current = 0;
+
+    // dots
+    const dots = [];
+    for (let i = 0; i < total; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot';
+      d.addEventListener('click', () => goTo(i));
+      dots.push(d);
+      dotsContainer.appendChild(d);
+    }
+
+    function goTo(idx) {
+      if (idx < 0 || idx >= total) return;
+      cards[current].classList.remove('active');
+      current = idx;
+      cards[current].classList.add('active');
+      // bg swap
+      const bg = cards[current].dataset.bg;
+      document.body.classList.toggle('dark', bg === 'dark');
+      // marginalia: show only on hard reveal (#5)
+      desk.classList.toggle('show-margin', idx === 5);
+      // dots
+      dots.forEach((d, i) => {
+        d.classList.toggle('on', i === current);
+        d.classList.toggle('done', i < current);
+      });
+      marker.textContent = `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+      prevBtn.disabled = current === 0;
+      nextBtn.disabled = current === total - 1;
+      // screen-specific
+      if (cards[current].id === 'gateScreen') resetGate();
+      if (cards[current].id === 'bufferScreen') startBuffer();
+    }
+
+    nextBtn.addEventListener('click', () => goTo(current + 1));
+    prevBtn.addEventListener('click', () => goTo(current - 1));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') goTo(current + 1);
+      if (e.key === 'ArrowLeft') goTo(current - 1);
+    });
+    document.querySelectorAll('[data-pick], [data-advance]').forEach((el) => {
+      el.addEventListener('click', (e) => { e.preventDefault(); goTo(current + 1); });
+    });
+
+    // gate
+    const gateCard = document.getElementById('gateScreen');
+    const gateSubmit = document.getElementById('gateSubmit');
+    function resetGate() { gateCard.classList.remove('revealed'); gateSubmit.textContent = 'Tell mir die Wahrheit'; }
+    gateSubmit.addEventListener('click', () => {
+      if (!gateCard.classList.contains('revealed')) {
+        gateCard.classList.add('revealed');
+        gateSubmit.textContent = 'weiter →';
+      } else { goTo(current + 1); }
+    });
+
+    // buffer countdown
+    let bufferInterval;
+    function startBuffer() {
+      clearInterval(bufferInterval);
+      let s = 60;
+      const el = document.getElementById('bufferTimer');
+      el.textContent = `00:${String(s).padStart(2, '0')}`;
+      bufferInterval = setInterval(() => {
+        s--;
+        if (s <= 0) {
+          clearInterval(bufferInterval);
+          el.textContent = '00:00';
+          setTimeout(() => goTo(current + 1), 600);
+          return;
+        }
+        el.textContent = `00:${String(s).padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    goTo(0);
+  </script>
+</body>
+</html>

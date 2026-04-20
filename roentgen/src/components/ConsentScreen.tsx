@@ -1,6 +1,6 @@
 import type { PrepareResult } from '../ai/profile'
 import type { ParsedChat } from '../parser/types'
-import { MODULE_COSTS, useTokenState } from '../tokens/store'
+import { MODULE_COSTS, useTokenState, type ModuleId } from '../tokens/store'
 
 interface Props {
   chat: ParsedChat
@@ -8,106 +8,111 @@ interface Props {
   onAccept: () => void
   onCancel: () => void
   onOpenTokens?: () => void
+  moduleId?: ModuleId
 }
 
 // The critical trust moment. Show exactly what's going out and why.
-// "Transparenz schafft mehr Vertrauen als Verschweigen."
-export function ConsentScreen({ chat, prepared, onAccept, onCancel, onOpenTokens }: Props) {
+// Transparency builds more trust than hiding things does.
+export function ConsentScreen({
+  chat,
+  prepared,
+  onAccept,
+  onCancel,
+  onOpenTokens,
+  moduleId = 'profiles',
+}: Props) {
   const pctOfChat = ((prepared.messagesSent / prepared.sample.totalAvailable) * 100).toFixed(1)
   const isFixture = prepared.analyzerKind === 'fixture'
   const { balance } = useTokenState()
-  const cost = MODULE_COSTS.profiles.cost
+  const meta = MODULE_COSTS[moduleId]
+  const cost = meta.cost
   const insufficient = balance < cost
 
   return (
     <div className="min-h-[80vh] flex items-start justify-center px-5 md:px-8 py-12">
       <div className="w-full max-w-2xl">
-        <div className={`label-mono mb-6 ${isFixture ? 'text-a' : 'text-b'}`}>
-          <span className={`inline-block w-1.5 h-1.5 rounded-full mr-2 animate-pulse-soft ${isFixture ? 'bg-a' : 'bg-b'}`} />
-          {isFixture ? 'Dev · Fixture-Mode · kein API-Call' : 'Zone 2+3 · Daten verlassen dein Gerät'}
+        <div className={`pill-pop mb-6 ${isFixture ? 'text-a' : 'text-b'}`}>
+          <span className={`inline-block w-1.5 h-1.5 rounded-full animate-pulse-soft ${isFixture ? 'bg-a' : 'bg-b'}`} />
+          <span className="font-mono uppercase tracking-[0.14em]">
+            {isFixture ? 'test mode · nothing leaves' : 'Decode is about to send slices to the AI'}
+          </span>
         </div>
 
         <h2 className="font-serif text-4xl md:text-5xl leading-tight mb-6 tracking-tight">
-          Bevor wir die AI starten,
+          Before the <span className="gradient-text-cool">AI</span> kicks in,
           <br />
-          <span className="italic text-ink-muted">die Fakten.</span>
+          <span className="italic text-ink-muted">quick check.</span>
         </h2>
 
         <p className="serif-body text-lg md:text-xl text-ink-muted mb-10">
-          Die psychologische Analyse braucht ein Sprachmodell. Hier ist, was genau passiert, wenn du jetzt zustimmst.
+          So the AI can read you, Decode sends a handful of messages over. Here's exactly what goes — and what doesn't.
         </p>
 
         {/* The number block */}
         <div className="card space-y-6 mb-6">
           <Row
-            label={isFixture ? 'Nachrichten vorbereitet' : 'Nachrichten gesendet'}
-            value={prepared.messagesSent.toLocaleString('de-DE')}
-            suffix={`von ${prepared.sample.totalAvailable.toLocaleString('de-DE')} (${pctOfChat}%)`}
+            label={isFixture ? 'Messages in the slice' : 'Messages going out'}
+            value={prepared.messagesSent.toLocaleString('en-US')}
+            suffix={`of ${prepared.sample.totalAvailable.toLocaleString('en-US')} (${pctOfChat}%)`}
           />
           <Row
-            label="Tokens geschätzt"
-            value={`~${prepared.approxTokensPerCall.toLocaleString('de-DE')}`}
-            suffix={`pro Person · ${prepared.totalCalls} Call${prepared.totalCalls > 1 ? 's' : ''}`}
+            label="What's picked"
+            value="the moments that matter"
+            suffix="Beginnings, endings, long messages, late-night streaks, turning points"
           />
           <Row
-            label="Empfänger"
-            value={isFixture ? 'Fixture (lokal)' : 'Anthropic (Claude)'}
-            suffix={isFixture ? 'vorgeneriertes Profil · kein Netzwerk' : 'Frankfurt / US · via API'}
+            label="Names"
+            value="hidden"
+            suffix={chat.participants.map((p, i) => `${p} becomes Person ${String.fromCharCode(65 + i)}`).join(', ')}
           />
           <Row
-            label="Namen"
-            value="pseudonymisiert"
-            suffix={chat.participants.map((p, i) => `${p} → Person ${String.fromCharCode(65 + i)}`).join(', ')}
+            label="Also stripped"
+            value="emails, links, phone numbers"
+            suffix="gone before the text leaves"
           />
           <Row
-            label="Scrubbed"
-            value="E-Mails, URLs, Telefonnummern"
-            suffix="ersetzt durch [email], [link], [phone]"
+            label="Who reads along"
+            value={isFixture ? 'nobody — just your device' : 'an AI (Anthropic Claude)'}
+            suffix={isFixture ? 'in test mode everything stays local' : 'stored up to 30 days, does NOT train on your data'}
           />
           <Row
-            label="Sampling"
-            value="intelligent"
-            suffix={`${prepared.sample.strategy.start} Anfang · ${prepared.sample.strategy.end} Ende · ${prepared.sample.strategy.longTail} lang · ${prepared.sample.strategy.offHours} Nachts · ${prepared.sample.strategy.kipppunkte} Kipppunkte · ${prepared.sample.strategy.random} zufällig`}
-          />
-          <Row
-            label="Kosten"
-            value={`${cost} Token`}
-            suffix={`Guthaben: ${balance} · weitere Module je 1 Token`}
+            label="Costs"
+            value={`${cost} ticket`}
+            suffix={`You have ${balance} · each analysis = 1 ticket`}
           />
         </div>
 
-        {/* Anthropic retention */}
+        {/* Trust reassurance — plain language */}
         <div className="bg-bg-surface/60 border border-line/60 rounded-xl p-5 mb-10">
-          <div className="label-mono mb-3 text-b">Was Anthropic damit macht</div>
+          <div className="label-mono mb-3 text-b">What Decode never does</div>
           <ul className="serif-body text-base md:text-lg text-ink space-y-2">
             <li>
-              <span className="text-a">+</span> Verarbeitung für dein Request — Response wird zurückgeschickt.
+              <span className="text-a">✓</span> Save your chat on our servers — no way.
             </li>
             <li>
-              <span className="text-a">+</span> Speicherung bis zu 30 Tage für Trust &amp; Safety.
+              <span className="text-a">✓</span> Identify you or your people — names are out first.
             </li>
             <li>
-              <span className="text-a">+</span> <span className="font-semibold">Kein</span> Training auf deinen Daten.
+              <span className="text-a">✓</span> Use your messages for AI training — nope.
             </li>
             <li>
-              <span className="text-ink-faint">·</span> Röntgen speichert nichts. Wir sehen den Chat nie, auch nicht im
-              RAM.
+              <span className="text-ink-faint">·</span> Beyond the small slice, everything stays on your device.
             </li>
           </ul>
         </div>
 
         {insufficient && (
           <div className="card border-b/60 bg-b/5 mb-6">
-            <div className="label-mono text-b mb-2">Kein Guthaben</div>
+            <div className="label-mono text-b mb-2">Out of tickets</div>
             <p className="serif-body text-lg text-ink mb-4">
-              Du brauchst mindestens {cost} Token für die Profil-Analyse. Du hast aktuell {balance}.
+              "{meta.label}" needs {cost} {cost === 1 ? 'ticket' : 'tickets'} — you have {balance} right now.
             </p>
             {onOpenTokens && (
               <button
                 onClick={onOpenTokens}
                 className="px-5 py-2.5 bg-b text-bg rounded-full font-sans text-sm tracking-wide hover:bg-b/90 transition-colors"
               >
-                Tokens nachladen →
+                Top up tickets →
               </button>
             )}
           </div>
@@ -118,24 +123,24 @@ export function ConsentScreen({ chat, prepared, onAccept, onCancel, onOpenTokens
           <button
             onClick={onAccept}
             disabled={insufficient}
-            className="flex-1 px-6 py-4 bg-ink text-bg rounded-full font-sans font-medium text-base hover:bg-a hover:text-bg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-ink disabled:hover:text-bg"
+            className="flex-1 btn-pop px-6 py-4 text-base"
           >
-            Analyse starten{' '}
-            <span className="label-mono ml-2 text-bg/60">
-              {cost} {cost === 1 ? 'Token' : 'Tokens'}
+            <span aria-hidden>✨</span>
+            Start the analysis
+            <span className="label-mono ml-1 text-bg/70">
+              {cost} {cost === 1 ? 'ticket' : 'tickets'}
             </span>
           </button>
           <button
             onClick={onCancel}
-            className="flex-1 px-6 py-4 border border-line rounded-full font-sans font-medium text-base text-ink-muted hover:border-ink hover:text-ink transition-colors"
+            className="flex-1 px-6 py-4 border border-line rounded-full font-sans font-medium text-base text-ink-muted hover:border-ink hover:text-ink hover:bg-bg-raised/40 transition-all"
           >
-            Nur lokale Analyse
+            Back to the numbers
           </button>
         </div>
 
         <p className="text-ink-faint text-[11px] font-mono mt-6 leading-relaxed">
-          Mit „Analyse starten" bestätigst du, dass dieser Chat dir gehört oder du an ihm beteiligt warst. Keine Analyse
-          fremder Chats.
+          Hitting "Start the analysis" confirms: the chat is yours or you were part of it. No strangers' chats, please.
         </p>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import type { Message, ParsedChat } from '../parser/types'
 
-// Hard Facts — Modul 01. Everything in this file runs in the browser.
+// Hard Facts — module 01. Everything in this file runs in the browser.
 // No network. No persistence. Pure functions over Message[].
 
 export interface PerPersonStats {
@@ -27,6 +27,12 @@ export interface PerPersonStats {
   initiationShare: number
   // Power score — composite 0..100 from message share, initiation share, speed.
   powerScore: number
+  // Late-night messages (23:00–04:59) — when masks tend to slip.
+  lateNightCount: number
+  lateNightRatio: number
+  // Bursts: sequences of 3+ messages from this person without other-side reply.
+  burstCount: number
+  longestBurst: number
 }
 
 export interface HardFacts {
@@ -48,6 +54,15 @@ export interface HardFacts {
   weekly: { weekStart: Date; count: number; perPerson: Record<string, number> }[]
   // Investment delta (difference in power scores, 0..100)
   investmentDelta: number
+  // Initiation drift: how much initiation share shifted between first and
+  // second half of the chat. Positive = leader-A grew, negative = leader-A shrank.
+  initiationDrift: {
+    firstHalfLeader: string | null
+    secondHalfLeader: string | null
+    firstHalfShare: number // share of leader in first half (0..1)
+    secondHalfShare: number // share of same leader in second half (0..1)
+    swap: boolean // true if the leader changed between halves
+  }
 }
 
 const HEDGE_PATTERNS_DE = [
@@ -133,7 +148,7 @@ export function analyzeHardFacts(chat: ParsedChat): HardFacts {
   const { messages, participants, locale } = chat
 
   if (messages.length === 0) {
-    throw new Error('Keine Nachrichten zum Analysieren.')
+    throw new Error('No messages to analyze.')
   }
 
   const firstTs = messages[0].ts
@@ -169,6 +184,30 @@ export function analyzeHardFacts(chat: ParsedChat): HardFacts {
       initiations: 0,
     }
   }
+
+  // Side accumulators for the new metrics.
+  const lateNightAgg: Record<string, number> = {}
+  const burstStats: Record<string, { count: number; longest: number }> = {}
+  for (const p of participants) {
+    lateNightAgg[p] = 0
+    burstStats[p] = { count: 0, longest: 0 }
+  }
+  let currentRunAuthor: string | null = null
+  let currentRunLen = 0
+  const flushRun = () => {
+    if (currentRunAuthor && currentRunLen >= 3) {
+      const s = burstStats[currentRunAuthor]
+      if (s) {
+        s.count++
+        if (currentRunLen > s.longest) s.longest = currentRunLen
+      }
+    }
+  }
+  // Per-half initiation tracking
+  const halfMs = (+messages[messages.length - 1].ts - +messages[0].ts) / 2
+  const halfThreshold = +messages[0].ts + halfMs
+  const halfInitiations: Record<string, [number, number]> = {}
+  for (const p of participants) halfInitiations[p] = [0, 0]
 
   const heatmap: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0))
   const dayCounts = new Map<string, number>()
@@ -219,19 +258,45 @@ export function analyzeHardFacts(chat: ParsedChat): HardFacts {
       if (msg.author !== prev.author) {
         // Reply from current author to previous author
         agg.replies.push(gap)
-        if (gap >= INITIATION_GAP_MS) agg.initiations++
+        if (gap >= INITIATION_GAP_MS) {
+          agg.initiations++
+          const halfIdx = +msg.ts < halfThreshold ? 0 : 1
+          halfInitiations[msg.author][halfIdx]++
+        }
+        // Author changed → flush run from previous, start new run for current.
+        flushRun()
+        currentRunAuthor = msg.author
+        currentRunLen = 1
       }
       // Very first message after 4h silence from same speaker also counts as initiation
       else if (gap >= INITIATION_GAP_MS) {
         agg.initiations++
+        const halfIdx = +msg.ts < halfThreshold ? 0 : 1
+        halfInitiations[msg.author][halfIdx]++
+        // Treat as start of a new run.
+        flushRun()
+        currentRunAuthor = msg.author
+        currentRunLen = 1
+      } else {
+        currentRunLen++
       }
     } else {
       // First message of the whole chat counts as initiation
       agg.initiations++
+      const halfIdx = +msg.ts < halfThreshold ? 0 : 1
+      halfInitiations[msg.author][halfIdx]++
+      currentRunAuthor = msg.author
+      currentRunLen = 1
     }
+
+    // Late-night: 23:00–04:59 (local time)
+    const hr = msg.ts.getHours()
+    if (hr >= 23 || hr < 5) lateNightAgg[msg.author] = (lateNightAgg[msg.author] ?? 0) + 1
 
     prev = msg
   }
+  // Flush the final run.
+  flushRun()
 
   // Peak day
   let peakDay = { date: '', count: 0 }
@@ -283,6 +348,10 @@ export function analyzeHardFacts(chat: ParsedChat): HardFacts {
       initiations: agg.initiations,
       initiationShare: agg.initiations / totalInitiations,
       powerScore: 0, // fill below
+      lateNightCount: lateNightAgg[author] ?? 0,
+      lateNightRatio: agg.messages ? (lateNightAgg[author] ?? 0) / agg.messages : 0,
+      burstCount: burstStats[author]?.count ?? 0,
+      longestBurst: burstStats[author]?.longest ?? 0,
     }
   })
 
@@ -329,6 +398,33 @@ export function analyzeHardFacts(chat: ParsedChat): HardFacts {
   const silentDays = Math.max(0, durationDays - activeDays)
   const longestSilenceDays = Math.round(longestGap / 86400000)
 
+  // Initiation drift between halves
+  const firstHalfTotals: Record<string, number> = {}
+  const secondHalfTotals: Record<string, number> = {}
+  for (const p of participants) {
+    firstHalfTotals[p] = halfInitiations[p][0]
+    secondHalfTotals[p] = halfInitiations[p][1]
+  }
+  const sumFirst = Object.values(firstHalfTotals).reduce((s, n) => s + n, 0)
+  const sumSecond = Object.values(secondHalfTotals).reduce((s, n) => s + n, 0)
+  let firstHalfLeader: string | null = null
+  let secondHalfLeader: string | null = null
+  let firstMax = -1
+  let secondMax = -1
+  for (const p of participants) {
+    if (firstHalfTotals[p] > firstMax) {
+      firstMax = firstHalfTotals[p]
+      firstHalfLeader = p
+    }
+    if (secondHalfTotals[p] > secondMax) {
+      secondMax = secondHalfTotals[p]
+      secondHalfLeader = p
+    }
+  }
+  const firstHalfShare = sumFirst > 0 && firstHalfLeader ? firstHalfTotals[firstHalfLeader] / sumFirst : 0
+  const secondHalfShare =
+    sumSecond > 0 && firstHalfLeader ? (secondHalfTotals[firstHalfLeader] ?? 0) / sumSecond : 0
+
   return {
     totalMessages: messages.length,
     totalWords,
@@ -345,6 +441,13 @@ export function analyzeHardFacts(chat: ParsedChat): HardFacts {
     heatmap,
     weekly,
     investmentDelta,
+    initiationDrift: {
+      firstHalfLeader,
+      secondHalfLeader,
+      firstHalfShare,
+      secondHalfShare,
+      swap: !!firstHalfLeader && !!secondHalfLeader && firstHalfLeader !== secondHalfLeader,
+    },
   }
 }
 

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { HardFacts } from '../analysis/hardFacts'
 import { formatDuration } from '../analysis/hardFacts'
 import { interpretHardFacts } from '../analysis/interpretation'
@@ -7,17 +8,18 @@ import { Heatmap } from './charts/Heatmap'
 import { EngagementCurve } from './charts/EngagementCurve'
 import { ReplyDistribution } from './charts/ReplyDistribution'
 import { PowerGauge } from './charts/PowerGauge'
-import { useTokenState } from '../tokens/store'
+import { MODULE_COSTS, useTokenState, type ModuleId } from '../tokens/store'
 
 interface Props {
   facts: HardFacts
   onStartAi?: () => void
+  onStartModule?: (moduleId: ModuleId) => void
   onOpenTokens?: () => void
 }
 
 const PERSON_COLORS = ['text-a', 'text-b', 'text-blue-400', 'text-orange-400', 'text-violet-400']
 
-export function HardFactsView({ facts, onStartAi, onOpenTokens }: Props) {
+export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens }: Props) {
   const interpretations = interpretHardFacts(facts)
   const shareInterp = interpretations.find((i) => i.metric === 'share')
   const deltaInterp = interpretations.find((i) => i.metric === 'delta')
@@ -25,64 +27,135 @@ export function HardFactsView({ facts, onStartAi, onOpenTokens }: Props) {
   const personA = facts.perPerson[0]?.author ?? 'Person A'
   const personB = facts.perPerson[1]?.author ?? 'Person B'
 
+  const handleModule = (moduleId: ModuleId) => {
+    if (balance < MODULE_COSTS[moduleId].cost) return onOpenTokens?.()
+    if (onStartModule) return onStartModule(moduleId)
+    if (onStartAi) return onStartAi()
+  }
+
+  // Pick the more striking person on a metric — used for data-driven teasers.
+  const moreShareIdx = facts.perPerson[0] && facts.perPerson[1]
+    ? facts.perPerson[0].sharePct >= facts.perPerson[1].sharePct ? 0 : 1
+    : 0
+  const shareLeader = facts.perPerson[moreShareIdx]?.author ?? personA
+  const shareLeaderPct = facts.perPerson[moreShareIdx]?.sharePct ?? 50
+  const moreHedgeIdx = facts.perPerson[0] && facts.perPerson[1]
+    ? facts.perPerson[0].hedgeRatio >= facts.perPerson[1].hedgeRatio ? 0 : 1
+    : 0
+  const hedgeLeader = facts.perPerson[moreHedgeIdx]?.author ?? personA
+  const hedgePct = Math.round((facts.perPerson[moreHedgeIdx]?.hedgeRatio ?? 0) * 100)
+  const fasterIdx = facts.perPerson.reduce(
+    (best, p, i, arr) => (p.medianReplyMs != null && (arr[best].medianReplyMs == null || p.medianReplyMs < arr[best].medianReplyMs!) ? i : best),
+    0,
+  )
+  const fasterPerson = facts.perPerson[fasterIdx]?.author ?? personA
+  const slowerPerson = facts.perPerson[1 - fasterIdx]?.author ?? personB
+
+  // Late-night leader
+  const lateLeaderIdx =
+    facts.perPerson[0] && facts.perPerson[1]
+      ? facts.perPerson[0].lateNightCount >= facts.perPerson[1].lateNightCount
+        ? 0
+        : 1
+      : 0
+  const lateLeader = facts.perPerson[lateLeaderIdx]?.author ?? personA
+  const lateLeaderCount = facts.perPerson[lateLeaderIdx]?.lateNightCount ?? 0
+  const lateLeaderPct = Math.round((facts.perPerson[lateLeaderIdx]?.lateNightRatio ?? 0) * 100)
+
+  // Burst leader (most consecutive un-answered messages)
+  const burstLeaderIdx =
+    facts.perPerson[0] && facts.perPerson[1]
+      ? facts.perPerson[0].longestBurst >= facts.perPerson[1].longestBurst
+        ? 0
+        : 1
+      : 0
+  const burstLeader = facts.perPerson[burstLeaderIdx]?.author ?? personA
+  const burstLongest = facts.perPerson[burstLeaderIdx]?.longestBurst ?? 0
+  const burstCount = facts.perPerson[burstLeaderIdx]?.burstCount ?? 0
+
+  // Initiation drift
+  const drift = facts.initiationDrift
+  const driftDeltaPct = Math.round((drift.firstHalfShare - drift.secondHalfShare) * 100)
+  const driftDirection = drift.swap
+    ? 'flipped'
+    : driftDeltaPct > 10
+      ? 'dropped'
+      : driftDeltaPct < -10
+        ? 'rose'
+        : 'stayed steady'
+
   return (
-    <div className="max-w-4xl mx-auto px-5 md:px-8 pb-32 pt-12 space-y-16">
-      {/* Opener */}
-      <header className="space-y-6">
-        <div className="label-mono text-a">Modul 01 · Hard Facts · Lokal</div>
-        <h2 className="font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight">
-          Was die Zahlen <span className="italic text-ink-muted">sagen.</span>
+    <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-12">
+      {/* Opener — RECEIPTS bleed */}
+      <header>
+        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-2">
+          intel · {personA.toLowerCase()} & {personB.toLowerCase()} · as of 04.18.2026
+        </div>
+        <h2 className="font-serif text-[20vw] md:text-[180px] leading-[0.85] tracking-[-0.01em] text-ink overflow-hidden whitespace-nowrap">
+          RECEIPTS
         </h2>
-        <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl">
-          {facts.totalMessages.toLocaleString('de-DE')} Nachrichten über {facts.durationDays} Tage zwischen{' '}
-          {facts.perPerson.map((p) => p.author).join(' und ')}. Jede Zahl hier wurde in deinem Browser berechnet —
-          nichts wurde übertragen.
-        </p>
+        <div className="quote-box mt-6 max-w-2xl" style={{ transform: 'rotate(-0.3deg)' }}>
+          <span className="exhibit-label">EXHIBIT 0: PREMISE</span>
+          <p className="serif-body text-base md:text-lg mt-2">
+            Honey. <strong className="not-italic font-bold">{facts.totalMessages.toLocaleString('en-US')} messages</strong> across <strong className="not-italic font-bold">{facts.durationDays} days</strong> between <span className="circled">{personA}</span> and <span className="circled">{personB}</span>. In a minute you'll be sharper than 90% of people reading their own chat.
+          </p>
+        </div>
       </header>
 
       {/* Topline grid */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Tile
-          label="Nachrichten"
-          value={<CountUp value={facts.totalMessages} format={(n) => Math.round(n).toLocaleString('de-DE')} />}
+          label="Messages"
+          value={<CountUp value={facts.totalMessages} format={(n) => Math.round(n).toLocaleString('en-US')} />}
         />
         <Tile
-          label="Wörter"
-          value={<CountUp value={facts.totalWords} format={(n) => Math.round(n).toLocaleString('de-DE')} />}
+          label="Words"
+          value={<CountUp value={facts.totalWords} format={(n) => Math.round(n).toLocaleString('en-US')} />}
         />
         <Tile
-          label="Aktive Tage"
-          value={<CountUp value={facts.activeDays} format={(n) => Math.round(n).toLocaleString('de-DE')} />}
+          label="Active days"
+          value={<CountUp value={facts.activeDays} format={(n) => Math.round(n).toLocaleString('en-US')} />}
         />
         <Tile
           label="Emojis"
-          value={<CountUp value={facts.totalEmojis} format={(n) => Math.round(n).toLocaleString('de-DE')} />}
+          value={<CountUp value={facts.totalEmojis} format={(n) => Math.round(n).toLocaleString('en-US')} />}
         />
       </section>
 
+      <Whisper>every number below is real. nothing polished, nothing invented.</Whisper>
+
       {/* Split: message distribution */}
       <Section
-        kicker="01 · Verteilung"
-        title="Wer schreibt mehr?"
+        kicker="01 · Distribution"
+        title="Who writes more?"
         body={shareInterp?.body}
       >
-        <SplitBar perPerson={facts.perPerson} metric="share" label="Nachrichtenanteil" />
+        <SplitBar perPerson={facts.perPerson} metric="share" label="Share of messages" />
         <div className="mt-10">
-          <SplitBar perPerson={facts.perPerson} metric="words" label="Wortanteil" />
+          <SplitBar perPerson={facts.perPerson} metric="words" label="Share of words" />
         </div>
       </Section>
 
+      <InlineTeaser
+        finding={`${shareLeader} sends ${Math.round(shareLeaderPct)}% of the messages.`}
+        question="Who actually puts more in — and who keeps the closeness? The vibe read shows it."
+        moduleId="relationship"
+        balance={balance}
+        onStart={handleModule}
+        onBuy={onOpenTokens}
+      />
+
       {/* Response times */}
       <Section
-        kicker="02 · Geschwindigkeit"
-        title="Wer reagiert wie schnell?"
+        kicker="02 · Speed"
+        title="Who replies how fast?"
         body={interpretations.find((i) => i.metric.startsWith('reply:'))?.body}
       >
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-10">
           {facts.perPerson.map((p, i) => (
             <Tile
               key={p.author}
-              label={`${p.author} · Median`}
+              label={`${p.author} · typical`}
               accent={PERSON_COLORS[i % PERSON_COLORS.length]}
               value={formatDuration(p.medianReplyMs)}
             />
@@ -95,45 +168,54 @@ export function HardFactsView({ facts, onStartAi, onOpenTokens }: Props) {
       {/* Initiation & questions */}
       <Section
         kicker="03 · Initiative"
-        title="Wer denkt an den anderen?"
+        title="Who thinks of the other?"
         body={interpretations.find((i) => i.metric.startsWith('init:'))?.body}
       >
         <SplitBar
           perPerson={facts.perPerson}
           metric="initiation"
-          label={`Initiierungen nach Stille · ${facts.perPerson.reduce((s, p) => s + p.initiations, 0)} gesamt`}
+          label={`First message after a pause · ${facts.perPerson.reduce((s, p) => s + p.initiations, 0)} times`}
         />
         <div className="mt-10 grid md:grid-cols-2 gap-4">
           {facts.perPerson.map((p, i) => (
             <div key={p.author} className="bg-bg-surface rounded-xl p-5">
-              <div className="label-mono mb-1">Fragen</div>
+              <div className="label-mono mb-1">Questions</div>
               <div className="flex items-baseline gap-3">
                 <span className={`metric-num text-3xl ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>
                   {(p.questionRatio * 100).toFixed(0)}%
                 </span>
-                <span className="font-sans text-sm text-ink-muted">der Nachrichten · {p.author}</span>
+                <span className="font-sans text-sm text-ink-muted">of messages · {p.author}</span>
               </div>
             </div>
           ))}
         </div>
       </Section>
 
+      <InlineTeaser
+        finding={`${fasterPerson} replies faster than ${slowerPerson}.`}
+        question={`What's behind the speed gap? The profiles show who ${fasterPerson} and ${slowerPerson} really are.`}
+        moduleId="profiles"
+        balance={balance}
+        onStart={handleModule}
+        onBuy={onOpenTokens}
+      />
+
       {/* Hedges & emoji */}
       <Section
-        kicker="04 · Sprachliche Signale"
-        title="Hedges, Emojis, Nachrichtenlänge"
+        kicker="04 · How they write"
+        title="Words, emojis, hedges"
         body={interpretations.find((i) => i.metric.startsWith('hedge:'))?.body ?? interpretations.find((i) => i.metric.startsWith('emoji:'))?.body}
       >
         <div className="grid md:grid-cols-2 gap-4">
           {facts.perPerson.map((p, i) => (
             <div key={p.author} className="bg-bg-surface rounded-xl p-6 space-y-5">
               <div className={`font-sans ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
-              <MiniRow label="Ø Wörter / Nachricht" value={p.avgWords.toFixed(1)} />
-              <MiniRow label="Hedge-Wörter" value={`${(p.hedgeRatio * 100).toFixed(0)}%`} />
-              <MiniRow label="Emojis / Nachricht" value={p.emojiPerMsg.toFixed(2)} />
+              <MiniRow label="Avg words per message" value={p.avgWords.toFixed(1)} />
+              <MiniRow label={'Soft words ("maybe", "actually")'} value={`${(p.hedgeRatio * 100).toFixed(0)}%`} />
+              <MiniRow label="Emojis per message" value={p.emojiPerMsg.toFixed(2)} />
               {p.topEmojis.length > 0 && (
                 <div>
-                  <div className="label-mono mb-2">Top-Emojis</div>
+                  <div className="label-mono mb-2">Top emojis</div>
                   <div className="flex gap-3 text-2xl">
                     {p.topEmojis.map((e) => (
                       <span key={e.emoji} title={`${e.count}×`}>
@@ -150,229 +232,346 @@ export function HardFactsView({ facts, onStartAi, onOpenTokens }: Props) {
 
       {/* Heatmap */}
       <Section
-        kicker="05 · Rhythmus"
-        title="Wann wird geschrieben?"
-        body={`Peak-Tag: ${fmtDayKey(facts.peakDay.date)} mit ${facts.peakDay.count} Nachrichten. Aktivität an ${facts.activeDays} von ${facts.durationDays} Tagen.`}
+        kicker="05 · Rhythm"
+        title="When do they write?"
+        body={`Most active day: ${fmtDayKey(facts.peakDay.date)} with ${facts.peakDay.count} messages. Messages sent on ${facts.activeDays} of ${facts.durationDays} days.`}
       >
         <Heatmap matrix={facts.heatmap} />
       </Section>
 
+      <InlineTeaser
+        finding={`${lateLeader} sends ${lateLeaderCount} messages after midnight — ${lateLeaderPct}% of all messages.`}
+        question={`Things that come out late at night that would never be said during the day? The highlights show exactly those moments.`}
+        moduleId="highlights"
+        balance={balance}
+        onStart={handleModule}
+        onBuy={onOpenTokens}
+      />
+
+      <InlineTeaser
+        finding={`${hedgeLeader} softens ${hedgePct}% of their messages — "maybe", "actually", "I think".`}
+        question={`What's behind those soft words — the portrait of ${hedgeLeader} has the answer.`}
+        moduleId="profiles"
+        balance={balance}
+        onStart={handleModule}
+        onBuy={onOpenTokens}
+      />
+
       {/* Engagement curve */}
       <Section
-        kicker="06 · Verlauf"
-        title="Engagement über Zeit"
-        body="Jede Zeile ein Monat, jeder Peak ein Wochenende an dem nicht geschlafen wurde. Wächst die Kommunikation, ist sie stabil, oder kühlt sie ab?"
+        kicker="06 · Arc"
+        title="How much was written — over time?"
+        body="Each line a month, every tall spike a weekend you couldn't stop. Is it going up, holding steady, or quieting down?"
       >
         <EngagementCurve facts={facts} />
       </Section>
 
+      <InlineTeaser
+        finding={`Most active day: ${fmtDayKey(facts.peakDay.date)} with ${facts.peakDay.count} messages. Quietest stretch: ${facts.longestSilenceDays} days of silence.`}
+        question="What really happened between the peaks and the dips — the timeline shows it."
+        moduleId="timeline"
+        balance={balance}
+        onStart={handleModule}
+        onBuy={onOpenTokens}
+      />
+
+      <InlineTeaser
+        finding={`${burstLeader} sometimes fires off ${burstLongest} messages in a row without waiting for a reply — ${burstCount} times total.`}
+        question={`What drives that "keep typing without an answer" mode? The portrait of ${burstLeader} makes it clear.`}
+        moduleId="profiles"
+        balance={balance}
+        onStart={handleModule}
+        onBuy={onOpenTokens}
+      />
+
+      <InlineTeaser
+        finding={`Initiative ${driftDirection}: first half it was ${Math.round(drift.firstHalfShare * 100)}%, second half ${Math.round(drift.secondHalfShare * 100)}%.`}
+        question="When that flipped — and why? The evolution module shows exactly the moment."
+        moduleId="entwicklung"
+        balance={balance}
+        onStart={handleModule}
+        onBuy={onOpenTokens}
+      />
+
       {/* Power score */}
       <Section
-        kicker="07 · Investment-Delta"
-        title="Principle of Least Interest"
+        kicker="07 · Who gives more?"
+        title="Effort, compared"
         body={
           deltaInterp?.body ??
-          'Der Power Score kombiniert Volumen, Initiierung und Antwortgeschwindigkeit. Höherer Wert = weniger Investment = mehr relationale Macht. Kein moralisches Urteil, nur ein numerisches Delta.'
+          "This measures who invests more in the chat: volume, first message after pauses, response speed. Whoever gives less is often the more laid-back one. No judgement — just a comparison."
         }
       >
         <PowerGauge perPerson={facts.perPerson} />
       </Section>
 
+      <Whisper>now it gets spicy. the next three are the ones nobody dares to look at.</Whisper>
+
+      {/* 08 Late-night */}
+      <Section
+        kicker="08 · After midnight"
+        title="Who writes while the world sleeps?"
+        body="11pm to 5am. The daytime facade drops. What's written now carries different weight."
+      >
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
+          {facts.perPerson.map((p, i) => (
+            <Tile
+              key={p.author}
+              label={`${p.author} · late`}
+              accent={PERSON_COLORS[i % PERSON_COLORS.length]}
+              value={`${p.lateNightCount} (${Math.round(p.lateNightRatio * 100)}%)`}
+            />
+          ))}
+        </div>
+      </Section>
+
+      <InlineTeaser
+        finding={`${lateLeader} sends ${lateLeaderCount} messages between 11pm and 5am — ${lateLeaderPct}% of all messages.`}
+        question="Which lines actually fell at night — and what they give away — the highlights have them."
+        moduleId="highlights"
+        balance={balance}
+        onStart={handleModule}
+        onBuy={onOpenTokens}
+      />
+
+      {/* 09 Bursts */}
+      <Section
+        kicker="09 · Bursts"
+        title="Who spams a run of messages without a reply?"
+        body="Three or more messages in a row before the other person responds. Bursts say a lot — urgency, worry, need, pressure."
+      >
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
+          {facts.perPerson.map((p, i) => (
+            <div key={p.author} className="bg-bg-surface rounded-xl p-5">
+              <div className={`label-mono mb-2 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
+              <div className="metric-num text-2xl mb-1">{p.burstCount}</div>
+              <div className="text-sm text-ink-muted">
+                Burst sequences · longest: <span className="text-ink">{p.longestBurst}</span> messages in a row
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <InlineTeaser
+        finding={
+          burstLongest >= 3
+            ? `${burstLeader} once fires off ${burstLongest} messages in a row — no reply in between. ${burstCount} bursts total.`
+            : `Bursts barely happen here — the rhythm is even.`
+        }
+        question={`What drives ${burstLeader} in those moments is in the profile.`}
+        moduleId="profiles"
+        balance={balance}
+        onStart={handleModule}
+        onBuy={onOpenTokens}
+      />
+
+      {/* 10 Initiation Drift */}
+      {drift.firstHalfLeader && drift.secondHalfLeader && (
+        <>
+          <Section
+            kicker="10 · Shift"
+            title="Who started — back then vs. now?"
+            body="Whoever sends the first message after a pause is the one holding the contact. When that changes, the relationship is shifting too."
+          >
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <Tile
+                label="First half · leader"
+                value={`${drift.firstHalfLeader} (${Math.round(drift.firstHalfShare * 100)}%)`}
+              />
+              <Tile
+                label="Second half · leader"
+                value={`${drift.secondHalfLeader} (${Math.round(drift.secondHalfShare * 100)}%)`}
+                accent={drift.swap ? 'text-b' : undefined}
+              />
+            </div>
+          </Section>
+
+          <InlineTeaser
+            finding={
+              drift.swap
+                ? `Initiative flipped: first ${drift.firstHalfLeader}, now ${drift.secondHalfLeader}.`
+                : `${drift.firstHalfLeader}'s initiative ${driftDirection} by ${Math.abs(driftDeltaPct)} points.`
+            }
+            question="What shifted topically — and which day was the turning point — the evolution shows it."
+            moduleId="entwicklung"
+            balance={balance}
+            onStart={handleModule}
+            onBuy={onOpenTokens}
+          />
+        </>
+      )}
+
+      {/* Bridge — turning point between free findings and paid modules */}
+      <BridgeCTA
+        totalFindings={10}
+        balance={balance}
+        onStart={handleModule}
+        onBuy={onOpenTokens}
+      />
+
       {/* Lock gallery — what's still hidden */}
       <section className="relative mt-24 space-y-10">
         <div className="space-y-5">
-          <div className="label-mono text-b">Noch nicht entschlüsselt</div>
           <h3 className="font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight">
-            Das Skelett.
-            <br />
-            <span className="italic text-ink-muted">Fünf Module. Ein Klick.</span>
+            Go <span className="gradient-text">deeper</span>.
           </h3>
           <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl">
-            Die Zahlen oben sind die Haut. Darunter liegt das, was du eigentlich wissen willst — wer {personA} und{' '}
-            {personB} wirklich sind, was zwischen euch läuft, und welche Momente alles erklären.
+            Who {personA} and {personB} really are, what's going on between you, and which moments explain everything.
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
           <LockedCard
             number="02"
+            moduleId="profiles"
             tone="a"
-            title="Persönliche Profile"
-            subtitle="Horney · Berne · Bowlby · Adler · Goffman"
+            emoji="🧠"
+            title="Who's who?"
+            subtitle="A portrait of each — no judgement"
             lines={[
-              `${personA} operiert aus dem angepassten Kind-Ich. Die Hedge-Rate von ${((facts.perPerson[0]?.hedgeRatio ?? 0) * 100).toFixed(0)}% deutet auf …`,
-              `${personB}: Bindungsstil-Tendenz ängstlich-ambivalent. Das Muster zeigt sich in …`,
-              `Goffman-Moment bei ${personA}: Wenn die Fassade bricht, dann meistens nach …`,
+              `${personA}: often comes off reserved, apologizes a lot — what that actually means …`,
+              `${personB}: needs closeness, reacts to distance — shows up as …`,
+              `When ${personA} breaks character: usually late at night, when …`,
             ]}
+            balance={balance}
+            onStart={handleModule}
+            onBuy={onOpenTokens}
           />
           <LockedCard
             number="03"
+            moduleId="relationship"
             tone="a"
-            title="Beziehungsebene"
-            subtitle="Machtgefälle · Cialdini · Ungeschriebene Regeln"
+            emoji="🔗"
+            title="What's going on between you?"
+            subtitle="Closeness, distance, unwritten rules"
             lines={[
-              `Investment-Delta: ${personA} investiert strukturell mehr als ${personB}. Die Asymmetrie liegt bei …`,
-              `Unausgesprochene Regel #1: Wir reden nicht über …`,
-              `Dominante Cialdini-Taktik zwischen euch: Reciprocity. Wirkung: …`,
+              `${personA} structurally does more — how wide the real gap actually is …`,
+              `One thing you never talk about — even though it keeps popping up …`,
+              `Who leads, who follows — and how often that flips …`,
             ]}
+            balance={balance}
+            onStart={handleModule}
+            onBuy={onOpenTokens}
           />
           <LockedCard
             number="04"
+            moduleId="entwicklung"
             tone="a"
-            title="Entwicklung"
-            subtitle="Phasen · Kipppunkte · thematische Drift"
+            emoji="📈"
+            title="How has it changed?"
+            subtitle="Chapters, turning points, what flipped"
             lines={[
-              'Phase 1 „Kalibrierung" (Monat 1–3): Hohe Symmetrie, spielerischer Ton …',
-              `Kipppunkt am 14. März: Antwortzeiten brechen von 12 Min auf 4 Std. Auslöser …`,
-              'Aktuelle Phase: Abkühlung. Merkmale …',
+              'The first three months light, playful — at one point it tipped …',
+              `One particular day changed everything: reply times jumped from minutes to hours. The reason …`,
+              'Where you stand right now: noticeably cooler. The signs …',
             ]}
+            balance={balance}
+            onStart={handleModule}
+            onBuy={onOpenTokens}
           />
           <LockedCard
             number="05"
+            moduleId="highlights"
             tone="b"
-            title="Highlights"
-            subtitle="Die Momente, die bleiben"
+            emoji="💥"
+            title="The moments that explain everything"
+            subtitle="Lines that land — silence that speaks"
             lines={[
-              `„Ich glaub ich bin grad zu viel" — ${personA} um 23:41. Verletzlichkeit. Dekodierung: …`,
-              `Ignorierte Nachricht von ${personB}: 47 Stunden Schweigen. Das Schweigen ist das Signal …`,
-              'Goffman-Moment: Die Fassade bricht um 2:14 Uhr. Grund …',
+              `"I think I'm too much right now" — ${personA} at 11:41pm. What the line actually means …`,
+              `47 hours of silence after a message from ${personB}. Why the silence itself is the signal …`,
+              'The moment at 2:14 am where the facade drops — and why …',
             ]}
+            balance={balance}
+            onStart={handleModule}
+            onBuy={onOpenTokens}
             featured
           />
           <LockedCard
             number="06"
+            moduleId="timeline"
             tone="a"
-            title="Timeline"
-            subtitle="Die Beziehung auf einer Achse"
+            emoji="🌀"
+            title="Your story at a glance"
+            subtitle="The whole chat in one arc"
             lines={[
-              'Emotionale Temperatur-Kurve von 8.2 (Peak Februar) auf 3.1 (aktuell) …',
-              'Phasen-Overlay: 4 erkennbare Kapitel, davon 2 mit klaren Markern …',
-              'Shareworthy: 1 Bild, das eure ganze Beziehung zusammenfasst …',
+              'The warmth between you: peaked in February, noticeably cooler today …',
+              'Four clear chapters — two of them with a crisp start …',
+              'One image that sums up your entire story …',
             ]}
+            balance={balance}
+            onStart={handleModule}
+            onBuy={onOpenTokens}
             className="md:col-span-2"
           />
         </div>
-
-        {/* Social proof + scarcity pokes */}
-        <div className="flex flex-wrap gap-6 justify-center text-center pt-4">
-          <FomoPoke kicker="Ø Erkenntnisse" value="23" body="pro Komplett-Analyse" />
-          <FomoPoke kicker="Dauer" value="~90s" body="komplett dekodiert" />
-          <FomoPoke kicker="Modelle" value="Claude 4.6" body="Opus für Highlights" />
-        </div>
-
-        {/* The CTA block — balance + actions */}
-        <div className="card relative overflow-hidden">
-          <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-b/10 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-a/10 blur-3xl pointer-events-none" />
-
-          <div className="relative grid md:grid-cols-[1fr_auto] gap-8 items-center">
-            <div>
-              <div className="label-mono text-b mb-3">Jetzt freischalten</div>
-              <h4 className="font-serif text-3xl md:text-4xl leading-tight mb-3">
-                Alle 5 Module für <span className="text-a">5 Tokens</span>.
-              </h4>
-              <p className="serif-body text-base md:text-lg text-ink-muted max-w-md mb-5">
-                Jedes AI-Modul kostet genau einen Token. Jedes einzeln. Kein Abo, kein Zwang, keine Überraschungen.
-              </p>
-              <div className="flex items-baseline gap-2 mb-1">
-                <span className={`font-mono text-2xl tabular-nums ${balance === 0 ? 'text-b' : 'text-a'}`}>
-                  {balance}
-                </span>
-                <span className="label-mono text-ink-muted">
-                  {balance === 1 ? 'Token verfügbar' : 'Tokens verfügbar'}
-                </span>
-              </div>
-              {balance === 0 && (
-                <div className="label-mono text-b animate-pulse-soft">⚠ Guthaben leer — jetzt nachladen</div>
-              )}
-              {balance > 0 && balance < 5 && (
-                <div className="label-mono text-ink-faint">
-                  Reicht für {balance} von 5 Modulen · {5 - balance} fehlen für alles
-                </div>
-              )}
-              {balance >= 5 && (
-                <div className="label-mono text-a">Reicht für alle 5 Module · Du kannst direkt starten</div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-3 md:min-w-[240px]">
-              {onStartAi && (
-                <button
-                  onClick={onStartAi}
-                  disabled={balance < 1}
-                  className="w-full px-6 py-4 bg-ink text-bg rounded-full font-sans font-medium text-base hover:bg-a hover:text-bg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-ink disabled:hover:text-bg"
-                >
-                  Analyse starten <span className="label-mono ml-1 text-bg/60">1 Token</span>
-                </button>
-              )}
-              {onOpenTokens && (
-                <button
-                  onClick={onOpenTokens}
-                  className={`w-full px-6 py-4 rounded-full font-sans font-medium text-base transition-colors ${
-                    balance === 0
-                      ? 'bg-b text-bg hover:bg-b/90'
-                      : 'border border-line text-ink hover:border-a hover:text-a'
-                  }`}
-                >
-                  {balance === 0 ? 'Tokens kaufen' : 'Tokens nachladen'}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="relative mt-8 pt-6 border-t border-line/40 flex flex-wrap gap-4 items-center justify-between">
-            <div className="label-mono text-ink-faint">
-              Willkommens-Guthaben: 3 Tokens · Hard Facts bleiben gratis
-            </div>
-            <div className="label-mono text-ink-faint">Tab zu = weg · Kein Account · Keine E-Mail</div>
-          </div>
-        </div>
       </section>
+
+      <StickyBuyBar balance={balance} onStart={handleModule} onBuy={onOpenTokens} />
     </div>
   )
 }
 
 function LockedCard({
   number,
+  moduleId,
   title,
   subtitle,
   lines,
   tone,
-  featured,
+  emoji,
   className,
+  balance,
+  onStart,
+  onBuy,
 }: {
   number: string
+  moduleId: ModuleId
   title: string
   subtitle: string
   lines: string[]
   tone: 'a' | 'b'
   featured?: boolean
+  emoji?: string
   className?: string
+  balance: number
+  onStart: (moduleId: ModuleId) => void
+  onBuy?: () => void
 }) {
   const accent = tone === 'a' ? 'text-a' : 'text-b'
-  const glow = tone === 'a' ? 'bg-a/10' : 'bg-b/15'
-  const borderHover = tone === 'a' ? 'hover:border-a/50' : 'hover:border-b/50'
+  const glow = tone === 'a' ? 'bg-a/[0.06]' : 'bg-b/[0.08]'
+  const cost = MODULE_COSTS[moduleId].cost
+  const canAfford = balance >= cost
+  const primaryAction = canAfford ? () => onStart(moduleId) : onBuy
 
   return (
     <article
-      className={`group card relative overflow-hidden transition-colors ${borderHover} ${
-        featured ? 'border-b/30' : ''
-      } ${className ?? ''}`}
+      className={`group relative overflow-hidden rounded-3xl bg-bg-raised border border-line/60 p-6 md:p-8 transition-colors hover:border-line ${className ?? ''}`}
     >
+      {/* Single quiet glow */}
       <div
-        className={`absolute -top-20 -right-20 w-56 h-56 rounded-full ${glow} blur-3xl pointer-events-none opacity-70 group-hover:opacity-100 transition-opacity`}
+        className={`absolute -top-24 -right-20 w-56 h-56 rounded-full ${glow} blur-3xl pointer-events-none`}
       />
 
-      <header className="relative flex items-baseline justify-between mb-4">
-        <div className="flex items-baseline gap-3">
-          <span className={`label-mono ${accent}`}>Modul {number}</span>
+      {/* Emoji sticker — subtle */}
+      {emoji && (
+        <span
+          className="absolute top-6 right-6 text-2xl opacity-60 pointer-events-none"
+          aria-hidden
+        >
+          {emoji}
+        </span>
+      )}
+
+      <header className="relative flex items-baseline justify-between mb-4 pr-12">
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <span className={`label-mono ${accent}`}>File {number}</span>
           <span className="label-mono text-ink-faint hidden md:inline">·</span>
           <span className="label-mono text-ink-muted hidden md:inline">{subtitle}</span>
         </div>
-        <div className="label-mono text-ink-faint flex items-center gap-1.5">
-          <LockIcon />
-          <span className={accent}>1 Token</span>
-        </div>
+        <span className={`shrink-0 label-mono ${accent}`}>
+          {cost} {cost === 1 ? 'ticket' : 'tickets'}
+        </span>
       </header>
 
       <h4 className="font-serif text-2xl md:text-3xl leading-tight mb-1">{title}</h4>
@@ -387,40 +586,34 @@ function LockedCard({
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-bg-raised/40 to-bg-raised" />
       </div>
 
-      <div className="relative mt-4 pt-4 border-t border-line/40 flex items-center justify-between">
-        <span className="label-mono text-ink-faint">
-          Bereit zum Freischalten
-        </span>
-        <span className={`label-mono ${accent} opacity-0 group-hover:opacity-100 transition-opacity`}>
-          Hover · {title} →
-        </span>
+      <div className="relative mt-5 pt-4 border-t border-line/40">
+        <button
+          onClick={primaryAction}
+          disabled={!primaryAction}
+          className={`w-full px-5 py-3 rounded-full font-sans font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
+            canAfford ? 'btn-pop' : 'btn-pop'
+          }`}
+        >
+          {canAfford ? (
+            <>
+              <span aria-hidden>✨</span>
+              Let's go
+              <span className="label-mono text-bg/70">
+                {cost} {cost === 1 ? 'ticket' : 'tickets'} →
+              </span>
+            </>
+          ) : (
+            <>
+              <span aria-hidden>⚡</span>
+              Top up tickets
+              <span className="label-mono text-bg/70">
+                {balance}/{cost}
+              </span>
+            </>
+          )}
+        </button>
       </div>
     </article>
-  )
-}
-
-function LockIcon() {
-  return (
-    <svg width="10" height="12" viewBox="0 0 10 12" fill="none" className="inline-block">
-      <path
-        d="M2 5V3a3 3 0 0 1 6 0v2"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
-      />
-      <rect x="1" y="5" width="8" height="6.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
-      <circle cx="5" cy="8" r="0.8" fill="currentColor" />
-    </svg>
-  )
-}
-
-function FomoPoke({ kicker, value, body }: { kicker: string; value: string; body: string }) {
-  return (
-    <div className="space-y-1">
-      <div className="label-mono text-ink-faint">{kicker}</div>
-      <div className="font-serif text-3xl text-ink tracking-tight">{value}</div>
-      <div className="label-mono text-ink-muted">{body}</div>
-    </div>
   )
 }
 
@@ -435,15 +628,36 @@ function Section({
   body?: string
   children: React.ReactNode
 }) {
+  // kicker shape: "01 · Verteilung" → split into number + label
+  const parts = kicker.split('·').map((s) => s.trim())
+  const num = parts[0] ?? ''
+  const label = (parts[1] ?? '').toLowerCase()
+
   return (
-    <section className="space-y-6">
-      <div>
-        <div className="label-mono text-a mb-3">{kicker}</div>
-        <h3 className="font-serif text-2xl md:text-4xl leading-tight tracking-tight">{title}</h3>
+    <section className="space-y-5">
+      <div className="space-y-3">
+        <div className="flex items-baseline gap-2 font-mono text-xs uppercase tracking-[0.18em]">
+          <span className="text-ink-faint">{num}</span>
+          <span className="text-ink-faint">/</span>
+          <span className="text-a">{label}</span>
+        </div>
+        <h3 className="font-serif text-3xl md:text-5xl leading-[1.05] tracking-tight">{title}</h3>
+        {body && (
+          <p className="serif-body text-base md:text-lg text-ink-muted max-w-2xl leading-snug">{body}</p>
+        )}
       </div>
       <div className="card">{children}</div>
-      {body && <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl leading-snug">{body}</p>}
     </section>
+  )
+}
+
+function Whisper({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="my-2 max-w-xl">
+      <p className="font-serif italic text-base md:text-lg text-ink-faint leading-snug pl-4 border-l-2 border-line/40">
+        {children}
+      </p>
+    </div>
   )
 }
 
@@ -457,7 +671,7 @@ function Tile({
   accent?: string
 }) {
   return (
-    <div className="bg-bg-raised border border-line/60 rounded-xl p-5">
+    <div className="bg-bg-raised border border-line/60 rounded-2xl p-5 hover:border-line transition-colors">
       <div className="label-mono mb-2">{label}</div>
       <div className={`text-3xl md:text-4xl metric-num ${accent ?? 'text-ink'}`}>{value}</div>
     </div>
@@ -476,5 +690,187 @@ function MiniRow({ label, value }: { label: string; value: string }) {
 function fmtDayKey(key: string): string {
   if (!key) return '—'
   const [y, m, d] = key.split('-')
-  return `${d}.${m}.${y.slice(2)}`
+  return `${m}/${d}/${y.slice(2)}`
+}
+
+const MODULE_TONES: Record<ModuleId, 'a' | 'b'> = {
+  profiles: 'a',
+  relationship: 'b',
+  highlights: 'b',
+  timeline: 'a',
+  entwicklung: 'a',
+}
+
+const MODULE_CTAS: Record<ModuleId, string> = {
+  profiles: 'x-ray them both',
+  relationship: 'the diagnosis please',
+  highlights: 'the killer lines',
+  timeline: 'the whole movie',
+  entwicklung: 'spoilers please',
+}
+
+function InlineTeaser({
+  finding,
+  question,
+  moduleId,
+  balance,
+  onStart,
+  onBuy,
+}: {
+  finding: string
+  question: string
+  moduleId: ModuleId
+  balance: number
+  onStart: (m: ModuleId) => void
+  onBuy?: () => void
+}) {
+  const cost = MODULE_COSTS[moduleId].cost
+  const label = MODULE_COSTS[moduleId].label
+  const canAfford = balance >= cost
+  const action = canAfford ? () => onStart(moduleId) : onBuy
+  const tone = MODULE_TONES[moduleId] ?? 'a'
+  const accent = tone === 'a' ? 'text-a' : 'text-b'
+  const glow = tone === 'a' ? 'bg-a/[0.06]' : 'bg-b/[0.08]'
+
+  void glow
+  void accent
+  return (
+    <aside className="relative my-4 max-w-3xl" style={{ transform: 'rotate(-0.4deg)' }}>
+      <div className="quote-box">
+        <span className="exhibit-label">WAIT — EXHIBIT · {label.toUpperCase()}</span>
+        <div className="flex flex-col md:flex-row gap-5 md:items-center mt-2">
+          <div className="flex-1 min-w-0">
+            <h4 className="font-serif text-2xl md:text-3xl leading-tight tracking-tight mb-2 not-italic">
+              {finding}
+            </h4>
+            <p className="serif-body text-base leading-snug">{question}</p>
+          </div>
+          <button
+            onClick={action}
+            className="btn-pop shrink-0 self-start md:self-center"
+          >
+            {canAfford ? MODULE_CTAS[moduleId].toUpperCase() : `UNLOCK ${label.toUpperCase()}`}
+            <span className="text-[10px] font-mono opacity-70 ml-2">
+              {canAfford ? `· ${cost} TICKET` : `· ${balance}/${cost}`}
+            </span>
+          </button>
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function BridgeCTA({
+  totalFindings,
+  balance,
+  onStart,
+  onBuy,
+}: {
+  totalFindings: number
+  balance: number
+  onStart: (m: ModuleId) => void
+  onBuy?: () => void
+}) {
+  const singleCost = MODULE_COSTS.profiles.cost
+  const bundleCost = 5
+  const canAffordSingle = balance >= singleCost
+  const canAffordBundle = balance >= bundleCost
+  const singleAction = canAffordSingle ? () => onStart('profiles') : onBuy
+  const bundleAction = canAffordBundle ? () => onStart('profiles') : onBuy
+
+  return (
+    <section className="relative my-20 max-w-5xl">
+      <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-2">→ paywall · spill the tea</div>
+      <h3 className="font-serif text-[16vw] md:text-[120px] leading-[0.85] tracking-[-0.01em] text-ink overflow-hidden whitespace-nowrap">
+        SPILL IT.
+      </h3>
+      <div className="grid md:grid-cols-2 gap-6 mt-6">
+        <div className="quote-box" style={{ transform: 'rotate(-0.4deg)' }}>
+          <span className="exhibit-label">EXHIBIT C: THE OFFER</span>
+          <p className="serif-body text-base mt-2">
+            <strong className="not-italic font-bold">{totalFindings} numbers</strong> were the skin. Five files are the skeleton scan: who you really are, what's really going on between you, which moments explain everything. No account. No subscription. One ticket per file — or the whole bundle at a discount.
+          </p>
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 mt-4">
+            profiles · vibe · evolution · highlights · timeline
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <button
+            onClick={bundleAction}
+            className="btn-pop relative justify-between text-left px-6 py-5"
+            style={{ fontSize: '24px' }}
+          >
+            <span>SPILL ALL · 5 FILES</span>
+            <span className="font-mono text-[11px] tracking-[0.14em]">
+              {canAffordBundle ? `${bundleCost} TICKETS` : `10 €`}
+            </span>
+            {!canAffordBundle && (
+              <span className="absolute -top-3 -right-3 sticker" style={{ transform: 'rotate(8deg)' }}>−25%</span>
+            )}
+          </button>
+          <button
+            onClick={singleAction}
+            className="inline-flex items-center justify-between gap-2 px-6 py-4 border-2 border-ink bg-white text-ink font-mono text-sm uppercase tracking-[0.12em] hover:bg-ink hover:text-pop-yellow transition-colors"
+            style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+          >
+            <span>{canAffordSingle ? 'just the profiles first' : 'grab one ticket'}</span>
+            <span className="text-[10px] opacity-70">
+              {canAffordSingle ? `${singleCost} TICKET` : `${balance}/${singleCost}`}
+            </span>
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function StickyBuyBar({
+  balance,
+  onStart,
+  onBuy,
+}: {
+  balance: number
+  onStart: (m: ModuleId) => void
+  onBuy?: () => void
+}) {
+  const [dismissed, setDismissed] = useState(false)
+  if (dismissed) return null
+
+  const cost = MODULE_COSTS.profiles.cost
+  const canAfford = balance >= cost
+  const action = canAfford ? () => onStart('profiles') : onBuy
+
+  return (
+    <div className="fixed bottom-16 left-4 right-4 z-30 pointer-events-none">
+      <div className="max-w-3xl mx-auto pointer-events-auto" style={{ transform: 'rotate(-0.4deg)' }}>
+        <div
+          className="flex items-center gap-3 bg-pop-yellow border-2 border-ink pl-4 pr-2 py-2"
+          style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+        >
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] hidden sm:inline">
+            {balance} {balance === 1 ? 'ticket' : 'tickets'}
+          </span>
+          <span className="font-mono text-[10px] hidden sm:inline">·</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] truncate">
+            {canAfford ? 'ready when you are' : `profiles · ${cost} ticket needed`}
+          </span>
+          <div className="flex-1" />
+          <button
+            onClick={action}
+            className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 bg-ink text-pop-yellow font-serif text-base tracking-[0.04em] border border-ink hover:bg-pop-yellow hover:text-ink transition-colors"
+          >
+            {canAfford ? 'GO' : 'TOP UP'}
+          </button>
+          <button
+            onClick={() => setDismissed(true)}
+            aria-label="Hide bar"
+            className="shrink-0 w-7 h-7 flex items-center justify-center text-ink hover:bg-ink hover:text-pop-yellow transition-colors text-lg leading-none"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }

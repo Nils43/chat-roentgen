@@ -10,7 +10,7 @@ interface Props {
 export function EngagementCurve({ facts, width = 720, height = 180 }: Props) {
   const { weekly, perPerson } = facts
   if (weekly.length < 2) {
-    return <div className="text-ink-muted font-mono text-sm">Zu wenig Zeitraum für eine Kurve.</div>
+    return <div className="text-ink-muted font-mono text-sm">Not enough time span for a curve yet.</div>
   }
 
   const palette: Record<string, string> = {}
@@ -91,7 +91,7 @@ export function EngagementCurve({ facts, width = 720, height = 180 }: Props) {
       </svg>
       <div className="mt-3 flex items-baseline justify-between font-mono text-[11px] text-ink-faint">
         <span>{fmtDate(weekly[0].weekStart)}</span>
-        <span className="text-ink-muted">Nachrichten · wöchentlich</span>
+        <span className="text-ink-muted">Messages · weekly</span>
         <span>{fmtDate(weekly[weekly.length - 1].weekStart)}</span>
       </div>
     </div>
@@ -99,5 +99,5 @@ export function EngagementCurve({ facts, width = 720, height = 180 }: Props) {
 }
 
 function fmtDate(d: Date): string {
-  return d.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' })
+  return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }

@@ -30,11 +30,10 @@ export function EntwicklungView({ result, facts }: Props) {
   return (
     <div className="max-w-4xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-16">
       <header className="space-y-6">
-        <div className="label-mono text-a">Modul 04 · Entwicklung · Hybrid</div>
         <h2 className="font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight">
-          Worüber <span className="italic text-ink-muted">gesprochen wurde —</span>
+          What you <span className="italic text-ink-muted">talked about —</span>
           <br />
-          und worüber nicht mehr.
+          and what you don't anymore.
         </h2>
         <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl">
           {payload.gesamtbogen}
@@ -43,9 +42,8 @@ export function EntwicklungView({ result, facts }: Props) {
 
       {/* Lokale Symmetrie-Kurve */}
       <section>
-        <div className="label-mono text-ink-muted mb-3">Lokal berechnet</div>
         <h3 className="font-serif text-2xl md:text-4xl leading-tight tracking-tight mb-6">
-          Symmetrie-Verschiebung
+          Who gives more — and how does it shift over time?
         </h3>
         <div className="card">
           <SymmetryCurve facts={facts} />
@@ -58,10 +56,11 @@ export function EntwicklungView({ result, facts }: Props) {
 
       {/* Zentrale Themen */}
       <section>
-        <div className="label-mono text-a mb-3">Zentrale Themen</div>
+        <div className="label-mono text-a mb-3">Central topics</div>
         <h3 className="font-serif text-2xl md:text-4xl leading-tight tracking-tight mb-6">
-          Was den ganzen Chat durchzieht
+          What runs through the whole chat
         </h3>
+
         <div className="card">
           <div className="flex flex-wrap gap-2">
             {payload.zentrale_themen_gesamt.map((t, i) => (
@@ -73,9 +72,9 @@ export function EntwicklungView({ result, facts }: Props) {
 
       {/* Themen-Phasen */}
       <section>
-        <div className="label-mono text-a mb-3">Themen-Phasen</div>
+        <div className="label-mono text-a mb-3">Topic phases</div>
         <h3 className="font-serif text-2xl md:text-4xl leading-tight tracking-tight mb-6">
-          Wie sich die Themen verschoben haben
+          How the topics shifted
         </h3>
         <div className="space-y-3">
           {payload.themen_phasen.map((p, i) => (
@@ -86,9 +85,9 @@ export function EntwicklungView({ result, facts }: Props) {
 
       {/* Prognose */}
       <section>
-        <div className="label-mono text-b mb-3">Prognose · Gottman-basiert</div>
+        <div className="label-mono text-b mb-3">Forecast · where this is heading</div>
         <h3 className="font-serif text-2xl md:text-4xl leading-tight tracking-tight mb-6">
-          Wo das hinführt
+          Where this leads
         </h3>
         <div className={`card border-l-4 ${richtungBorder(payload.prognose.richtung)}`}>
           <div className="flex items-baseline justify-between gap-4 flex-wrap mb-5">
@@ -96,13 +95,13 @@ export function EntwicklungView({ result, facts }: Props) {
               {richtungLabel(payload.prognose.richtung)}
             </div>
             <span className="label-mono border border-line/60 rounded-full px-3 py-1">
-              Confidence · {payload.prognose.confidence}
+              Confidence · {levelLabel(payload.prognose.confidence)}
             </span>
           </div>
 
           <div className="space-y-6">
             <div>
-              <div className="label-mono mb-2">Schlüsselmuster</div>
+              <div className="label-mono mb-2">The key patterns</div>
               <ul className="space-y-2">
                 {payload.prognose.schluesselmuster.map((m, i) => (
                   <li key={i} className="serif-body text-lg text-ink flex gap-3">
@@ -114,7 +113,7 @@ export function EntwicklungView({ result, facts }: Props) {
             </div>
 
             <div>
-              <div className="label-mono mb-2">Gottman-Signale</div>
+              <div className="label-mono mb-2">Observed signals</div>
               <div className="flex flex-wrap gap-2">
                 {payload.prognose.gottman_signale.map((s, i) => (
                   <GottmanChip key={i} signal={s} />
@@ -123,12 +122,12 @@ export function EntwicklungView({ result, facts }: Props) {
             </div>
 
             <div className="pt-4 border-t border-line/40">
-              <div className="label-mono mb-2">Wenn sich nichts ändert</div>
+              <div className="label-mono mb-2">If nothing changes</div>
               <p className="serif-body text-lg text-ink">{payload.prognose.wenn_nichts_aendert}</p>
             </div>
 
             <div>
-              <div className="label-mono mb-2">Was den Trend verschieben würde</div>
+              <div className="label-mono mb-2">What would shift the trend</div>
               <p className="serif-body text-lg text-ink">{payload.prognose.was_verschieben_wuerde}</p>
             </div>
 
@@ -147,7 +146,7 @@ export function EntwicklungView({ result, facts }: Props) {
 function SymmetryCurve({ facts }: { facts: HardFacts }) {
   const { weekly, perPerson } = facts
   if (weekly.length < 3) {
-    return <div className="text-ink-muted font-mono text-sm">Zu wenig Zeitraum für eine Kurve.</div>
+    return <div className="text-ink-muted font-mono text-sm">Not enough time span for a curve yet.</div>
   }
 
   const width = 720
@@ -275,7 +274,7 @@ function ThemePhaseCard({ phase, index }: { phase: ThemePhase; index: number }) 
       </div>
 
       <div className="mb-5">
-        <div className="label-mono mb-2">Dominante Themen</div>
+        <div className="label-mono mb-2">Dominant topics</div>
         <div className="flex flex-wrap gap-2">
           {phase.dominante_themen.map((t, i) => (
             <ThemeChip key={i} cluster={t} />
@@ -286,7 +285,7 @@ function ThemePhaseCard({ phase, index }: { phase: ThemePhase; index: number }) 
       <div className="grid md:grid-cols-2 gap-4">
         {phase.neue_themen.length > 0 && (
           <div>
-            <div className="label-mono mb-2 text-a">Neu ab hier</div>
+            <div className="label-mono mb-2 text-a">New from here</div>
             <ul className="space-y-1">
               {phase.neue_themen.map((t, i) => (
                 <li key={i} className="font-mono text-sm text-ink">
@@ -299,7 +298,7 @@ function ThemePhaseCard({ phase, index }: { phase: ThemePhase; index: number }) 
         )}
         {phase.verschwundene_themen.length > 0 && (
           <div>
-            <div className="label-mono mb-2 text-b">Verschwunden ab hier</div>
+            <div className="label-mono mb-2 text-b">Gone from here</div>
             <ul className="space-y-1">
               {phase.verschwundene_themen.map((t, i) => (
                 <li key={i} className="font-mono text-sm text-ink-muted line-through decoration-b/60">
@@ -347,14 +346,14 @@ function gottmanConfig(signal: GottmanSignal): {
   erklaerung: string
 } {
   const map: Record<GottmanSignal, { label: string; icon: string; negative: boolean; erklaerung: string }> = {
-    kritik: { label: 'Kritik', icon: '!', negative: true, erklaerung: 'Beschwerden die zum Charakter werden' },
-    verachtung: { label: 'Verachtung', icon: '△', negative: true, erklaerung: 'Sarkasmus, Zynismus, Überlegenheit — schärfstes Risiko-Signal' },
-    abwehr: { label: 'Abwehr', icon: '◇', negative: true, erklaerung: 'Rechtfertigung statt Anhören' },
-    stonewalling: { label: 'Stonewalling', icon: '▢', negative: true, erklaerung: 'Schweigen, Rückzug als Waffe' },
-    repair_attempt: { label: 'Repair-Attempt', icon: '+', negative: false, erklaerung: 'Versuche, den Bruch zu kitten' },
-    bid_for_connection: { label: 'Bid for Connection', icon: '◯', negative: false, erklaerung: 'Einladungen zur Nähe' },
-    turning_away: { label: 'Turning Away', icon: '—', negative: true, erklaerung: 'Ignorieren von Connection-Bids' },
-    keine: { label: 'Keine Signale', icon: '·', negative: false, erklaerung: '' },
+    kritik: { label: 'Criticism', icon: '!', negative: true, erklaerung: 'When criticism lands on the person, not the behavior' },
+    verachtung: { label: 'Contempt', icon: '△', negative: true, erklaerung: 'Sarcasm, cynicism, superiority — the sharpest warning sign' },
+    abwehr: { label: 'Defensiveness', icon: '◇', negative: true, erklaerung: 'Justifying yourself instead of actually listening' },
+    stonewalling: { label: 'Stonewalling', icon: '▢', negative: true, erklaerung: 'Silence and withdrawal as a weapon' },
+    repair_attempt: { label: 'Repair attempt', icon: '+', negative: false, erklaerung: 'When someone tries to heal the break' },
+    bid_for_connection: { label: 'Bid for connection', icon: '◯', negative: false, erklaerung: 'Small invitations to get into contact' },
+    turning_away: { label: 'Turning away', icon: '—', negative: true, erklaerung: 'When those invitations are ignored' },
+    keine: { label: 'No signals', icon: '·', negative: false, erklaerung: '' },
   }
   const entry = map[signal]
   return {
@@ -368,7 +367,11 @@ function gottmanConfig(signal: GottmanSignal): {
 }
 
 function richtungLabel(r: PrognoseRichtung): string {
-  return { positiv: 'Aufwärts', stagnation: 'Stagnation', negativ: 'Abwärts', unklar: 'Unklar' }[r]
+  return { positiv: 'Rising', stagnation: 'Stagnating', negativ: 'Declining', unklar: 'Unclear' }[r]
+}
+
+function levelLabel(l: 'niedrig' | 'mittel' | 'hoch'): string {
+  return { niedrig: 'low', mittel: 'medium', hoch: 'high' }[l]
 }
 
 function richtungColor(r: PrognoseRichtung): string {
@@ -380,15 +383,15 @@ function richtungBorder(r: PrognoseRichtung): string {
 }
 
 function trendLabel(t: 'balanced' | 'diverging' | 'converging' | 'volatile'): string {
-  return { balanced: 'stabil', diverging: 'divergierend', converging: 'annähernd', volatile: 'volatil' }[t]
+  return { balanced: 'steady', diverging: 'diverging', converging: 'converging', volatile: 'volatile' }[t]
 }
 
 function fmtDate(iso: string): string {
   const [y, m, d] = iso.split('-')
   if (!y || !m || !d) return iso
-  return `${d}.${m}.${y.slice(2)}`
+  return `${m}/${d}/${y.slice(2)}`
 }
 
 function fmtMonth(d: Date): string {
-  return d.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' })
+  return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }

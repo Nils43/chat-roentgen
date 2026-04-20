@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Highlight, HighlightCategory, HighlightFramework, HighlightsResult } from '../ai/types'
+import { SafetyBanner } from './SafetyBanner'
 
 interface Props {
   result: HighlightsResult
@@ -51,22 +52,22 @@ const PERSON_COLORS: ColorSet[] = [
 ]
 
 const CATEGORY_META: Record<HighlightCategory, { label: string; hint: string }> = {
-  verletzlichkeit: { label: 'Verletzlichkeit', hint: 'jemand öffnet sich' },
-  machtverschiebung: { label: 'Machtverschiebung', hint: 'die Dynamik kippt' },
-  subtext: { label: 'Subtext', hint: 'zwischen den Zeilen' },
-  emotional_peak: { label: 'Emotionaler Peak', hint: 'hohe Temperatur' },
-  red_flag: { label: 'Red Flag', hint: 'Muster zur Vorsicht' },
-  green_flag: { label: 'Green Flag', hint: 'gesundes Muster' },
-  goffman_moment: { label: 'Goffman-Moment', hint: 'Fassade bricht' },
-  ignoriert: { label: 'Ignoriert', hint: 'das Schweigen spricht' },
+  verletzlichkeit: { label: 'Opening up', hint: 'someone gets vulnerable' },
+  machtverschiebung: { label: 'Turning point', hint: 'the dynamic tilts' },
+  subtext: { label: 'Between the lines', hint: "what isn't said" },
+  emotional_peak: { label: 'Peak moment', hint: 'temperature spikes' },
+  red_flag: { label: 'Red flag', hint: 'look closer' },
+  green_flag: { label: 'Green flag', hint: 'healthy pattern' },
+  goffman_moment: { label: 'Facade drops', hint: 'an honest moment' },
+  ignoriert: { label: 'Ignored', hint: 'the silence speaks' },
 }
 
 const FRAMEWORK_LABEL: Record<HighlightFramework, string> = {
-  horney: 'Horney',
-  berne: 'Berne',
-  bowlby: 'Bowlby',
-  adler: 'Adler',
-  goffman: 'Goffman',
+  horney: 'Closeness & distance',
+  berne: 'Inner voice',
+  bowlby: 'Attachment',
+  adler: 'Compensation',
+  goffman: 'Role & facade',
   keiner: '—',
 }
 
@@ -90,6 +91,11 @@ export function HighlightsView({ result, participants }: Props) {
     return counts
   }, [payload.highlights])
 
+  const redFlags = useMemo(
+    () => payload.highlights.filter((h) => h.category === 'red_flag'),
+    [payload.highlights],
+  )
+
   const visible =
     filter === 'all'
       ? payload.highlights
@@ -98,19 +104,24 @@ export function HighlightsView({ result, participants }: Props) {
   return (
     <div className="max-w-4xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-14">
       <header className="space-y-6">
-        <div className="label-mono text-b">Modul 05 · Highlights · AI</div>
         <h2 className="font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight">
-          Die Momente, <span className="italic text-ink-muted">die bleiben.</span>
+          The moments <span className="italic text-ink-muted">that stick.</span>
         </h2>
         <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl">
-          {payload.highlights.length} Einzelnachrichten — ausgewählt nach psychologischer Dichte, nicht nach Lautstärke.
-          Jede dekodiert, jede verortet in einem Rahmen.
+          {payload.highlights.length} messages that say a lot — not loud, but dense.
         </p>
       </header>
 
+      {redFlags.length >= 2 && (
+        <SafetyBanner
+          pattern={`${redFlags.length} of the ${payload.highlights.length} flagged moments are red flags. When patterns like these stack up, it's rarely a coincidence.`}
+          context={redFlags[0]?.dekodierung}
+        />
+      )}
+
       {payload.meta.gesamtbefund && (
         <blockquote className="relative font-serif italic text-2xl md:text-3xl leading-snug text-ink pl-6 border-l-2 border-b/60">
-          „{payload.meta.gesamtbefund}"
+          "{payload.meta.gesamtbefund}"
         </blockquote>
       )}
 
@@ -119,7 +130,7 @@ export function HighlightsView({ result, participants }: Props) {
         <FilterChip
           active={filter === 'all'}
           onClick={() => setFilter('all')}
-          label="Alle"
+          label="All"
           count={payload.highlights.length}
         />
         {(Object.keys(CATEGORY_META) as HighlightCategory[])
@@ -147,14 +158,13 @@ export function HighlightsView({ result, participants }: Props) {
         ))}
         {visible.length === 0 && (
           <div className="card text-center">
-            <p className="serif-body text-lg text-ink-muted">Keine Highlights in dieser Kategorie.</p>
+            <p className="serif-body text-lg text-ink-muted">Nothing in this category.</p>
           </div>
         )}
       </div>
 
       <div className="text-center serif-body text-ink-muted italic pt-6 border-t border-line/40">
-        „Highlights sind Momente, keine Urteile. Wenn etwas hier dich berührt, nimm es als Anlass zu sprechen, nicht als
-        Beweis."
+        "These are moments, not verdicts. If something lands, it's a reason to talk — not proof of anything."
       </div>
     </div>
   )
@@ -235,7 +245,7 @@ function HighlightCard({
         className="w-full flex items-center justify-between text-left group pt-2"
       >
         <span className="label-mono text-ink-muted group-hover:text-ink transition-colors">
-          {open ? 'Dekodierung schließen' : 'Dekodierung öffnen'}
+          {open ? 'Close reading' : 'Read it'}
         </span>
         <span className={`label-mono ${color.text}`}>{open ? '−' : '+'}</span>
       </button>
@@ -244,7 +254,7 @@ function HighlightCard({
         <div className="mt-5 pt-5 border-t border-line/40 space-y-4 animate-fade-in">
           <p className="serif-body text-lg text-ink">{highlight.dekodierung}</p>
           <div className="flex items-start gap-3 pt-2">
-            <span className="label-mono shrink-0 mt-1">Warum</span>
+            <span className="label-mono shrink-0 mt-1">Why</span>
             <p className="serif-body text-base text-ink-muted italic">{highlight.signifikanz}</p>
           </div>
         </div>

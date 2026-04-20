@@ -37,7 +37,7 @@ export async function runRelationshipAnalysis({
   const response = await analyzer.analyze(
     {
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: RELATIONSHIP_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
       tools: [
@@ -54,7 +54,7 @@ export async function runRelationshipAnalysis({
 
   const toolUse = response.content.find((b) => b.type === 'tool_use')
   if (!toolUse || toolUse.type !== 'tool_use') {
-    throw new Error('Keine strukturierte Beziehungs-Analyse erhalten.')
+    throw new Error('No structured relationship analysis returned.')
   }
 
   const raw = toolUse.input as RelationshipPayload

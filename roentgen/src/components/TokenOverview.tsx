@@ -15,9 +15,9 @@ interface Props {
 }
 
 const MODULE_ID_TO_LABEL: Record<ModuleId, string> = {
-  profiles: 'Persönliche Profile',
-  relationship: 'Beziehungsebene',
-  entwicklung: 'Entwicklung',
+  profiles: 'Personal profiles',
+  relationship: 'Vibe read',
+  entwicklung: 'Evolution',
   highlights: 'Highlights',
   timeline: 'Timeline',
 }
@@ -41,54 +41,54 @@ export function TokenOverview({ onClose, highlightReason, pendingModule }: Props
     <div className="max-w-4xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-14">
       <header className="space-y-6">
         <div className="flex items-baseline justify-between">
-          <div className="label-mono text-a">Tokens · Übersicht</div>
+          <div className="label-mono text-a">Tickets · overview</div>
           <button
             onClick={onClose}
             className="label-mono text-ink-muted hover:text-ink transition-colors"
           >
-            Schließen ✕
+            Close ✕
           </button>
         </div>
         <h2 className="font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight">
-          Dein <span className="italic text-ink-muted">Guthaben.</span>
+          Your <span className="italic text-ink-muted">balance.</span>
         </h2>
         <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl">
-          Jedes AI-Modul kostet einen Token. Hard Facts bleiben gratis — die laufen lokal in deinem Browser.
+          Every AI analysis costs 1 ticket. The starting numbers are free — your device crunches those.
         </p>
       </header>
 
       {highlightReason === 'insufficient' && (
         <div className="card border-b/60 bg-b/5">
-          <div className="label-mono text-b mb-2">Nicht genug Tokens</div>
+          <div className="label-mono text-b mb-2">Not enough tickets</div>
           <p className="serif-body text-lg text-ink">
-            Für „{pendingModule ? MODULE_ID_TO_LABEL[pendingModule] : 'dieses Modul'}" brauchst du mindestens einen
-            Token. Lade unten nach, dann geht&apos;s weiter.
+            "{pendingModule ? MODULE_ID_TO_LABEL[pendingModule] : 'this analysis'}" needs at least 1 ticket.
+            Top up below — then we continue.
           </p>
         </div>
       )}
 
       {/* Balance + stats */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <Tile label="Aktuell" value={balance} accent />
-        <Tile label="Verbraucht" value={chargedCount} />
-        <Tile label="Gekauft / Erhalten" value={purchasedCount} />
-        <Tile label="Erstattet" value={refundedCount} />
+        <Tile label="Current" value={balance} accent />
+        <Tile label="Spent" value={chargedCount} />
+        <Tile label="Bought / granted" value={purchasedCount} />
+        <Tile label="Refunded" value={refundedCount} />
       </section>
 
       {/* Costs */}
       <section>
-        <SectionKicker label="Was kostet was" />
+        <SectionKicker label="What costs what" />
         <div className="grid md:grid-cols-2 gap-3">
-          <CostRow label="Hard Facts" cost="gratis" note="Lokal berechnet" free />
+          <CostRow label="The starting numbers" cost="free" note="Calculated on your device" free />
           {Object.values(MODULE_COSTS).map((m) => (
-            <CostRow key={m.id} label={m.label} cost={`${m.cost} Token`} />
+            <CostRow key={m.id} label={m.label} cost={`${m.cost} ticket`} />
           ))}
         </div>
       </section>
 
       {/* Shop */}
       <section>
-        <SectionKicker label="Tokens nachladen" />
+        <SectionKicker label="Top up tickets" />
         <div className="grid md:grid-cols-3 gap-4">
           {PACKS.map((p) => (
             <article
@@ -105,43 +105,43 @@ export function TokenOverview({ onClose, highlightReason, pendingModule }: Props
                 {p.tokens}
               </div>
               <div className="label-mono mb-6">
-                {p.tokens === 1 ? 'Token' : 'Tokens'}
+                {p.tokens === 1 ? 'Ticket' : 'Tickets'}
               </div>
               <div className="flex items-baseline gap-1 mb-6">
                 <span className="font-mono text-2xl tabular-nums tracking-tight text-ink">
-                  €{p.priceEur.toFixed(2).replace('.', ',')}
+                  €{p.priceEur.toFixed(2)}
                 </span>
                 <span className="label-mono text-ink-faint">
-                  · €{(p.priceEur / p.tokens).toFixed(2).replace('.', ',')} / Token
+                  · €{(p.priceEur / p.tokens).toFixed(2)} / ticket
                 </span>
               </div>
               <button
                 onClick={() => tokenStore.purchasePack(p.id)}
                 className="mt-auto w-full px-4 py-2.5 bg-ink text-bg rounded-full font-sans text-sm tracking-wide hover:bg-a hover:text-bg transition-colors"
               >
-                Kaufen (Mock)
+                Buy (preview)
               </button>
             </article>
           ))}
         </div>
         <p className="label-mono text-ink-faint mt-4 text-center">
-          Demo-Modus · Der „Kaufen"-Button fügt Tokens ohne echte Zahlung hinzu. Stripe-Integration folgt.
+          Preview · The "Buy" button adds tickets without charging anything. Real payment is coming soon.
         </p>
       </section>
 
       {/* History */}
       <section>
-        <SectionKicker label="Verlauf" />
+        <SectionKicker label="History" />
         {history.length === 0 ? (
-          <p className="serif-body text-ink-muted italic">Noch keine Bewegungen.</p>
+          <p className="serif-body text-ink-muted italic">Nothing happened here yet.</p>
         ) : (
           <div className="card p-0 overflow-hidden">
             <table className="w-full">
               <thead className="bg-bg-surface/40">
                 <tr className="label-mono">
-                  <th className="text-left px-5 py-3">Zeitpunkt</th>
-                  <th className="text-left px-5 py-3">Aktion</th>
-                  <th className="text-right px-5 py-3">Tokens</th>
+                  <th className="text-left px-5 py-3">When</th>
+                  <th className="text-left px-5 py-3">What</th>
+                  <th className="text-right px-5 py-3">Tickets</th>
                 </tr>
               </thead>
               <tbody>
@@ -155,14 +155,14 @@ export function TokenOverview({ onClose, highlightReason, pendingModule }: Props
       </section>
 
       <div className="text-center serif-body text-ink-muted italic pt-6 border-t border-line/40">
-        Konto aktiv seit {new Date(createdAt).toLocaleString('de-DE')}.{' '}
+        Account active since {new Date(createdAt).toLocaleString('en-US')}.{' '}
         <button
           onClick={() => {
-            if (confirm('Token-Guthaben & Verlauf zurücksetzen?')) tokenStore.reset()
+            if (confirm('Really reset balance and history?')) tokenStore.reset()
           }}
           className="underline underline-offset-2 hover:text-ink transition-colors not-italic label-mono ml-2"
         >
-          Zurücksetzen
+          Reset
         </button>
       </div>
     </div>
@@ -215,12 +215,12 @@ function CostRow({
 function HistoryRow({ txn }: { txn: Transaction }) {
   const label =
     txn.kind === 'charge'
-      ? `Analyse: ${txn.moduleId ? MODULE_ID_TO_LABEL[txn.moduleId] : '—'}`
+      ? `Analysis: ${txn.moduleId ? MODULE_ID_TO_LABEL[txn.moduleId] : '—'}`
       : txn.kind === 'grant'
-        ? `Geschenk: ${txn.note ?? 'Guthaben'}`
+        ? `Gift: ${txn.note ?? 'Credit'}`
         : txn.kind === 'purchase'
-          ? `Kauf: ${txn.note ?? 'Pack'}`
-          : `Erstattung: ${txn.note ?? '—'}`
+          ? `Purchase: ${txn.note ?? 'Pack'}`
+          : `Refund: ${txn.note ?? '—'}`
 
   const color =
     txn.tokens < 0 ? 'text-b' : txn.kind === 'refund' ? 'text-ink-muted' : 'text-a'
@@ -229,7 +229,7 @@ function HistoryRow({ txn }: { txn: Transaction }) {
   return (
     <tr className="border-t border-line/30">
       <td className="px-5 py-3 font-mono text-[12px] text-ink-muted tabular-nums">
-        {new Date(txn.at).toLocaleString('de-DE', {
+        {new Date(txn.at).toLocaleString('en-US', {
           day: '2-digit',
           month: '2-digit',
           year: '2-digit',

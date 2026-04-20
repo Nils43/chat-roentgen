@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tell. — sunday edition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@1,9..144,300..600,30..100&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #F0EBE0;
+      --paper-dim: #E3DCCB;
+      --ink: #16140F;
+      --ink-warm: #2A1F17;
+      --ink-faded: #877D6B;
+      --acid: #ECFD38;
+      --rule: rgba(22, 20, 15, 0.18);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    a, button { font: inherit; color: inherit; cursor: pointer; }
+    button { background: none; border: none; padding: 0; }
+
+    .meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faded); }
+    .mark {
+      background-image: linear-gradient(100deg, rgba(236,253,56,0) 0%, var(--acid) 6%, var(--acid) 94%, rgba(236,253,56,0.55) 100%);
+      padding: 0 0.18em; margin: 0 -0.08em;
+      box-decoration-break: clone; -webkit-box-decoration-break: clone;
+      display: inline-block; transform: rotate(-0.2deg);
+    }
+
+    /* RUNNING HEAD — tiny strip on every page */
+    .running-head {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      background: var(--paper);
+      border-bottom: 1px solid var(--ink);
+      padding: 8px 32px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--ink-warm);
+    }
+    .running-head .wm-tiny {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 600;
+      font-size: 16px; letter-spacing: -0.02em; line-height: 1; color: var(--ink);
+      text-transform: none;
+    }
+    .running-head .wm-tiny .dot { background: var(--acid); padding: 0 0.1em; font-style: normal; }
+
+    /* PAGE FOOTER — page-number style */
+    .page-foot {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+      background: var(--paper);
+      border-top: 1px solid var(--ink);
+      padding: 10px 32px;
+      display: flex; justify-content: space-between; align-items: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--ink-warm);
+    }
+    .page-foot .nav { display: flex; gap: 10px; align-items: center; }
+    .page-foot button.turn {
+      background: var(--ink); color: var(--paper);
+      padding: 8px 16px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .page-foot button.turn[disabled] { opacity: 0.3; cursor: not-allowed; }
+    .page-foot button.ghost {
+      color: var(--ink); padding: 8px 12px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .page-foot button.ghost:hover { color: var(--ink-faded); }
+
+    /* SCREENS / PAGES */
+    .pages { position: relative; width: 100vw; height: 100vh; }
+    .page {
+      position: absolute; inset: 0;
+      padding: 56px 36px 64px;
+      opacity: 0; visibility: hidden;
+      transform: translateY(8px);
+      transition: opacity 500ms ease, transform 500ms cubic-bezier(.2,.9,.25,1), visibility 0s linear 500ms;
+      overflow: auto;
+    }
+    .page.active {
+      opacity: 1; visibility: visible; transform: translateY(0);
+      transition-delay: 0s;
+    }
+    .page-inner { max-width: 1080px; margin: 0 auto; }
+
+    /* COMMON section header */
+    .kicker { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 14px; }
+    .kicker.hot::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--acid); outline: 1px solid var(--ink); margin-right: 8px; vertical-align: 1px; }
+
+    /* PAGE 01 — COVER */
+    .cover-grid {
+      display: grid; grid-template-columns: 1fr; gap: 28px;
+      padding-top: 16px;
+    }
+    .cover .nameplate {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100;
+      font-weight: 600;
+      font-size: clamp(96px, 16vw, 200px);
+      line-height: 0.82; letter-spacing: -0.05em;
+      margin: 0;
+    }
+    .cover .nameplate .dot { background: var(--acid); padding: 0 0.06em 0.04em; font-style: normal; }
+    .cover .double-rule { border-top: 4px double var(--ink); border-bottom: 1px solid var(--ink); padding: 6px 0; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .cover .double-rule span { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-warm); }
+
+    .cover .lede { display: grid; grid-template-columns: 5fr 3fr; gap: 36px; align-items: end; margin-top: 24px; }
+    @media (max-width: 800px) { .cover .lede { grid-template-columns: 1fr; } }
+    .cover .lead-h {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100;
+      font-weight: 500;
+      font-size: clamp(36px, 5vw, 60px);
+      line-height: 0.98; letter-spacing: -0.03em;
+      margin: 0;
+    }
+    .cover .toc {
+      border-left: 2px solid var(--ink); padding-left: 18px;
+    }
+    .cover .toc .h { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 14px; }
+    .cover .toc ul { list-style: none; margin: 0; padding: 0; }
+    .cover .toc li { padding: 7px 0; border-top: 1px dashed var(--rule); display: flex; gap: 10px; justify-content: space-between; font-family: 'Fraunces', serif; font-style: italic; font-size: 16px; line-height: 1.3; }
+    .cover .toc li:first-child { border-top: none; }
+    .cover .toc li .pn { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faded); font-style: normal; }
+
+    /* PAGE 02 — ORDER */
+    .order-page .heading {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 500;
+      font-size: clamp(40px, 5.5vw, 64px); line-height: 1.02; letter-spacing: -0.02em;
+      margin: 14px 0 18px; max-width: 760px;
+    }
+    .order-page .deck { font-family: 'Fraunces', serif; font-style: italic; font-size: 19px; line-height: 1.4; color: var(--ink-warm); max-width: 540px; margin: 0 0 36px; }
+    .order-page .opts { display: grid; gap: 14px; max-width: 720px; }
+    .order-page .opt {
+      text-align: left; display: grid; grid-template-columns: 60px 1fr auto; gap: 22px; align-items: center;
+      padding: 22px 26px;
+      background: var(--paper-dim); border-top: 1px solid var(--ink);
+      transition: all 200ms;
+    }
+    .order-page .opt:last-child { border-bottom: 1px solid var(--ink); }
+    .order-page .opt:hover { background: var(--ink); color: var(--paper); }
+    .order-page .opt:hover .x { color: var(--paper); opacity: 0.6; }
+    .order-page .opt:hover .pick { background: var(--acid); color: var(--ink); }
+    .order-page .opt .x { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--ink-faded); letter-spacing: 0.14em; }
+    .order-page .opt .lab { font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; line-height: 1.2; }
+    .order-page .opt .pick { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; padding: 6px 12px; border: 1px solid currentColor; }
+
+    /* PAGE 03 — LEAD STORY (Hard Reveal) */
+    .lead-page { display: grid; grid-template-columns: 5fr 3fr; gap: 36px; padding-top: 8px; }
+    @media (max-width: 800px) { .lead-page { grid-template-columns: 1fr; } }
+    .lead-page .lead-h {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100;
+      font-weight: 500;
+      font-size: clamp(40px, 5.5vw, 68px); line-height: 0.97;
+      letter-spacing: -0.03em; margin: 0 0 22px;
+    }
+    .lead-page .deck { font-family: 'Fraunces', serif; font-style: italic; font-size: 19px; line-height: 1.4; color: var(--ink-warm); max-width: 540px; margin: 0 0 22px; }
+    .lead-page .byline { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faded); margin: 0 0 22px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+    .lead-page .body { column-count: 2; column-gap: 26px; column-rule: 1px solid var(--rule); font-size: 15px; line-height: 1.6; }
+    .lead-page .body p { margin: 0 0 12px; break-inside: avoid; }
+    .lead-page .body p:first-of-type::first-letter {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 600;
+      float: left; font-size: 4.5em; line-height: 0.85; padding: 5px 10px 0 0;
+    }
+    .stat-callout {
+      margin: 18px 0;
+      padding: 18px 0;
+      border-top: 4px double var(--ink); border-bottom: 4px double var(--ink);
+      display: flex; gap: 24px; align-items: baseline; break-inside: avoid;
+    }
+    .stat-callout .n {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100; font-weight: 500;
+      font-size: 88px; line-height: 0.9; letter-spacing: -0.05em;
+    }
+    .stat-callout .v { font-size: 14px; line-height: 1.4; color: var(--ink-warm); max-width: 200px; }
+    .lead-page .pull {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 500;
+      font-size: 24px; line-height: 1.25; letter-spacing: -0.015em;
+      margin: 24px 0; padding: 16px 0 16px 24px;
+      border-left: 4px solid var(--ink); break-inside: avoid;
+    }
+    /* sidebar in lead page */
+    .lead-side .data { font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .lead-side .data .row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px dashed var(--rule); }
+    .lead-side .data .lab { color: var(--ink-faded); letter-spacing: 0.12em; text-transform: uppercase; font-size: 9px; }
+    .lead-side .data .val { color: var(--ink); font-feature-settings: 'tnum'; font-weight: 500; }
+    .lead-side h4 { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faded); margin: 0 0 14px; }
+
+    /* PAGE 04 — POP QUIZ */
+    .gate-page { display: grid; place-items: center; min-height: 100%; }
+    .gate-card {
+      background: var(--ink); color: var(--paper);
+      padding: 40px 36px;
+      max-width: 560px; width: 100%;
+      border: 4px solid var(--ink); position: relative;
+    }
+    .gate-card::before {
+      content: 'pop quiz'; position: absolute; top: -12px; left: 24px;
+      background: var(--acid); color: var(--ink);
+      padding: 4px 12px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500;
+    }
+    .gate-card h2 {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 500;
+      font-size: clamp(26px, 3.4vw, 34px); line-height: 1.2;
+      margin: 12px 0 28px;
+    }
+    .gate-card .field {
+      display: flex; align-items: baseline; gap: 12px;
+      border-bottom: 1px solid var(--paper); padding-bottom: 12px; margin-bottom: 22px;
+    }
+    .gate-card input {
+      flex: 1; min-width: 0;
+      background: transparent; border: none; outline: none;
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 56px; color: var(--paper); padding: 0; letter-spacing: -0.03em;
+    }
+    .gate-card .unit { font-family: 'JetBrains Mono', monospace; font-size: 12px; opacity: 0.6; letter-spacing: 0.1em; text-transform: uppercase; }
+    .gate-card .submit { background: var(--paper); color: var(--ink); padding: 12px 22px; font-size: 13px; font-weight: 500; border-radius: 999px; }
+    .gate-card .skip { font-size: 12px; color: rgba(240,235,224,0.5); margin-left: 14px; }
+    .gate-card .answer {
+      margin-top: 28px;
+      padding: 20px 22px;
+      background: var(--paper); color: var(--ink);
+      opacity: 0; max-height: 0; overflow: hidden;
+      transition: opacity 500ms 100ms, max-height 500ms;
+    }
+    .gate-card.revealed .answer { opacity: 1; max-height: 200px; }
+    .gate-card .answer .l { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 8px; }
+    .gate-card .answer .a { font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; line-height: 1.25; margin: 0; }
+
+    /* PAGE 05 — BUFFER */
+    .buffer-page { display: grid; place-items: center; text-align: center; min-height: 100%; padding-top: 16px; }
+    .buffer-page .pre { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 28px; }
+    .buffer-page .saying { font-family: 'Fraunces', serif; font-style: italic; font-size: clamp(28px, 3.6vw, 36px); line-height: 1.25; max-width: 480px; margin: 0 auto 48px; color: var(--ink-warm); }
+    .breath {
+      width: 200px; height: 200px; margin: 0 auto 28px;
+      border-radius: 50%; background: var(--ink); color: var(--paper);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      animation: breathe 8s ease-in-out infinite;
+    }
+    @keyframes breathe { 0%, 100% { transform: scale(0.85); } 50% { transform: scale(1); } }
+    .buffer-page .timer { font-family: 'Fraunces', serif; font-style: italic; font-size: 56px; line-height: 1; margin: 0 0 18px; }
+    .buffer-page .skip-line { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faded); letter-spacing: 0.14em; text-transform: uppercase; }
+    .buffer-page .skip-line a { padding: 4px 8px; cursor: pointer; }
+    .buffer-page .skip-line a:hover { color: var(--ink); }
+
+    /* PAGE 06 — WARM STORY */
+    .warm-page { display: grid; place-items: center; min-height: 100%; }
+    .warm-card { max-width: 720px; }
+    .warm-page .lead-h {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 500;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100;
+      font-size: clamp(40px, 6vw, 76px); line-height: 0.98; letter-spacing: -0.03em;
+      margin: 12px 0 22px;
+    }
+    .warm-page .deck { font-family: 'Fraunces', serif; font-style: italic; font-size: 21px; line-height: 1.35; color: var(--ink-warm); max-width: 580px; margin: 0 0 22px; }
+    .warm-page .byline { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faded); margin: 0; }
+
+    /* PAGE 07 — FIX (puzzle) */
+    .fix-page { display: grid; place-items: center; min-height: 100%; }
+    .fix-puzzle {
+      max-width: 760px; width: 100%;
+      border: 4px double var(--ink); padding: 36px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 32px;
+      background: var(--paper-dim);
+    }
+    @media (max-width: 700px) { .fix-puzzle { grid-template-columns: 1fr; padding: 24px; } }
+    .fix-puzzle .h { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 12px; }
+    .fix-puzzle .text { font-family: 'Fraunces', serif; font-style: italic; font-size: 24px; line-height: 1.3; }
+    .fix-puzzle .controls { font-family: 'Inter', sans-serif; }
+    .fix-puzzle .check { display: flex; align-items: center; gap: 10px; margin: 14px 0; font-size: 14px; }
+    .fix-puzzle .check .box { width: 18px; height: 18px; border: 1.5px solid var(--ink); display: inline-block; }
+    .fix-puzzle .go { background: var(--ink); color: var(--paper); padding: 12px 22px; font-size: 13px; font-weight: 500; border-radius: 999px; margin-top: 16px; }
+
+    /* PAGE 08 — REFUSAL */
+    .refusal-page { background: var(--ink); color: var(--paper); padding-top: 56px; }
+    .refusal-inner { display: grid; place-items: center; min-height: 100%; padding-top: 8px; }
+    .refusal-inner .card { max-width: 640px; }
+    .refusal-inner .h { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(240,235,224,0.5); margin-bottom: 14px; }
+    .refusal-inner h2 { font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: clamp(34px, 5vw, 52px); line-height: 1.1; margin: 0 0 22px; letter-spacing: -0.02em; }
+    .refusal-inner p { font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; line-height: 1.4; color: rgba(240,235,224,0.7); margin: 0 0 36px; max-width: 540px; }
+    .refusal-inner button { color: var(--paper); border: 1px solid var(--paper); padding: 12px 22px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; }
+    .refusal-inner button:hover { background: var(--paper); color: var(--ink); }
+
+    /* PAGE 09 — COLOPHON / OUTRO */
+    .colophon-page { display: grid; place-items: center; min-height: 100%; }
+    .colophon-inner { max-width: 780px; }
+    .colophon-inner h2 { font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: clamp(40px, 5vw, 56px); line-height: 1.05; margin: 0 0 24px; letter-spacing: -0.02em; }
+    .colophon-inner p { font-family: 'Fraunces', serif; font-style: italic; font-size: 21px; line-height: 1.4; color: var(--ink-warm); max-width: 540px; margin: 0 0 36px; }
+    .colophon-inner .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; padding-top: 24px; border-top: 1px solid var(--ink); margin-top: 16px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.04em; color: var(--ink-warm); }
+    .colophon-inner .grid b { display: block; color: var(--ink); margin-bottom: 6px; letter-spacing: 0.16em; text-transform: uppercase; font-size: 10px; }
+    @media (max-width: 700px) { .colophon-inner .grid { grid-template-columns: 1fr; } }
+    .colophon-inner .actions { display: flex; gap: 12px; margin: 12px 0 28px; }
+    .colophon-inner .primary { background: var(--ink); color: var(--paper); padding: 12px 22px; font-size: 13px; font-weight: 500; border-radius: 999px; }
+    .colophon-inner .ghost { color: var(--ink-faded); padding: 12px 18px; font-size: 13px; }
+
+    /* dark chrome on refusal */
+    .pages.dark .running-head, .pages.dark .page-foot { background: var(--ink); color: var(--paper); border-color: rgba(240,235,224,0.2); }
+    .pages.dark .running-head .wm-tiny { color: var(--paper); }
+    .pages.dark .page-foot button.turn { background: var(--paper); color: var(--ink); }
+    .pages.dark .page-foot button.ghost { color: var(--paper); }
+  </style>
+</head>
+<body>
+
+  <header class="running-head" id="rhead">
+    <span class="wm-tiny">tell<span class="dot">.</span> · sunday edition · vol. iii / 12</span>
+    <span>local · 24h delete</span>
+  </header>
+
+  <div class="pages" id="pages">
+
+    <!-- 01 — COVER -->
+    <section class="page active" data-screen="0">
+      <div class="page-inner cover">
+        <div class="cover-grid">
+          <h1 class="nameplate">tell<span class="dot">.</span></h1>
+          <div class="double-rule">
+            <span>Sunday Edition · 18. April 2026 · You & Tim</span>
+            <span>Vol. III · Ausg. 12 · 4 Stories Inside</span>
+          </div>
+          <div class="lede">
+            <h2 class="lead-h">Diese Woche, in Zahlen,<br/>die du nicht wegrechnen kannst.</h2>
+            <aside class="toc">
+              <div class="h">In dieser Ausgabe</div>
+              <ul>
+                <li><span>Die Order — gut oder schwer zuerst?</span><span class="pn">02</span></li>
+                <li><span>Lead — Du. 4× schneller.</span><span class="pn">03</span></li>
+                <li><span>Pop Quiz — eine Schätzung</span><span class="pn">04</span></li>
+                <li><span>Atemzeichen</span><span class="pn">05</span></li>
+                <li><span>Etwas Warmes — 847 zu 1</span><span class="pn">06</span></li>
+                <li><span>Ein Experiment</span><span class="pn">07</span></li>
+                <li><span>Heute nicht.</span><span class="pn">08</span></li>
+              </ul>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02 — ORDER -->
+    <section class="page order-page" data-screen="1">
+      <div class="page-inner">
+        <div class="kicker">Vor allem anderen · Seite 02</div>
+        <h2 class="heading">Ich hab gute und<br/>weniger gute news.</h2>
+        <p class="deck">Was zuerst? Du entscheidest, in welcher Reihenfolge du das hörst. Es ändert nichts an dem, was kommt — nur an deinem Tag.</p>
+        <div class="opts">
+          <button class="opt" data-pick><span class="x">A.</span><span class="lab">Bad first. Ich halt das aus.</span><span class="pick">wählen</span></button>
+          <button class="opt" data-pick><span class="x">B.</span><span class="lab">Good first. Bitte sanft.</span><span class="pick">wählen</span></button>
+          <button class="opt" data-pick><span class="x">C.</span><span class="lab">Nur das Gute heute.</span><span class="pick">wählen</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03 — LEAD STORY -->
+    <section class="page" data-screen="2">
+      <div class="page-inner lead-page">
+        <article>
+          <div class="kicker hot">Top of the page · Seite 03</div>
+          <h2 class="lead-h">Du. <span class="mark">4× schneller</span> als Tim. Und das seit drei Monaten konstant.</h2>
+          <p class="deck">Was passiert, wenn die eine Person die ganze Tempo-Arbeit macht. Eine Bestandsaufnahme, linksbündig.</p>
+          <p class="byline">→ tell · reading · level: hard</p>
+          <div class="body">
+            <p>Es geht nicht darum, wer schneller tippen kann. Es geht darum, wer in dem Moment, in dem das Telefon vibriert, alles fallen lässt — und wer nicht. Du tust das. Tim nicht.</p>
+            <div class="stat-callout">
+              <div class="n">47</div>
+              <div class="v"><b>von dir</b> in den letzten sieben Tagen.<br/><span class="meta">Tim: 12.</span></div>
+            </div>
+            <p>Dein Median liegt bei vier Minuten. Tims bei siebenundvierzig. Drei Züge von dir. Einer zurück.</p>
+            <blockquote class="pull">Das ist nicht Liebesentzug. Das ist Aufmerksamkeitsökonomie.</blockquote>
+            <p>Im Januar war's anders. Median bei sieben und neun Minuten. Eng. Synchron. Dann kam etwas dazwischen. Kein Streit, keine Erklärung. Nur die Verschiebung der Zahlen.</p>
+          </div>
+        </article>
+        <aside class="lead-side">
+          <h4>Diese Woche · in Zahlen</h4>
+          <div class="data">
+            <div class="row"><span class="lab">avg msg jan</span><span class="val">23 wörter</span></div>
+            <div class="row"><span class="lab">·   diese woche</span><span class="val">6 wörter</span></div>
+            <div class="row"><span class="lab">tims median</span><span class="val">47 min</span></div>
+            <div class="row"><span class="lab">deine median</span><span class="val">4 min</span></div>
+            <div class="row"><span class="lab">letzter "haha"</span><span class="val">heute</span></div>
+            <div class="row"><span class="lab">·   davor</span><span class="val">847 nachr.</span></div>
+            <div class="row"><span class="lab">peak time</span><span class="val">sun 23–01</span></div>
+            <div class="row"><span class="lab">letzter streit</span><span class="val">14. märz</span></div>
+            <div class="row"><span class="lab">längste stille</span><span class="val">3 tage</span></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 04 — GATE -->
+    <section class="page gate-page" data-screen="3" id="gateScreen">
+      <div class="gate-card" id="gateCard">
+        <h2>Bevor ich's dir sage — wie viele Worte schreibt eure durchschnittliche Nachricht inzwischen?</h2>
+        <div class="field">
+          <input type="text" value="14" />
+          <span class="unit">wörter</span>
+        </div>
+        <div>
+          <button class="submit" id="gateSubmit">Tell mir die Wahrheit</button>
+          <button class="skip" data-advance>überspringen</button>
+        </div>
+        <div class="answer">
+          <div class="l">→ die zahl</div>
+          <p class="a"><span class="mark">Sechs.</span> Im Januar waren's noch 23. Das ist nicht weniger reden. Das ist weniger sagen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05 — BUFFER -->
+    <section class="page buffer-page" data-screen="4" id="bufferScreen">
+      <div>
+        <div class="pre">→ atemzeichen · seite 05</div>
+        <p class="saying">Das hier wird dich ärgern. Eine Minute atmen?</p>
+        <div class="breath">atme</div>
+        <div class="timer" id="bufferTimer">00:60</div>
+        <div class="skip-line"><a data-advance>ich brauch's jetzt →</a></div>
+      </div>
+    </section>
+
+    <!-- 06 — WARM STORY -->
+    <section class="page warm-page" data-screen="5">
+      <div class="warm-card">
+        <div class="kicker">Something warm · Seite 06</div>
+        <h2 class="lead-h">Tim hat in <span class="mark">847 Nachrichten</span> einmal "haha" benutzt. Einmal. Heute zu dir.</h2>
+        <p class="deck">Das ist kein Statistik-Fehler. Das ist eine Ausnahme, und Ausnahmen meinen etwas. Was — sag ich dir nicht. Du weißt es schon.</p>
+        <p class="byline">→ tell · reading · level: warm</p>
+      </div>
+    </section>
+
+    <!-- 07 — FIX -->
+    <section class="page fix-page" data-screen="6">
+      <div class="fix-puzzle">
+        <div>
+          <div class="h">→ ein experiment · keine empfehlung</div>
+          <p class="text">Schreib ihm die nächsten drei Tage nicht zuerst. Nicht als Strafe. Als Experiment. Schau, was passiert.</p>
+        </div>
+        <div class="controls">
+          <div class="h">→ commit</div>
+          <label class="check"><span class="box"></span> Ich versuch das.</label>
+          <label class="check"><span class="box"></span> Erinner mich Sonntag.</label>
+          <label class="check"><span class="box"></span> Vielleicht später.</label>
+          <button class="go" data-advance>los</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 08 — REFUSAL -->
+    <section class="page refusal-page" data-screen="7" data-bg="dark">
+      <div class="refusal-inner">
+        <div class="card">
+          <div class="h">→ this i won't tell you. not now.</div>
+          <h2>Du fragst mich das zum dritten Mal heute.</h2>
+          <p>Die Antwort ändert sich nicht. Mach was anderes, eine Stunde. Wir reden, wenn du wiederkommst.</p>
+          <button data-advance>verstanden</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 — OUTRO / COLOPHON -->
+    <section class="page colophon-page" data-screen="8">
+      <div class="colophon-inner">
+        <div class="kicker">→ Letzte Seite</div>
+        <h2>Das war Ausgabe 12.</h2>
+        <p>Dein Chat liegt bei dir. In 24 Stunden ist er weg, sofern du ihn nicht behältst. Wenn du wiederkommst, schau ich, was sich verändert hat.</p>
+        <div class="actions">
+          <button class="primary" onclick="goTo(0)">behalten · 24h</button>
+          <button class="ghost" onclick="goTo(0)">jetzt löschen</button>
+        </div>
+        <div class="grid">
+          <div><b>tell.</b><span style="display:block; line-height:1.5;">Eine wöchentliche Lesung deiner Sprache. Lokal verarbeitet, nach 24h gelöscht.</span></div>
+          <div><b>Diese Ausgabe</b><span style="display:block; line-height:1.5;">Du & Tim · Vol. III · 18. April 2026 · 4 Stories, 1 Frage, 1 Experiment, 1 Verweigerung.</span></div>
+          <div><b>Was tell nicht tut</b><span style="display:block; line-height:1.5;">Tim analysieren. Wörtlich zitieren. Kompatibilität messen. Streaks belohnen.</span></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="page-foot" id="pfoot">
+    <div class="nav">
+      <button class="ghost" id="prevBtn">← zurück</button>
+    </div>
+    <span id="pageMarker">— · 01 / 09 · —</span>
+    <div class="nav">
+      <button class="turn" id="nextBtn">Seite umblättern →</button>
+    </div>
+  </footer>
+
+  <script>
+    const pages = document.querySelectorAll('.page');
+    const total = pages.length;
+    const pagesEl = document.getElementById('pages');
+    const nextBtn = document.getElementById('nextBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const marker = document.getElementById('pageMarker');
+    let current = 0;
+
+    function goTo(idx) {
+      if (idx < 0 || idx >= total) return;
+      pages[current].classList.remove('active');
+      current = idx;
+      pages[current].classList.add('active');
+      pages[current].scrollTop = 0;
+      // chrome bg swap
+      const bg = pages[current].dataset.bg;
+      pagesEl.classList.toggle('dark', bg === 'dark');
+      // marker
+      marker.textContent = `— · ${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')} · —`;
+      // nav state
+      prevBtn.disabled = current === 0;
+      nextBtn.disabled = current === total - 1;
+      nextBtn.textContent = current === total - 2 ? 'letzte Seite →' : (current === 0 ? 'aufschlagen →' : 'umblättern →');
+      // screen-specific
+      if (pages[current].id === 'gateScreen') resetGate();
+      if (pages[current].id === 'bufferScreen') startBuffer();
+    }
+
+    nextBtn.addEventListener('click', () => goTo(current + 1));
+    prevBtn.addEventListener('click', () => goTo(current - 1));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') goTo(current + 1);
+      if (e.key === 'ArrowLeft') goTo(current - 1);
+    });
+    document.querySelectorAll('[data-pick], [data-advance]').forEach((el) => {
+      el.addEventListener('click', (e) => { e.preventDefault(); goTo(current + 1); });
+    });
+
+    // gate
+    const gateCard = document.getElementById('gateCard');
+    const gateSubmit = document.getElementById('gateSubmit');
+    function resetGate() { gateCard.classList.remove('revealed'); gateSubmit.textContent = 'Tell mir die Wahrheit'; }
+    gateSubmit.addEventListener('click', () => {
+      if (!gateCard.classList.contains('revealed')) {
+        gateCard.classList.add('revealed');
+        gateSubmit.textContent = 'umblättern →';
+      } else { goTo(current + 1); }
+    });
+
+    // buffer countdown
+    let bufferInterval;
+    function startBuffer() {
+      clearInterval(bufferInterval);
+      let s = 60;
+      const el = document.getElementById('bufferTimer');
+      el.textContent = `00:${String(s).padStart(2, '0')}`;
+      bufferInterval = setInterval(() => {
+        s--;
+        if (s <= 0) {
+          clearInterval(bufferInterval);
+          el.textContent = '00:00';
+          setTimeout(() => goTo(current + 1), 600);
+          return;
+        }
+        el.textContent = `00:${String(s).padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    goTo(0);
+  </script>
+</body>
+</html>

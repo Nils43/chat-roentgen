@@ -78,7 +78,7 @@ export async function runProfileAnalyses({
 
     const toolUse = response.content.find((b) => b.type === 'tool_use')
     if (!toolUse || toolUse.type !== 'tool_use') {
-      throw new Error(`Kein strukturiertes Profil für ${realName} erhalten.`)
+      throw new Error(`No structured profile returned for ${realName}.`)
     }
 
     const profileRaw = toolUse.input as PersonProfile

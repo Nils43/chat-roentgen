@@ -17,9 +17,9 @@ export interface ModuleMeta {
 }
 
 export const MODULE_COSTS: Record<ModuleId, ModuleMeta> = {
-  profiles: { id: 'profiles', label: 'Persönliche Profile', cost: 1 },
-  relationship: { id: 'relationship', label: 'Beziehungsebene', cost: 1 },
-  entwicklung: { id: 'entwicklung', label: 'Entwicklung', cost: 1 },
+  profiles: { id: 'profiles', label: 'Personal profiles', cost: 1 },
+  relationship: { id: 'relationship', label: 'Vibe read', cost: 1 },
+  entwicklung: { id: 'entwicklung', label: 'Evolution', cost: 1 },
   highlights: { id: 'highlights', label: 'Highlights', cost: 1 },
   timeline: { id: 'timeline', label: 'Timeline', cost: 1 },
 }
@@ -52,9 +52,9 @@ export interface Pack {
 
 // Mock shop. Real Stripe wiring can replace the purchase path later.
 export const PACKS: Pack[] = [
-  { id: 'starter', label: 'Starter', tokens: 5, priceEur: 4.99 },
-  { id: 'plus', label: 'Plus', tokens: 20, priceEur: 14.99, badge: 'Beliebt' },
-  { id: 'pro', label: 'Pro', tokens: 100, priceEur: 49.99, badge: 'Bester Preis' },
+  { id: 'single', label: 'Solo', tokens: 1, priceEur: 3 },
+  { id: 'double', label: 'Duo', tokens: 2, priceEur: 5, badge: 'Popular' },
+  { id: 'five', label: 'Five-pack', tokens: 5, priceEur: 10, badge: 'Best value' },
 ]
 
 const STORAGE_KEY = 'roentgen.tokens.v1'
@@ -88,7 +88,7 @@ function seed(): TokenState {
         id: uid('grant'),
         kind: 'grant',
         tokens: INITIAL_GRANT,
-        note: 'Willkommens-Guthaben',
+        note: 'Welcome credit',
         at: nowIso(),
       },
     ],
@@ -158,7 +158,7 @@ export const tokenStore = {
   },
 
   /** Refund a previously charged module (e.g. on error before success). */
-  refund(moduleId: ModuleId, note = 'Fehlgeschlagene Analyse'): void {
+  refund(moduleId: ModuleId, note = 'Analysis failed'): void {
     const meta = MODULE_COSTS[moduleId]
     update((s) => ({
       ...s,
@@ -190,7 +190,7 @@ export const tokenStore = {
           kind: 'purchase' as const,
           tokens: pack.tokens,
           packId,
-          note: `${pack.label}-Pack`,
+          note: `${pack.label} pack`,
           at: nowIso(),
         },
         ...s.history,

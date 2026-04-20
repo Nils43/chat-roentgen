@@ -43,7 +43,7 @@ export async function runEntwicklung({
   const response = await analyzer.analyze(
     {
       model: MODEL,
-      max_tokens: 3500,
+      max_tokens: 6144,
       system: ENTWICKLUNG_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
       tools: [
@@ -60,7 +60,7 @@ export async function runEntwicklung({
 
   const toolUse = response.content.find((b) => b.type === 'tool_use')
   if (!toolUse || toolUse.type !== 'tool_use') {
-    throw new Error('Keine strukturierte Entwicklung erhalten.')
+    throw new Error('No structured evolution data returned.')
   }
 
   const raw = toolUse.input as EntwicklungPayload

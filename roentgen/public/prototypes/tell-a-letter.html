@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tell. — letter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@1,9..144,300..600,30..100&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #F0EBE0;
+      --paper-dim: #E3DCCB;
+      --ink: #16140F;
+      --ink-warm: #2A1F17;
+      --ink-faded: #877D6B;
+      --acid: #ECFD38;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Inter', -apple-system, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    a, button { font: inherit; color: inherit; cursor: pointer; }
+    button { background: none; border: none; padding: 0; }
+
+    .meta { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faded); }
+    .mark {
+      background-image: linear-gradient(100deg, rgba(236,253,56,0) 0%, var(--acid) 6%, var(--acid) 94%, rgba(236,253,56,0.55) 100%);
+      padding: 0 0.18em;
+      margin: 0 -0.08em;
+      box-decoration-break: clone; -webkit-box-decoration-break: clone;
+      display: inline-block; transform: rotate(-0.2deg);
+    }
+
+    /* PERSISTENT CHROME */
+    header.hd {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      padding: 18px 32px;
+      display: flex; justify-content: space-between; align-items: center;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+    .wm {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100;
+      font-weight: 500; font-size: 24px; letter-spacing: -0.02em; line-height: 1;
+    }
+    .wm .dot { background: var(--acid); padding: 0 0.1em; font-style: normal; }
+    .hd-meta .ind { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faded); margin-right: 6px; vertical-align: 1px; }
+
+    /* PROGRESS — bottom dots */
+    .progress {
+      position: fixed; bottom: 24px; left: 0; right: 0;
+      display: flex; gap: 8px; justify-content: center; align-items: center;
+      z-index: 50;
+      pointer-events: auto;
+    }
+    .progress .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(22,20,15,0.18);
+      transition: all 320ms;
+      cursor: pointer;
+    }
+    .progress .dot.on { background: var(--ink); width: 18px; border-radius: 3px; }
+    .progress .dot.done { background: var(--ink-faded); }
+    .progress .step-num {
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--ink-faded); margin-left: 12px;
+    }
+
+    /* SCREENS */
+    .stage { position: relative; height: 100vh; width: 100vw; overflow: hidden; }
+    .screen {
+      position: absolute; inset: 0;
+      padding: 80px 32px;
+      display: flex; align-items: center;
+      opacity: 0; visibility: hidden;
+      transform: translateY(16px);
+      transition: opacity 600ms ease, transform 600ms cubic-bezier(.2,.9,.25,1), visibility 0s linear 600ms;
+    }
+    .screen.active {
+      opacity: 1; visibility: visible; transform: translateY(0);
+      transition-delay: 0s;
+    }
+    .screen-inner { max-width: 640px; width: 100%; margin: 0 auto; }
+
+    /* NEXT button */
+    .next-fab {
+      position: absolute; bottom: 64px; right: 32px;
+      z-index: 40;
+      display: inline-flex; gap: 10px; align-items: center;
+      background: var(--ink); color: var(--paper);
+      padding: 14px 22px;
+      border-radius: 999px;
+      font-size: 13px; font-weight: 500;
+      box-shadow: 0 8px 24px rgba(22,20,15,0.18);
+      transition: transform 200ms;
+    }
+    .next-fab:hover { transform: translateY(-1px); }
+    .next-fab .arrow { font-family: 'JetBrains Mono', monospace; opacity: 0.7; }
+
+    /* 1 — Opener */
+    .opener .greet { font-size: 14px; color: var(--ink-faded); margin-bottom: 22px; letter-spacing: 0.04em; }
+    .opener h1 {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100;
+      font-weight: 400;
+      font-size: clamp(48px, 7vw, 84px);
+      line-height: 1; letter-spacing: -0.035em;
+      margin: 0 0 32px;
+    }
+    .opener p {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 22px; line-height: 1.4; color: var(--ink-warm);
+      margin: 0 0 24px; max-width: 540px;
+    }
+    .opener .sig { font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; }
+
+    /* 2 — Order */
+    .order .lead { font-size: 14px; color: var(--ink-faded); margin-bottom: 18px; letter-spacing: 0.04em; }
+    .order h2 {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 400;
+      font-size: clamp(36px, 5.5vw, 56px); line-height: 1.05; letter-spacing: -0.02em;
+      margin: 0 0 16px;
+    }
+    .order .sub { font-size: 17px; color: var(--ink-faded); margin: 0 0 40px; max-width: 480px; line-height: 1.5; }
+    .order .opts { display: flex; flex-direction: column; gap: 12px; max-width: 520px; }
+    .order-opt {
+      text-align: left;
+      padding: 22px 26px;
+      background: var(--paper-dim);
+      border: 1px solid transparent;
+      border-radius: 10px;
+      transition: all 200ms;
+      display: flex; gap: 18px; align-items: baseline;
+    }
+    .order-opt:hover { background: var(--ink); color: var(--paper); transform: translateX(4px); }
+    .order-opt .num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faded); letter-spacing: 0.14em; }
+    .order-opt:hover .num { color: var(--paper); opacity: 0.6; }
+    .order-opt .lab { font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; }
+    .order-opt.skip { background: transparent; border: 1px dashed rgba(22,20,15,0.2); color: var(--ink-faded); }
+    .order-opt.skip:hover { background: transparent; color: var(--ink); border-color: var(--ink); }
+
+    /* 3 — Warm */
+    .warm .meta-top { margin-bottom: 28px; }
+    .warm .num {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100; font-weight: 400;
+      font-size: clamp(120px, 22vw, 240px);
+      line-height: 0.85; letter-spacing: -0.06em; margin: 0 0 28px;
+    }
+    .warm .talk {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: clamp(24px, 3.5vw, 36px); line-height: 1.25;
+      max-width: 580px; margin: 0; color: var(--ink-warm); letter-spacing: -0.015em;
+    }
+
+    /* 4 — Gate */
+    .gate .quiz-row { display: flex; gap: 14px; align-items: baseline; margin-bottom: 22px; }
+    .gate .pill {
+      background: var(--ink); color: var(--paper);
+      padding: 5px 11px;
+      font-family: 'JetBrains Mono', monospace; font-size: 10px;
+      letter-spacing: 0.16em; text-transform: uppercase;
+    }
+    .gate h2 {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 400;
+      font-size: clamp(32px, 4.5vw, 48px); line-height: 1.15; letter-spacing: -0.02em;
+      margin: 0 0 36px; max-width: 580px;
+    }
+    .gate .input-wrap {
+      display: flex; align-items: baseline; gap: 12px;
+      border-bottom: 1px solid var(--ink); padding: 0 0 18px; margin: 0 0 16px;
+      max-width: 360px;
+    }
+    .gate .pre { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--ink-faded); }
+    .gate input {
+      flex: 1; background: transparent; border: none; outline: none;
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: 56px; font-weight: 400; color: var(--ink);
+      letter-spacing: -0.03em; padding: 0; min-width: 0;
+    }
+    .gate .unit { font-family: 'Fraunces', serif; font-style: italic; font-size: 24px; color: var(--ink-faded); }
+    .gate .actions { display: flex; gap: 18px; align-items: center; margin-top: 28px; }
+    .gate .submit { background: var(--ink); color: var(--paper); padding: 14px 28px; font-size: 14px; font-weight: 500; border-radius: 999px; }
+    .gate .skip-l { color: var(--ink-faded); font-size: 13px; padding: 4px 8px; }
+    .gate .skip-l:hover { color: var(--ink); }
+    .gate .answer-card {
+      margin-top: 40px;
+      padding: 28px;
+      background: var(--paper-dim); border-radius: 10px;
+      max-width: 580px;
+      opacity: 0; max-height: 0; overflow: hidden;
+      transition: opacity 500ms 100ms, max-height 500ms;
+    }
+    .gate.revealed .answer-card { opacity: 1; max-height: 200px; }
+    .gate .answer-card .l { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 12px; }
+    .gate .answer-card .ans { font-family: 'Fraunces', serif; font-style: italic; font-size: 26px; line-height: 1.25; margin: 0; }
+
+    /* 5 — Buffer */
+    .buffer { text-align: center; }
+    .buffer .pre { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 36px; }
+    .buffer .saying {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: clamp(28px, 3.6vw, 38px); line-height: 1.25;
+      max-width: 480px; margin: 0 auto 56px; color: var(--ink-warm);
+    }
+    .breath {
+      width: 200px; height: 200px; margin: 0 auto 28px;
+      border-radius: 50%; background: var(--ink); color: var(--paper);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      animation: breathe 8s ease-in-out infinite;
+    }
+    @keyframes breathe { 0%, 100% { transform: scale(0.85); } 50% { transform: scale(1); } }
+    .buffer .timer { font-family: 'Fraunces', serif; font-style: italic; font-size: 56px; line-height: 1; margin: 0 0 24px; }
+    .buffer .skip-line { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-faded); letter-spacing: 0.14em; text-transform: uppercase; }
+    .buffer .skip-line a { padding: 4px 8px; }
+    .buffer .skip-line a:hover { color: var(--ink); }
+
+    /* 6 — Hard */
+    .hard .meta-top { margin-bottom: 24px; }
+    .hard .stat-row { display: flex; gap: 56px; align-items: flex-end; flex-wrap: wrap; margin: 0 0 36px; }
+    .hard .cell { display: flex; flex-direction: column; gap: 4px; }
+    .hard .cell .l { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faded); }
+    .hard .cell .num {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-variation-settings: 'opsz' 144, 'SOFT' 100; font-weight: 400;
+      font-size: clamp(96px, 14vw, 156px);
+      line-height: 0.9; letter-spacing: -0.05em;
+    }
+    .hard .cell.them .num { color: var(--ink-faded); }
+    .hard .talk {
+      font-family: 'Fraunces', serif; font-style: italic;
+      font-size: clamp(20px, 2.8vw, 28px); line-height: 1.3;
+      max-width: 580px; margin: 0; color: var(--ink-warm);
+    }
+
+    /* 7 — Fix */
+    .fix .pre { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 24px; }
+    .fix h3 {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 400;
+      font-size: clamp(28px, 4vw, 40px); line-height: 1.25;
+      max-width: 580px; margin: 0 0 36px;
+    }
+    .fix .actions { display: flex; gap: 14px; align-items: center; }
+    .fix .yes { background: var(--ink); color: var(--paper); padding: 14px 24px; border-radius: 999px; font-size: 13px; font-weight: 500; }
+    .fix .later { color: var(--ink-faded); font-size: 13px; padding: 4px 8px; }
+    .fix .later:hover { color: var(--ink); }
+
+    /* 8 — Refusal */
+    .refusal { background: var(--ink); color: var(--paper); }
+    .refusal .pre { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(240,235,224,0.5); margin-bottom: 28px; }
+    .refusal h2 {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 400;
+      font-size: clamp(36px, 5vw, 56px); line-height: 1.15; letter-spacing: -0.02em;
+      margin: 0 0 24px; max-width: 580px;
+    }
+    .refusal .body { font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; line-height: 1.4; max-width: 520px; color: rgba(240,235,224,0.7); margin: 0 0 40px; }
+    .refusal .ack { display: inline-flex; gap: 14px; align-items: baseline; }
+    .refusal .ack-btn { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; padding: 12px 22px; border: 1px solid var(--paper); }
+    .refusal .ack-btn:hover { background: var(--paper); color: var(--ink); }
+
+    /* 9 — Outro */
+    .outro h2 {
+      font-family: 'Fraunces', serif; font-style: italic; font-weight: 400;
+      font-size: clamp(40px, 6vw, 64px); line-height: 1.05; letter-spacing: -0.025em;
+      margin: 0 0 28px;
+    }
+    .outro p { font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; line-height: 1.4; color: var(--ink-warm); max-width: 540px; margin: 0 0 40px; }
+    .outro .actions { display: flex; gap: 14px; }
+    .outro .primary { background: var(--ink); color: var(--paper); padding: 14px 26px; font-size: 13px; font-weight: 500; border-radius: 999px; }
+    .outro .ghost { color: var(--ink-faded); padding: 14px 22px; font-size: 13px; }
+
+    /* hide next-fab on stages with their own primary action */
+    .screen.no-fab + .next-fab { display: none; }
+
+    /* Refusal screen swaps chrome colors */
+    .stage[data-bg='dark'] header.hd { mix-blend-mode: normal; color: var(--paper); }
+    .stage[data-bg='dark'] .wm { color: var(--paper); }
+    .stage[data-bg='dark'] .progress .dot { background: rgba(240,235,224,0.3); }
+    .stage[data-bg='dark'] .progress .dot.on { background: var(--paper); }
+    .stage[data-bg='dark'] .progress .step-num { color: rgba(240,235,224,0.6); }
+    .stage[data-bg='dark'] { background: var(--ink); }
+
+    @media (max-width: 640px) {
+      header.hd { padding: 14px 22px; }
+      .screen { padding: 64px 24px; }
+      .next-fab { right: 22px; bottom: 80px; padding: 12px 18px; }
+      .hard .stat-row { gap: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="hd">
+    <span class="wm">tell<span class="dot">.</span></span>
+    <span class="meta hd-meta"><span class="ind"></span>local · 24h delete</span>
+  </header>
+
+  <div class="stage" id="stage">
+
+    <!-- 1 OPENER -->
+    <section class="screen opener active" data-screen="0">
+      <div class="screen-inner">
+        <div class="greet">Donnerstag, 18. April · 19:34</div>
+        <h1>Ich hab<br/>deinen Chat<br/>mit Tim<br/>gelesen.</h1>
+        <p>Ich nehm mir gleich kurz Zeit. Du musst nichts machen. Wenn du soweit bist, tipp.</p>
+        <p class="sig">— <span class="mark">tell</span></p>
+      </div>
+    </section>
+
+    <!-- 2 ORDER -->
+    <section class="screen order no-fab" data-screen="1">
+      <div class="screen-inner">
+        <div class="lead meta">SCHRITT 01 · BEVOR WIR ANFANGEN</div>
+        <h2>Ich hab gute und<br/>weniger gute news.</h2>
+        <p class="sub">Was zuerst? Du entscheidest, in welcher Reihenfolge du das hörst. Es ändert nichts an dem, was kommt — nur an deinem Tag.</p>
+        <div class="opts">
+          <button class="order-opt" data-pick><span class="num">A.</span><span class="lab">Bad first. Ich halt das aus.</span></button>
+          <button class="order-opt" data-pick><span class="num">B.</span><span class="lab">Good first. Bitte sanft.</span></button>
+          <button class="order-opt skip" data-pick><span class="num">C.</span><span class="lab">Nur das Gute heute.</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 WARM -->
+    <section class="screen warm" data-screen="2">
+      <div class="screen-inner">
+        <div class="meta meta-top">SOMETHING WARM · 01 OF 04</div>
+        <div class="num">847</div>
+        <p class="talk">Tim hat in <span class="mark">847 Nachrichten</span> einmal "haha" benutzt. Einmal. Heute zu dir.</p>
+      </div>
+    </section>
+
+    <!-- 4 GATE -->
+    <section class="screen gate no-fab" data-screen="3" id="gateScreen">
+      <div class="screen-inner">
+        <div class="quiz-row">
+          <span class="pill">pop quiz</span>
+          <span class="meta">02 OF 04 · GUESS BEFORE I TELL</span>
+        </div>
+        <h2>Bevor ich's dir sage — wie viel <span class="mark">schneller</span> antwortet Tim als du?</h2>
+        <div class="input-wrap">
+          <span class="pre">x =</span>
+          <input type="text" value="2" />
+          <span class="unit">× schneller</span>
+        </div>
+        <div class="actions">
+          <button class="submit" id="gateSubmit">Tell mir die Wahrheit</button>
+          <button class="skip-l" data-advance>überspringen</button>
+        </div>
+        <div class="answer-card" id="answerCard">
+          <div class="l">→ die zahl</div>
+          <p class="ans"><span class="mark">Du.</span> Du antwortest 4× schneller als Tim. Seit drei Monaten konstant.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 BUFFER -->
+    <section class="screen buffer no-fab" data-screen="4" id="bufferScreen">
+      <div class="screen-inner">
+        <div class="pre">03 of 04 · before the next one</div>
+        <p class="saying">Das hier wird dich ärgern. Eine Minute atmen?</p>
+        <div class="breath">atme</div>
+        <div class="timer" id="bufferTimer">00:60</div>
+        <div class="skip-line">
+          <a data-advance>ich brauch's jetzt</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6 HARD -->
+    <section class="screen hard" data-screen="5">
+      <div class="screen-inner">
+        <div class="meta meta-top">→ THIS WEEK · YOU AND TIM</div>
+        <div class="stat-row">
+          <div class="cell"><span class="l">VON DIR</span><span class="num">47</span></div>
+          <div class="cell them"><span class="l">VON IHM</span><span class="num">12</span></div>
+        </div>
+        <p class="talk"><span class="mark">47 von dir.</span> 12 von ihm. Das ist die Woche. Nicht die schlimmste, aber die ehrlichste seit dem 14. März.</p>
+      </div>
+    </section>
+
+    <!-- 7 FIX -->
+    <section class="screen fix no-fab" data-screen="6">
+      <div class="screen-inner">
+        <div class="pre">→ ein experiment · keine empfehlung</div>
+        <h3>Schreib ihm die nächsten drei Tage nicht zuerst. Nicht als Strafe. Als Experiment. Schau, was passiert.</h3>
+        <div class="actions">
+          <button class="yes" data-advance>erinner mich Sonntag</button>
+          <button class="later" data-advance>vielleicht später</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8 REFUSAL -->
+    <section class="screen refusal no-fab" data-screen="7" data-bg="dark">
+      <div class="screen-inner">
+        <div class="pre">→ this i won't tell you. not now.</div>
+        <h2>Du fragst mich das zum dritten Mal heute.</h2>
+        <p class="body">Die Antwort ändert sich nicht. Mach was anderes, eine Stunde. Wir reden, wenn du wiederkommst.</p>
+        <div class="ack">
+          <button class="ack-btn" data-advance>verstanden</button>
+          <span class="meta" style="color: rgba(240,235,224,0.4);">tell · gatekeeping mode</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 OUTRO -->
+    <section class="screen outro no-fab" data-screen="8">
+      <div class="screen-inner">
+        <div class="meta" style="margin-bottom: 24px;">→ FOR HEUTE</div>
+        <h2>Das war's für heute.<br/>Pass auf dich auf.</h2>
+        <p>Dein Chat liegt bei dir. In 24 Stunden ist er weg, sofern du ihn nicht behältst. Wenn du wiederkommst, schau ich, was sich verändert hat.</p>
+        <div class="actions">
+          <button class="primary" onclick="goTo(0)">behalten · 24h</button>
+          <button class="ghost" onclick="goTo(0)">jetzt löschen</button>
+        </div>
+      </div>
+    </section>
+
+    <button class="next-fab" id="nextFab">Weiter <span class="arrow">→</span></button>
+  </div>
+
+  <div class="progress" id="progress"></div>
+
+  <script>
+    const screens = document.querySelectorAll('.screen');
+    const total = screens.length;
+    const stage = document.getElementById('stage');
+    const fab = document.getElementById('nextFab');
+    const progress = document.getElementById('progress');
+    let current = 0;
+
+    // build dots
+    const dots = [];
+    for (let i = 0; i < total; i++) {
+      const d = document.createElement('div');
+      d.className = 'dot';
+      d.addEventListener('click', () => goTo(i));
+      dots.push(d);
+      progress.appendChild(d);
+    }
+    const stepNum = document.createElement('span');
+    stepNum.className = 'step-num';
+    progress.appendChild(stepNum);
+
+    function goTo(idx) {
+      if (idx < 0 || idx >= total) return;
+      screens[current].classList.remove('active');
+      current = idx;
+      screens[current].classList.add('active');
+      // chrome bg swap
+      const bg = screens[current].dataset.bg;
+      if (bg === 'dark') stage.dataset.bg = 'dark'; else delete stage.dataset.bg;
+      // dots
+      dots.forEach((d, i) => {
+        d.classList.toggle('on', i === current);
+        d.classList.toggle('done', i < current);
+      });
+      stepNum.textContent = `${String(current + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
+      // fab visibility
+      const noFab = screens[current].classList.contains('no-fab');
+      fab.style.display = noFab ? 'none' : 'inline-flex';
+      // screen-specific behaviors
+      if (screens[current].id === 'gateScreen') resetGate();
+      if (screens[current].id === 'bufferScreen') startBuffer();
+    }
+
+    fab.addEventListener('click', () => goTo(current + 1));
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') goTo(current + 1);
+      if (e.key === 'ArrowLeft') goTo(current - 1);
+    });
+
+    // generic [data-pick] / [data-advance] advances on click
+    document.querySelectorAll('[data-advance], [data-pick]').forEach((el) => {
+      el.addEventListener('click', (e) => { e.preventDefault(); goTo(current + 1); });
+    });
+
+    // GATE — submit reveals answer, then advance on second click
+    const gate = document.getElementById('gateScreen');
+    const gateSubmit = document.getElementById('gateSubmit');
+    function resetGate() { gate.classList.remove('revealed'); gateSubmit.textContent = 'Tell mir die Wahrheit'; }
+    gateSubmit.addEventListener('click', () => {
+      if (!gate.classList.contains('revealed')) {
+        gate.classList.add('revealed');
+        gateSubmit.textContent = 'Weiter →';
+      } else {
+        goTo(current + 1);
+      }
+    });
+
+    // BUFFER — countdown
+    let bufferInterval;
+    function startBuffer() {
+      clearInterval(bufferInterval);
+      let s = 60;
+      const el = document.getElementById('bufferTimer');
+      el.textContent = `00:${String(s).padStart(2, '0')}`;
+      bufferInterval = setInterval(() => {
+        s--;
+        if (s <= 0) {
+          clearInterval(bufferInterval);
+          el.textContent = '00:00';
+          setTimeout(() => goTo(current + 1), 600);
+          return;
+        }
+        el.textContent = `00:${String(s).padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    // init
+    goTo(0);
+  </script>
+</body>
+</html>

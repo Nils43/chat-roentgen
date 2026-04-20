@@ -4,11 +4,11 @@
     "attunement": 52,
     "rhythmus_synchron": 38,
     "lexikon_synchron": 61,
-    "interpretation": "Emotionales Mitschwingen ist mittel und einseitig — Person A liest Person Bs Zustand akkurat, umgekehrt seltener. Der Rhythmus ist asymmetrisch: Person A hält ein hohes Antworttempo, Person B zieht Antwortzeiten in die Länge, vor allem bei Themen mit emotionalem Gewicht. Lexikalisch existiert eine gemeinsame Zone — übernommene Formulierungen, Inside-Jokes — was zeigt, dass eine geteilte Mikrokultur besteht, trotz struktureller Asymmetrie.",
+    "interpretation": "Emotional attunement is medium and one-sided — Person A reads Person B's state accurately, the other way around happens less. The rhythm is asymmetric: Person A keeps a fast reply cadence, Person B stretches reply times, especially on emotionally weighted topics. A shared lexical zone exists — borrowed phrasings, inside jokes — showing a shared micro-culture despite the structural imbalance.",
     "zitate": [
-      { "person": "Person A", "text": "Merkst du, du bist heut anders?" },
-      { "person": "Person B", "text": "Jo" },
-      { "person": "Person A", "text": "Unser Montag-Desaster-Meme" }
+      { "person": "Person A", "text": "you seem different today, no?" },
+      { "person": "Person B", "text": "yeah" },
+      { "person": "Person A", "text": "our monday-disaster meme" }
     ]
   },
   "machtstruktur": {
@@ -17,23 +17,23 @@
     "affekt_lead": "Person A",
     "asymmetrie_skala": 64,
     "statik": "statisch",
-    "interpretation": "Person A setzt fast alle Themen und trägt die emotionale Temperatur des Chats. Person B steuert den Prozess — bestimmt wann geantwortet wird, wann ein Thema endet, wann ein Bruch gelegt wird. Diese Split-Konstellation bedeutet: Person A produziert den Inhalt, Person B reguliert den Rahmen. Die strukturelle Macht dominiert inhaltliche Initiative.",
+    "interpretation": "Person A sets almost every topic and carries the emotional temperature of the chat. Person B steers the process — decides when to answer, when a topic ends, when there's a break. This split means: Person A produces content, Person B regulates the frame. Structural power outweighs topical initiative here.",
     "zitate": [
-      { "person": "Person A", "text": "Ich hab heut viel nachgedacht über uns" },
-      { "person": "Person B", "text": "Müssen wir jetzt drüber?" },
-      { "person": "Person B", "text": "Schreib dir morgen" }
+      { "person": "Person A", "text": "I've been thinking a lot about us today" },
+      { "person": "Person B", "text": "do we have to do this now?" },
+      { "person": "Person B", "text": "i'll message you tomorrow" }
     ]
   },
   "bindungsdyade": {
     "konstellation": "anxious_avoidant",
-    "dyaden_beschreibung": "Die klassische Insecure-Trap: Person A erlebt Verbindung über emotionale Öffnung, Person B reguliert Intimität durch Distanz. Je mehr A sucht, desto stärker deaktiviert B. Je mehr B sich zurückzieht, desto mehr hyperaktiviert A.",
-    "dyaden_risiko": "Selbstverstärkender Loop: A liest Distanz als Bedrohung und sucht mehr, B liest Suchen als Druck und zieht sich mehr zurück. Ohne bewusste Unterbrechung kippt das System in chronische Überaktivierung bei A und chronisches Stonewalling bei B.",
-    "interpretation": "Das Muster ist robust sichtbar — protestierendes Nachlegen nach Schweigen bei A, kurze deaktivierende Antworten bei B, schnelle Deeskalation zu Wärme von A nach eigenem 'zu viel'. Ein Chat ist keine Bindungsdiagnostik, aber die Signatur ist konsistent.",
+    "dyaden_beschreibung": "The classic insecure trap: Person A experiences connection through emotional opening, Person B regulates intimacy through distance. The more A seeks, the more B deactivates. The more B pulls back, the more A hyperactivates.",
+    "dyaden_risiko": "A self-reinforcing loop: A reads distance as a threat and seeks more, B reads seeking as pressure and withdraws more. Without a conscious break, this tips into chronic overactivation in A and chronic stonewalling in B.",
+    "interpretation": "The pattern is clearly visible — protest-style doubling down after silence from A, short deactivating replies from B, fast de-escalation to warmth from A after her own \"too much\". A chat isn't an attachment diagnostic, but the signature is consistent.",
     "sicherheit": "mittel",
     "zitate": [
-      { "person": "Person A", "text": "Bist du sauer? Ich mach mir Sorgen" },
-      { "person": "Person B", "text": "Nein alles gut" },
-      { "person": "Person A", "text": "Sorry ich bin zu viel heut" }
+      { "person": "Person A", "text": "are you upset? I'm worried" },
+      { "person": "Person B", "text": "no it's fine" },
+      { "person": "Person A", "text": "sorry I'm too much today" }
     ]
   },
   "bids": {
@@ -44,38 +44,38 @@
     ],
     "beispiele": [
       {
-        "bid": { "person": "Person A", "text": "Fand das heut schön mit dir" },
-        "antwort": { "person": "Person B", "text": "Ja" },
+        "bid": { "person": "Person A", "text": "really enjoyed today with you" },
+        "antwort": { "person": "Person B", "text": "yeah" },
         "klasse": "turning_away"
       },
       {
-        "bid": { "person": "Person A", "text": "Hab voll Bock auf Wochenende mit dir" },
-        "antwort": { "person": "Person B", "text": "Mal schauen hab noch Sachen" },
+        "bid": { "person": "Person A", "text": "so looking forward to this weekend with you" },
+        "antwort": { "person": "Person B", "text": "we'll see, I've got stuff" },
         "klasse": "turning_away"
       },
       {
-        "bid": { "person": "Person B", "text": "Hab grad Stress im Büro" },
-        "antwort": { "person": "Person A", "text": "Oh no erzähl, was ist los?" },
+        "bid": { "person": "Person B", "text": "work's been stressful" },
+        "antwort": { "person": "Person A", "text": "oh no tell me, what's up?" },
         "klasse": "turning_toward"
       },
       {
-        "bid": { "person": "Person A", "text": "Vermiss dich irgendwie" },
-        "antwort": { "person": "Person B", "text": "Hab grad keinen Kopf dafür" },
+        "bid": { "person": "Person A", "text": "kinda miss you" },
+        "antwort": { "person": "Person B", "text": "can't do this right now" },
         "klasse": "turning_against"
       }
     ],
-    "interpretation": "Person A investiert stark in Bids — kleine Zuwendungen, geteilte Details, Verletzlichkeit. Person B turnt überwiegend away (einsilbig, Themenwechsel) und gelegentlich against (Zurückweisung). Wenn B seltene Bids sendet, reagiert A stark toward. Die Asymmetrie ist Gottmans stärkster Prädiktor für Erosion: das Verhältnis toward/away liegt hier weit unter dem 5:1 stabiler Paare."
+    "interpretation": "Person A invests heavily in bids — small attentions, shared details, vulnerability. Person B mostly turns away (one-word, topic change) and occasionally against (rejection). When B sends a rare bid, A turns strongly toward. The asymmetry is Gottman's strongest predictor of erosion: the toward/away ratio here is far below the 5:1 of stable couples."
   },
   "repair": {
     "hat_repair": true,
     "wer_repariert": ["Person A"],
     "annahme_quote": "mittel",
-    "typische_form": "Sweet-Note von A, oft mit Entschuldigung vorweg — 'sorry war zu viel'. Selten Benennen des Bruchs selbst.",
-    "interpretation": "Repair existiert, aber asymmetrisch: A trägt die Reparatur-Last komplett. B akzeptiert die meisten Repair-Versuche still, initiiert selbst keine. Das kurzfristig stabilisierende Muster normalisiert, dass A immer zurückkommt — und nimmt B aus der Verantwortung für die Dyade. Langfristig Ressourcen-Asymmetrie.",
+    "typische_form": "Sweet note from A, often with an apology upfront — \"sorry that was a lot\". Rarely naming the break itself.",
+    "interpretation": "Repair exists, but it's asymmetric: A carries the repair load completely. B accepts most repair attempts silently, initiates none. Short-term this stabilizes; long-term it normalizes A always coming back — and lets B off the hook for the dyad. A resource imbalance over time.",
     "zitate": [
-      { "person": "Person A", "text": "Sorry war zu viel grad, liebs dich" },
-      { "person": "Person B", "text": "Passt schon" },
-      { "person": "Person A", "text": "Können wir morgen normal reden?" }
+      { "person": "Person A", "text": "sorry that was a lot, I love you" },
+      { "person": "Person B", "text": "it's fine" },
+      { "person": "Person A", "text": "can we talk normally tomorrow?" }
     ]
   },
   "konflikt_signatur": {
@@ -87,14 +87,14 @@
     "flooding_hinweise": [
       {
         "person": "Person B",
-        "hinweis": "Abrupte Kürze und stundenlanges Schweigen nach emotionalen Nachrichten — klassisches Flooding-Muster."
+        "hinweis": "Abrupt brevity and hours of silence after emotional messages — classic flooding pattern."
       }
     ],
-    "interpretation": "Gottmans Demand-Withdraw-Polarität ist klar ausgeprägt. A zeigt gelegentlich Kritik ('du machst nie…'), rutscht aber meist in Sorge und Reparatur. B zeigt Stonewalling (Rückzug, Mauer) und leichte Abwehr (Opferrolle). Verachtung — Gottmans stärkster negativer Prädiktor — ist nicht präsent. Das ist eine wichtige Grenze.",
+    "interpretation": "Gottman's demand-withdraw polarity is clearly at play. A occasionally shows criticism (\"you never do…\") but mostly slides into worry and repair. B shows stonewalling (withdrawal, wall) and mild defensiveness (victim stance). Contempt — Gottman's strongest negative predictor — is not present. That's an important line.",
     "zitate": [
-      { "person": "Person A", "text": "Du redest nie mit mir wenn was ist" },
-      { "person": "Person B", "text": "Hab grad keine Energie dafür" },
-      { "person": "Person A", "text": "Bitte antwort mir, ich werd nervös" }
+      { "person": "Person A", "text": "you never talk to me when something's up" },
+      { "person": "Person B", "text": "I don't have the energy for this" },
+      { "person": "Person A", "text": "please reply, I'm getting anxious" }
     ]
   },
   "mentalisierung": {
@@ -102,85 +102,85 @@
       {
         "person": "Person A",
         "qualitaet": "hoch",
-        "beschreibung": "Liest Bs Zustand differenziert: unterscheidet erschöpft von genervt, benennt eigene Projektionen ('bin ich grad paranoid?')."
+        "beschreibung": "Reads B's state in a nuanced way: distinguishes exhausted from annoyed, names her own projections (\"am I being paranoid right now?\")."
       },
       {
         "person": "Person B",
         "qualitaet": "niedrig",
-        "beschreibung": "Modelliert As innere Welt kaum — reagiert auf Verhalten ('du schreibst zu viel'), nicht auf den affektiven Zustand dahinter."
+        "beschreibung": "Barely models A's inner world — reacts to behavior (\"you write too much\"), not to the affect behind it."
       }
     ],
-    "projektion_statt_modellierung": "Person B projiziert in mehreren Momenten: 'Du willst mich kontrollieren' — ohne Evidenz für eine Kontrollabsicht. Das ist die klassische Mentalisierungs-Lücke unter Stress.",
-    "interpretation": "Die Mentalisierungs-Asymmetrie verstärkt die Bindungs-Asymmetrie: A fühlt sich gesehen und überschätzt gleichzeitig, wie viel B mitdenken kann. B erlebt A als 'zu intensiv', weil B die emotionale Innenwelt von A nicht modelliert, sondern nur Verhalten bewertet.",
+    "projektion_statt_modellierung": "Person B projects in several moments: \"you want to control me\" — with no evidence of controlling intent. That's the classic mentalization gap under stress.",
+    "interpretation": "The mentalization asymmetry amplifies the attachment asymmetry: A feels seen and at the same time overestimates how much B can track. B experiences A as \"too intense\" because B doesn't model A's inner emotional world, only evaluates behavior.",
     "zitate": [
-      { "person": "Person A", "text": "Ich glaub du bist grad total überreizt vom Büro" },
-      { "person": "Person B", "text": "Musst jetzt echt nicht schon wieder" }
+      { "person": "Person A", "text": "I think you're just totally overloaded from work" },
+      { "person": "Person B", "text": "please don't start again" }
     ]
   },
   "meta_kommunikation": {
     "kapazitaet": "niedrig",
     "initiator": "Person A",
-    "blocker_muster": "Person B wehrt Meta-Talk über die Beziehung ab — mit 'lass uns das nicht über Chat klären', 'mir zu dramatisch', oder einfachem Nicht-Antworten bis das Thema verdunstet.",
-    "interpretation": "Die Dyade kann über Alltag, Logistik und Themen gut reden, aber nicht über sich selbst. Jeder Versuch von A, die Beziehung zu benennen, wird auf Inhalts-Ebene zurückgestoßen. Ohne Meta-Ebene können Regeln nie verhandelt werden — sie werden nur unbewusst vollzogen.",
+    "blocker_muster": "Person B deflects meta-talk about the relationship — with \"let's not hash this out over chat\", \"too dramatic for me\", or simply not replying until the topic evaporates.",
+    "interpretation": "The dyad can talk about daily life, logistics and topics fine, but not about itself. Every attempt from A to name the relationship gets pushed back onto the content level. Without a meta level, rules can never be negotiated — they just get enacted unconsciously.",
     "zitate": [
-      { "person": "Person A", "text": "Können wir mal über uns reden, nicht über Sachen?" },
-      { "person": "Person B", "text": "Ist doch alles okay oder?" }
+      { "person": "Person A", "text": "can we talk about us for once, not about stuff?" },
+      { "person": "Person B", "text": "everything's fine though, right?" }
     ]
   },
   "berne": {
     "dominanter_modus": "verdeckt_doppelbödig",
     "ulterior_transactions": [
       {
-        "sozial": "A fragt sachlich nach dem Wochenendplan.",
-        "psychologisch": "A testet, ob B an A denkt — der eigentliche Wunsch ist Bestätigung der Bindung.",
-        "beispiel": { "person": "Person A", "text": "Was machst du eigentlich Samstag?" }
+        "sozial": "A asks a neutral question about weekend plans.",
+        "psychologisch": "A is testing whether B is thinking about A — the real wish is confirmation of the bond.",
+        "beispiel": { "person": "Person A", "text": "what are you up to Saturday actually?" }
       },
       {
-        "sozial": "B sagt 'passt schon' nach einem Konflikt.",
-        "psychologisch": "B schließt das Thema ohne Resolution — die Botschaft ist 'komm mir nicht näher damit'.",
-        "beispiel": { "person": "Person B", "text": "Passt schon, lass mal" }
+        "sozial": "B says \"it's fine\" after a conflict.",
+        "psychologisch": "B closes the topic without resolution — the message is \"don't come closer with this\".",
+        "beispiel": { "person": "Person B", "text": "it's fine, let's drop it" }
       },
       {
-        "sozial": "A schickt ein 'sorry' nach längerer Nachricht.",
-        "psychologisch": "A prä-entschuldigt sich für die eigene Präsenz und lädt B ein, Beruhigung zu verweigern.",
-        "beispiel": { "person": "Person A", "text": "Sorry ich quassel, lösch wenn nervt" }
+        "sozial": "A sends a \"sorry\" after a longer message.",
+        "psychologisch": "A pre-apologizes for her own presence and invites B to refuse reassurance.",
+        "beispiel": { "person": "Person A", "text": "sorry I'm rambling, ignore if annoying" }
       }
     ],
     "games": [
       {
-        "name": "Ich bin zu viel",
-        "funktion": "A erklärt sich selbst zum Problem, bekommt von B halbherzige Beruhigung, Status-quo bleibt. Das Spiel verhindert, dass B sich für die Dynamik verantworten muss.",
-        "beispiel": { "person": "Person A", "text": "Bin halt anstrengend grad, ich weiß" }
+        "name": "I'm too much",
+        "funktion": "A names herself as the problem, gets half-hearted reassurance from B, status quo holds. The game keeps B from having to own the dynamic.",
+        "beispiel": { "person": "Person A", "text": "I know I'm being exhausting right now" }
       }
     ],
-    "interpretation": "Die Oberfläche des Chats ist freundlich-alltäglich. Darunter liegt durchgängig eine psychologische Ebene, auf der Bindungs-Bestätigung verhandelt wird, ohne dass sie benannt wird. Das ist Berne's klassische 'ulterior' Konfiguration — und der Grund warum der Chat ruhig wirkt, obwohl die Kernfrage permanent ungelöst verhandelt wird."
+    "interpretation": "The surface of the chat is friendly and everyday. Underneath, a psychological layer runs constantly, negotiating attachment confirmation without naming it. That's Berne's classic ulterior configuration — and the reason the chat feels calm, even though the core question is being worked out all the time without resolution."
   },
   "unausgesprochene_regeln": {
     "regeln": [
       {
-        "regel": "Person A macht den ersten Schritt nach jedem Bruch.",
-        "funktion": "Hält die Beziehung in Bewegung, ohne B zur Verantwortung zu rufen.",
-        "evidenz": "Jeder Konflikt im Sample endet mit einer Öffnungs-Nachricht von A, nie von B."
+        "regel": "Person A makes the first move after every break.",
+        "funktion": "Keeps the relationship moving without calling B to account.",
+        "evidenz": "Every conflict in the sample ends with an opening message from A, never from B."
       },
       {
-        "regel": "Über die Beziehung selbst wird nicht geredet, nur über Alltag.",
-        "funktion": "Schützt B vor emotionaler Eskalation, schützt A vor abweisender Reaktion.",
-        "evidenz": "Meta-Talk-Versuche verdunsten systematisch. Längste Threads drehen sich um Logistik."
+        "regel": "We don't talk about the relationship itself, only about everyday stuff.",
+        "funktion": "Protects B from emotional escalation, protects A from a dismissive response.",
+        "evidenz": "Meta-talk attempts systematically evaporate. The longest threads are about logistics."
       },
       {
-        "regel": "Wer zu laut wird, hat verloren.",
-        "funktion": "Verhindert offene Eskalation — und damit auch offene Klärung.",
-        "evidenz": "Keine direkte Wut im Sample. Stattdessen Rückzug, Entschuldigung, Witz."
+        "regel": "Whoever raises their voice has lost.",
+        "funktion": "Prevents open escalation — and with it, open clarification.",
+        "evidenz": "No direct anger in the sample. Instead: withdrawal, apology, joke."
       },
       {
-        "regel": "A ist für Wärme zuständig, B für Tempo.",
-        "funktion": "Rollenverteilung, die beide kurzfristig entlastet und langfristig zementiert.",
-        "evidenz": "Sweet-Notes ausschließlich von A, Tempo-Regulation ausschließlich von B."
+        "regel": "A is in charge of warmth, B is in charge of pace.",
+        "funktion": "A role distribution that relieves both short-term and cements both long-term.",
+        "evidenz": "Sweet notes only from A, pace regulation only from B."
       }
     ],
-    "interpretation": "Die Regeln sind funktional — sie halten die Dyade am Leben. Sie sind gleichzeitig der Grund, warum sie sich nicht ändert: nicht verhandelbar, weil nie ausgesprochen. Wer eine unausgesprochene Regel benennt, bricht sie — das ist der Preis für Veränderung."
+    "interpretation": "The rules are functional — they keep the dyad alive. They are at the same time the reason it doesn't change: non-negotiable because never spoken. Whoever names an unspoken rule breaks it — that's the price of change."
   },
-  "kern_insight": "Diese Dyade funktioniert, weil sie nie über sich selbst spricht — und genau das ist, was sie nie verändern wird.",
+  "kern_insight": "This dyad works because it never talks about itself — and that is exactly what will keep it from ever changing.",
   "safety_flag": {
     "aktiv": false,
     "beschreibung": null

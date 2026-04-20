@@ -1,4 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { loadSession, saveSession } from './store/sessionStore'
+import { chatLibrary, useChatLibrary } from './store/chatLibrary'
+import { Library } from './components/Library'
 import { parseWhatsApp } from './parser/whatsapp'
 import type { ParsedChat } from './parser/types'
 import { analyzeHardFacts } from './analysis/hardFacts'
@@ -31,6 +34,7 @@ import type {
 } from './ai/types'
 
 type Stage =
+  | 'library'
   | 'upload'
   | 'parsing'
   | 'analysis'
@@ -48,7 +52,9 @@ type Stage =
   | 'tokens'
 
 function App() {
-  const [stage, setStage] = useState<Stage>('upload')
+  const library = useChatLibrary()
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
+  const [stage, setStage] = useState<Stage>(library.length > 0 ? 'library' : 'upload')
   const [chat, setChat] = useState<ParsedChat | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [parseError, setParseError] = useState<string | null>(null)
@@ -69,8 +75,25 @@ function App() {
   const [timelineError, setTimelineError] = useState<string | null>(null)
   const [entwicklung, setEntwicklung] = useState<EntwicklungResult | null>(null)
   const [entwicklungError, setEntwicklungError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!currentChatId || !chat) return
+    const snap = {
+      fileName,
+      chat,
+      prepared,
+      profiles,
+      relationship,
+      highlights,
+      timeline,
+      entwicklung,
+    }
+    saveSession(currentChatId, snap)
+    chatLibrary.syncModules(currentChatId, snap)
+  }, [currentChatId, fileName, chat, prepared, profiles, relationship, highlights, timeline, entwicklung])
   const [tokensReturnTo, setTokensReturnTo] = useState<Stage>('upload')
   const [tokensPrompt, setTokensPrompt] = useState<{ module: ModuleId } | null>(null)
+  const [pendingModule, setPendingModule] = useState<ModuleId>('profiles')
 
   const openTokens = (returnTo: Stage, prompt?: { module: ModuleId }) => {
     setTokensReturnTo(returnTo)
@@ -83,7 +106,7 @@ function App() {
     try {
       return analyzeHardFacts(chat)
     } catch (e) {
-      console.error(e)
+      console.error('[analyzeHardFacts]', e)
       return null
     }
   }, [chat])
@@ -105,20 +128,38 @@ function App() {
 
   const handleFile = (text: string, name: string) => {
     setParseError(null)
-    setFileName(name)
     const parsed = parseWhatsApp(text)
     if (parsed.messages.length === 0) {
-      setParseError(parsed.warnings[0] ?? 'Keine Nachrichten erkannt.')
+      setParseError(parsed.warnings[0] ?? 'no messages found — hmm.')
       return
     }
+    const meta = chatLibrary.create(parsed, name)
+    const ok = saveSession(meta.id, {
+      fileName: name,
+      chat: parsed,
+      prepared: null,
+      profiles: null,
+      relationship: null,
+      highlights: null,
+      timeline: null,
+      entwicklung: null,
+    })
+    if (!ok) {
+      chatLibrary.remove(meta.id)
+      const sizeMb = (text.length / 1024 / 1024).toFixed(1)
+      setParseError(
+        `your chat is ~${sizeMb} MB — that's too big to stash on this device. export a shorter slice — like just the last few months.`,
+      )
+      return
+    }
+    clearLocalState()
+    setCurrentChatId(meta.id)
+    setFileName(name)
     setChat(parsed)
     setStage('parsing')
   }
 
-  const reset = () => {
-    setStage('upload')
-    setChat(null)
-    setFileName(null)
+  const clearLocalState = () => {
     setParseError(null)
     setPrepared(null)
     setProfiles(null)
@@ -134,19 +175,112 @@ function App() {
     setAiProgress({ done: 0, total: 0, current: null })
   }
 
+  const openChat = (id: string) => {
+    const snap = loadSession(id)
+    if (!snap?.chat) {
+      alert(
+        "this chat isn't on your device anymore — probably deleted or too big. kicking the card.",
+      )
+      chatLibrary.remove(id)
+      return
+    }
+    clearLocalState()
+    setCurrentChatId(id)
+    setChat(snap.chat)
+    setFileName(snap.fileName ?? null)
+    setPrepared(snap.prepared ?? null)
+    setProfiles(snap.profiles ?? null)
+    setRelationship(snap.relationship ?? null)
+    setHighlights(snap.highlights ?? null)
+    setTimeline(snap.timeline ?? null)
+    setEntwicklung(snap.entwicklung ?? null)
+    setStage('analysis')
+  }
+
+  const goToLibrary = () => {
+    clearLocalState()
+    setCurrentChatId(null)
+    setChat(null)
+    setFileName(null)
+    setStage(chatLibrary.get().length > 0 ? 'library' : 'upload')
+  }
+
+  const startNewChat = () => {
+    clearLocalState()
+    setCurrentChatId(null)
+    setChat(null)
+    setFileName(null)
+    setStage('upload')
+  }
+
+  const reset = goToLibrary
+
   const startAiAnalysis = () => {
     if (!chat) return
+    setPendingModule('profiles')
     const p = prepareAnalysis(chat)
     setPrepared(p)
     setStage('consent')
   }
 
-  const runAi = async () => {
-    if (!chat || !prepared) return
-    if (!tokenStore.charge('profiles')) {
-      openTokens('consent', { module: 'profiles' })
+  // Direct module click from HardFactsView. If we haven't shown consent yet,
+  // show it with the chosen module as pending target. If prepared exists,
+  // skip the consent and dispatch to the specific runner.
+  const startModule = (moduleId: ModuleId) => {
+    if (!chat) return
+    // If a result for this module already exists, navigate there
+    const existingStage: Record<ModuleId, Stage> = {
+      profiles: 'profiles',
+      relationship: 'relationship',
+      entwicklung: 'entwicklung',
+      highlights: 'highlights',
+      timeline: 'timeline',
+    }
+    const existingResult: Record<ModuleId, unknown> = {
+      profiles: profiles,
+      relationship: relationship,
+      entwicklung: entwicklung,
+      highlights: highlights,
+      timeline: timeline,
+    }
+    if (existingResult[moduleId]) {
+      setStage(existingStage[moduleId])
       return
     }
+
+    setPendingModule(moduleId)
+    if (!prepared) {
+      const p = prepareAnalysis(chat)
+      setPrepared(p)
+      setStage('consent')
+      return
+    }
+    dispatchModule(moduleId)
+  }
+
+  // Runs the specific module runner. Callers must have `prepared` set.
+  const dispatchModule = (moduleId: ModuleId) => {
+    switch (moduleId) {
+      case 'profiles':
+        return runAi()
+      case 'highlights':
+        return goToHighlights()
+      case 'relationship':
+        return goToRelationship()
+      case 'entwicklung':
+        return goToEntwicklung()
+      case 'timeline':
+        return goToTimeline()
+    }
+  }
+
+  // Consent screen's accept handler: dispatch to whichever module was pending.
+  const onConsentAccept = () => dispatchModule(pendingModule)
+
+  const runAi = async () => {
+    if (!chat || !prepared) return
+    // Free trial: profiles run without charge. Other-person profiles get
+    // unlocked individually inside ProfileView (1 coin per person).
     setAiError(null)
     setAiProgress({ done: 0, total: chat.participants.length, current: chat.participants[0] })
     setStage('ai')
@@ -160,8 +294,7 @@ function App() {
       setStage('profiles')
     } catch (e) {
       const err = e as Error
-      tokenStore.refund('profiles')
-      setAiError(err.message ?? 'Analyse fehlgeschlagen.')
+      setAiError(err.message ?? 'analysis failed.')
     }
   }
 
@@ -184,7 +317,7 @@ function App() {
     } catch (e) {
       const err = e as Error
       tokenStore.refund('highlights')
-      setHighlightsError(err.message ?? 'Highlights-Analyse fehlgeschlagen.')
+      setHighlightsError(err.message ?? 'highlights failed.')
     }
   }
 
@@ -207,7 +340,7 @@ function App() {
     } catch (e) {
       const err = e as Error
       tokenStore.refund('relationship')
-      setRelationshipError(err.message ?? 'Beziehungsebene-Analyse fehlgeschlagen.')
+      setRelationshipError(err.message ?? 'vibe read failed.')
     }
   }
 
@@ -230,7 +363,7 @@ function App() {
     } catch (e) {
       const err = e as Error
       tokenStore.refund('timeline')
-      setTimelineError(err.message ?? 'Timeline-Analyse fehlgeschlagen.')
+      setTimelineError(err.message ?? 'timeline failed.')
     }
   }
 
@@ -254,48 +387,67 @@ function App() {
     } catch (e) {
       const err = e as Error
       tokenStore.refund('entwicklung')
-      setEntwicklungError(err.message ?? 'Entwicklungs-Analyse fehlgeschlagen.')
+      setEntwicklungError(err.message ?? 'evolution read failed.')
     }
   }
 
+  // Tab mapping for the bottom-nav (LEAKS / INTEL / FILES / STATS)
+  const currentTab: 'leaks' | 'intel' | 'files' | 'stats' =
+    stage === 'library' || stage === 'upload' || stage === 'parsing'
+      ? 'leaks'
+      : stage === 'analysis' || stage === 'consent' || stage === 'ai'
+        ? 'intel'
+        : stage === 'tokens'
+          ? 'stats'
+          : 'files'
+
   return (
-    <div className="min-h-screen grain bg-bg text-ink">
-      <header className="sticky top-0 z-40 bg-bg/70 backdrop-blur-xl border-b border-line/40">
-        <div className="max-w-5xl mx-auto px-5 md:px-8 py-4 flex items-center justify-between">
-          <button onClick={reset} className="flex items-baseline gap-3 group">
-            <span className="font-serif text-2xl tracking-tight group-hover:text-a transition-colors">Röntgen</span>
-            <span className="label-mono text-ink-faint hidden md:inline">Chat · psychologisch dekodiert</span>
+    <div className="min-h-screen bg-bg text-ink pb-20">
+      <header className="sticky top-0 z-40 bg-black text-white border-b-2 border-ink">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-2 flex items-center justify-between gap-4">
+          <button onClick={goToLibrary} className="flex items-baseline gap-2 group">
+            <span className="font-serif text-2xl tracking-tight text-white group-hover:text-yellow-300 transition-colors">tell</span>
+            <span className="bg-pop-yellow text-ink px-1.5 leading-none text-2xl font-serif">.</span>
+            <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.16em] text-white/50 ml-3">forensic gossip os · vol. iii</span>
           </button>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 text-white">
+            {currentChatId && stage !== 'library' && stage !== 'tokens' && (
+              <button
+                onClick={goToLibrary}
+                className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
+              >
+                ← back to leaks
+              </button>
+            )}
             {stage === 'profiles' && (
               <>
                 <button
                   onClick={() => setStage('analysis')}
-                  className="label-mono text-ink-muted hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
                 >
                   ← Hard Facts
                 </button>
                 <button
                   onClick={goToRelationship}
-                  className="label-mono text-a hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
                 >
-                  Beziehungsebene →
+                  Vibe read →
                 </button>
                 <button
                   onClick={goToHighlights}
-                  className="label-mono text-b hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
                 >
                   Highlights →
                 </button>
                 <button
                   onClick={goToEntwicklung}
-                  className="label-mono text-a hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
                 >
-                  Entwicklung →
+                  Evolution →
                 </button>
                 <button
                   onClick={goToTimeline}
-                  className="label-mono text-ink hover:text-a transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
                 >
                   Timeline →
                 </button>
@@ -305,25 +457,25 @@ function App() {
               <>
                 <button
                   onClick={() => setStage('profiles')}
-                  className="label-mono text-ink-muted hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
                 >
-                  ← Profile
+                  ← Profiles
                 </button>
                 <button
                   onClick={goToEntwicklung}
-                  className="label-mono text-a hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
                 >
-                  Entwicklung →
+                  Evolution →
                 </button>
                 <button
                   onClick={goToHighlights}
-                  className="label-mono text-b hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
                 >
                   Highlights →
                 </button>
                 <button
                   onClick={goToTimeline}
-                  className="label-mono text-ink hover:text-a transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
                 >
                   Timeline →
                 </button>
@@ -333,19 +485,19 @@ function App() {
               <>
                 <button
                   onClick={() => setStage('profiles')}
-                  className="label-mono text-ink-muted hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
                 >
-                  ← Profile
+                  ← Profiles
                 </button>
                 <button
                   onClick={goToEntwicklung}
-                  className="label-mono text-a hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
                 >
-                  Entwicklung →
+                  Evolution →
                 </button>
                 <button
                   onClick={goToTimeline}
-                  className="label-mono text-ink hover:text-a transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
                 >
                   Timeline →
                 </button>
@@ -355,13 +507,13 @@ function App() {
               <>
                 <button
                   onClick={() => setStage('profiles')}
-                  className="label-mono text-ink-muted hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
                 >
-                  ← Profile
+                  ← Profiles
                 </button>
                 <button
                   onClick={goToTimeline}
-                  className="label-mono text-ink hover:text-a transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white hover:text-pop-yellow transition-colors hidden md:inline"
                 >
                   Timeline →
                 </button>
@@ -371,15 +523,15 @@ function App() {
               <>
                 <button
                   onClick={() => setStage('profiles')}
-                  className="label-mono text-ink-muted hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
                 >
-                  ← Profile
+                  ← Profiles
                 </button>
                 <button
                   onClick={goToEntwicklung}
-                  className="label-mono text-a hover:text-ink transition-colors hidden md:inline"
+                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
                 >
-                  Entwicklung →
+                  Evolution →
                 </button>
               </>
             )}
@@ -393,8 +545,8 @@ function App() {
                   stage === 'entwicklung_loading') &&
                 prepared
                   ? prepared.analyzerKind === 'fixture'
-                    ? 'Fixture-Mode · nichts wird gesendet'
-                    : `${prepared.messagesSent} Nachrichten · pseudonymisiert`
+                    ? 'test mode · nothing gets sent'
+                    : `${prepared.messagesSent} messages · names hidden`
                   : undefined
               }
             />
@@ -404,15 +556,27 @@ function App() {
       </header>
 
       <main className="relative z-10">
+        {stage === 'library' && <Library onOpen={openChat} onNew={startNewChat} />}
+
         {stage === 'upload' && (
           <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-5 md:px-8 py-12">
             <div className="w-full">
+              {library.length > 0 && (
+                <div className="max-w-2xl mx-auto mb-6">
+                  <button
+                    onClick={() => setStage('library')}
+                    className="label-mono text-ink-faint hover:text-ink transition-colors"
+                  >
+                    ← back to library
+                  </button>
+                </div>
+              )}
               <Upload onFile={handleFile} />
               {parseError && (
                 <div className="mt-8 max-w-2xl mx-auto card border-b/50">
-                  <div className="label-mono text-b mb-2">Parsing fehlgeschlagen</div>
+                  <div className="label-mono text-b mb-2">something broke</div>
                   <p className="serif-body text-lg">{parseError}</p>
-                  {fileName && <div className="label-mono mt-3">Datei: {fileName}</div>}
+                  {fileName && <div className="label-mono mt-3">file: {fileName}</div>}
                 </div>
               )}
               <PrivacyStripe />
@@ -428,6 +592,7 @@ function App() {
           <HardFactsView
             facts={facts}
             onStartAi={startAiAnalysis}
+            onStartModule={startModule}
             onOpenTokens={() => openTokens('analysis')}
           />
         )}
@@ -436,9 +601,10 @@ function App() {
           <ConsentScreen
             chat={chat}
             prepared={prepared}
-            onAccept={runAi}
+            moduleId={pendingModule}
+            onAccept={onConsentAccept}
             onCancel={() => setStage('analysis')}
-            onOpenTokens={() => openTokens('consent', { module: 'profiles' })}
+            onOpenTokens={() => openTokens('consent', { module: pendingModule })}
           />
         )}
 
@@ -455,8 +621,10 @@ function App() {
         {stage === 'profiles' && profiles && (
           <ProfileView
             profiles={profiles}
+            chatId={currentChatId}
             onGoToRelationship={goToRelationship}
             onGoToHighlights={goToHighlights}
+            onOpenTokens={() => openTokens('profiles', { module: 'profiles' })}
           />
         )}
 
@@ -464,7 +632,7 @@ function App() {
           <AiProgress
             done={relationshipError ? 0 : 1}
             total={2}
-            currentPerson={relationshipError ? null : 'Dynamik dekodieren'}
+            currentPerson={relationshipError ? null : 'reading the dynamic'}
             error={relationshipError}
             onCancel={relationshipError ? () => setStage('profiles') : undefined}
           />
@@ -482,7 +650,7 @@ function App() {
           <AiProgress
             done={highlightsError ? 0 : 1}
             total={2}
-            currentPerson={highlightsError ? null : 'Momente ranken'}
+            currentPerson={highlightsError ? null : 'ranking the moments'}
             error={highlightsError}
             onCancel={highlightsError ? () => setStage('profiles') : undefined}
           />
@@ -496,7 +664,7 @@ function App() {
           <AiProgress
             done={timelineError ? 0 : 1}
             total={2}
-            currentPerson={timelineError ? null : 'Bogen segmentieren'}
+            currentPerson={timelineError ? null : 'mapping the arc'}
             error={timelineError}
             onCancel={timelineError ? () => setStage('profiles') : undefined}
           />
@@ -510,7 +678,7 @@ function App() {
           <AiProgress
             done={entwicklungError ? 0 : 1}
             total={2}
-            currentPerson={entwicklungError ? null : 'Themen & Trend'}
+            currentPerson={entwicklungError ? null : 'topics & trend'}
             error={entwicklungError}
             onCancel={entwicklungError ? () => setStage('profiles') : undefined}
           />
@@ -533,35 +701,73 @@ function App() {
 
         {stage === 'analysis' && !facts && (
           <div className="max-w-2xl mx-auto p-12 text-center">
-            <p className="serif-body text-xl">Analyse fehlgeschlagen. Versuche einen anderen Chat.</p>
+            <p className="serif-body text-xl">analysis crashed. try a different chat.</p>
             <button onClick={reset} className="mt-6 px-5 py-3 bg-ink text-bg rounded-full font-sans text-sm">
-              Neu starten
+              try again
             </button>
           </div>
         )}
       </main>
 
-      <footer className="border-t border-line/40 mt-20 py-10 px-5 md:px-8 text-center">
-        <div className="label-mono text-ink-faint">
-          Röntgen · made for the things you don't say out loud
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-black text-white border-t-2 border-ink">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-2.5 flex items-center justify-between gap-3">
+          <div className="flex gap-4 md:gap-6 items-center font-mono text-[10px] md:text-[11px] tracking-[0.16em] uppercase">
+            <button
+              onClick={goToLibrary}
+              className={`flex items-center gap-1.5 transition-colors ${currentTab === 'leaks' ? 'text-pop-yellow' : 'text-white/50 hover:text-white'}`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 4 L14 4 L13 13 L3 13 Z M5 4 V2 L11 2 V4"/></svg>
+              leaks
+            </button>
+            <button
+              onClick={() => chat && setStage('analysis')}
+              disabled={!chat}
+              className={`flex items-center gap-1.5 transition-colors disabled:opacity-30 ${currentTab === 'intel' ? 'text-pop-yellow' : 'text-white/50 hover:text-white'}`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2"/></svg>
+              intel
+            </button>
+            <button
+              onClick={() => profiles && setStage('profiles')}
+              disabled={!profiles && !relationship && !highlights && !timeline && !entwicklung}
+              className={`flex items-center gap-1.5 transition-colors disabled:opacity-30 ${currentTab === 'files' ? 'text-pop-yellow' : 'text-white/50 hover:text-white'}`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 3 L7 3 L8 5 L14 5 L14 13 L2 13 Z"/></svg>
+              files
+            </button>
+            <button
+              onClick={() => openTokens(stage === 'tokens' ? tokensReturnTo : stage)}
+              className={`flex items-center gap-1.5 transition-colors ${currentTab === 'stats' ? 'text-pop-yellow' : 'text-white/50 hover:text-white'}`}
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 13 L2 8 M6 13 L6 5 M10 13 L10 9 M14 13 L14 3"/></svg>
+              stats
+            </button>
+          </div>
+          <div className="hidden md:block font-mono text-[10px] tracking-[0.14em] uppercase text-white/40">
+            local · 24h delete · no account
+          </div>
         </div>
-      </footer>
+      </nav>
     </div>
   )
 }
 
 function PrivacyStripe() {
+  const items = [
+    { title: 'EXHIBIT 01: ON-DEVICE', body: 'the first numbers are crunched by your phone or laptop — nothing gets uploaded.' },
+    { title: 'EXHIBIT 02: NO ACCOUNT', body: 'no email, no password. just you and your chat.' },
+    { title: 'EXHIBIT 03: NO READERS', body: 'neither we nor anyone else sees your chat. it stays with you.' },
+  ]
   return (
-    <div className="mt-16 max-w-3xl mx-auto grid md:grid-cols-3 gap-4 text-center">
-      {[
-        { icon: '●', title: 'Lokal', body: 'Parser und Basisanalyse laufen im Browser. Kein Upload.' },
-        { icon: '◇', title: 'Kein Account', body: 'Keine E-Mail, kein Passwort. Nur du und die Datei.' },
-        { icon: '✕', title: 'Kein Speichern', body: 'Tab zu = weg. Wir sehen den Chat nie.' },
-      ].map((p) => (
-        <div key={p.title} className="bg-bg-raised/40 border border-line/40 rounded-xl p-5">
-          <div className="text-a mb-2 text-lg">{p.icon}</div>
-          <div className="label-mono mb-2">{p.title}</div>
-          <div className="serif-body text-base text-ink-muted">{p.body}</div>
+    <div className="mt-16 max-w-3xl mx-auto grid md:grid-cols-3 gap-4">
+      {items.map((p, i) => (
+        <div
+          key={p.title}
+          className="card relative"
+          style={{ transform: `rotate(${i === 0 ? -0.6 : i === 1 ? 0.4 : -0.3}deg)` }}
+        >
+          <span className="exhibit-label">{p.title}</span>
+          <div className="serif-body text-base mt-2">{p.body}</div>
         </div>
       ))}
     </div>

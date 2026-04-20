@@ -7,18 +7,23 @@ interface Props {
 export function Upload({ onFile }: Props) {
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [consented, setConsented] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const readFile = useCallback(
     (file: File) => {
       setError(null)
+      if (!consented) {
+        setError('tick the house rules below first.')
+        return
+      }
       if (file.size > 50 * 1024 * 1024) {
-        setError('Datei größer als 50 MB. Das wäre ein rekordverdächtiger Chat.')
+        setError('over 50 MB — that\'s low-key a record-breaking chat.')
         return
       }
       const ext = file.name.toLowerCase().split('.').pop()
       if (ext !== 'txt' && ext !== 'zip') {
-        setError('Aktuell wird nur WhatsApp-.txt-Export unterstützt. (ZIP kommt gleich.)')
+        setError('that\'s not a WhatsApp export. instructions below — no stress.')
         return
       }
       const reader = new FileReader()
@@ -26,10 +31,10 @@ export function Upload({ onFile }: Props) {
         const text = (e.target?.result as string) ?? ''
         onFile(text, file.name)
       }
-      reader.onerror = () => setError('Datei konnte nicht gelesen werden.')
+      reader.onerror = () => setError('file isn\'t cooperating. try again.')
       reader.readAsText(file, 'utf-8')
     },
-    [onFile],
+    [onFile, consented],
   )
 
   return (
@@ -48,14 +53,17 @@ export function Upload({ onFile }: Props) {
         }}
         onClick={() => inputRef.current?.click()}
         className={`
-          relative cursor-pointer group
-          border border-dashed rounded-3xl
+          relative cursor-pointer group overflow-hidden
+          rounded-[2rem]
           transition-all duration-300
           px-8 py-20 md:py-28
-          text-center
-          ${dragging ? 'border-a bg-a/5 scale-[1.01]' : 'border-line hover:border-a/50 hover:bg-bg-raised/50'}
+          text-center dotgrid
+          ${dragging ? 'gradient-border scale-[1.01]' : 'border border-dashed border-line hover:border-transparent hover:bg-bg-raised/50'}
         `}
       >
+        {/* One quiet ambient glow */}
+        <div className="pointer-events-none absolute -top-24 -right-20 w-72 h-72 rounded-full bg-a/[0.06] blur-3xl" aria-hidden />
+
         <input
           ref={inputRef}
           type="file"
@@ -67,30 +75,53 @@ export function Upload({ onFile }: Props) {
           }}
         />
 
-        <div className="label-mono mb-6 text-a">
-          <span className="inline-block w-1.5 h-1.5 bg-a rounded-full mr-2 animate-pulse-soft" />
-          Zone 1 · Lokal · Kein Upload
+        <div className="relative inline-flex items-center gap-2 mb-8 pill-pop">
+          <span className="inline-block w-1.5 h-1.5 bg-a rounded-full animate-pulse-soft" />
+          <span className="font-mono uppercase tracking-[0.14em]">100% private · nobody reads along</span>
         </div>
 
-        <div className="font-serif text-4xl md:text-6xl leading-[1.05] mb-4 tracking-tight">
-          Lade deinen Chat.
+        <div className="relative font-serif text-4xl md:text-6xl leading-[1.05] mb-4 tracking-tight">
+          Drop your <span className="gradient-text">chat</span>.
           <br />
-          <span className="italic text-ink-muted">Sieh, was er sagt.</span>
+          <span className="italic text-ink-muted">See what's really going on.</span>
         </div>
 
-        <div className="text-ink-muted mb-8 max-w-md mx-auto text-sm md:text-base">
-          Drop deine WhatsApp-<span className="font-mono text-ink">.txt</span>-Datei hier. Die Analyse läuft vollständig
-          in deinem Browser — nichts wird hochgeladen.
+        <div className="relative text-ink-muted mb-8 max-w-md mx-auto text-sm md:text-base">
+          Drag your WhatsApp export in here or hit the button. Everything stays on your device — nobody else sees it.
         </div>
 
-        <div className="inline-flex items-center gap-3 px-5 py-3 bg-ink text-bg rounded-full font-sans font-medium text-sm group-hover:bg-a transition-colors">
-          Datei auswählen
+        <div className={`relative btn-pop group-hover:scale-[1.03] ${!consented ? 'opacity-40 pointer-events-none' : ''}`}>
+          <span className="text-base">📎</span>
+          PICK A CHAT
           <span className="text-xs">→</span>
         </div>
 
         {error && (
-          <div className="mt-6 text-sm text-b font-mono">{error}</div>
+          <div className="relative mt-6 text-sm text-b font-mono">{error}</div>
         )}
+      </div>
+
+      {/* Misuse-Disclaimer mit Consent-Checkbox */}
+      <div
+        className="mt-6 card max-w-2xl mx-auto"
+        style={{ transform: 'rotate(-0.3deg)', boxShadow: '4px 4px 0 #0A0A0A' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="exhibit-label">EXHIBIT 99: HOUSE RULES</span>
+        <label className="flex gap-3 items-start cursor-pointer mt-2 select-none">
+          <input
+            type="checkbox"
+            checked={consented}
+            onChange={(e) => {
+              setConsented(e.target.checked)
+              if (e.target.checked) setError(null)
+            }}
+            className="mt-1 w-5 h-5 accent-pop-yellow flex-shrink-0"
+          />
+          <span className="serif-body text-base leading-snug">
+            I am <strong className="not-italic font-bold">a participant in this chat</strong> and I'm using the analysis for myself — not to control, manipulate or stalk anyone. If I spot red flags, I'll seek real help instead of using this tool.
+          </span>
+        </label>
       </div>
 
       <HowToExport />
@@ -106,19 +137,18 @@ function HowToExport() {
         onClick={() => setOpen((v) => !v)}
         className="label-mono text-ink-muted hover:text-ink transition-colors inline-flex items-center gap-2"
       >
-        Wie exportiere ich einen WhatsApp-Chat? <span className="font-serif italic normal-case">{open ? '−' : '+'}</span>
+        How do I get my WhatsApp chat? <span className="font-serif italic normal-case">{open ? '−' : '+'}</span>
       </button>
       {open && (
         <div className="mt-6 card text-left serif-body text-base md:text-lg space-y-3">
           <ol className="space-y-3 list-decimal pl-5 marker:text-a marker:font-mono marker:text-sm">
-            <li>WhatsApp öffnen → den gewünschten Chat wählen.</li>
-            <li>Oben auf den Chatnamen tippen → <span className="font-mono text-sm">Chat exportieren</span>.</li>
-            <li>„Ohne Medien" wählen (schneller, reicht für die Analyse).</li>
-            <li>Die <span className="font-mono text-sm">.txt</span>-Datei per AirDrop, Mail oder Drive an diesen Browser schicken.</li>
+            <li>Open WhatsApp, tap the chat.</li>
+            <li>Tap the name at the top, scroll down to "Export chat".</li>
+            <li>Pick "Without media" — enough, and faster.</li>
+            <li>Send the file via AirDrop, mail or cloud — then drop it here.</li>
           </ol>
           <p className="text-ink-muted text-sm font-sans pt-2 border-t border-line/60">
-            Tipp: Android packt den Export in ein <span className="font-mono">.zip</span>. Entpacke es vorher und lade
-            nur die <span className="font-mono">.txt</span> hoch.
+            Android wraps this in a ZIP. Tap it once, pull the text file out, done.
           </p>
         </div>
       )}

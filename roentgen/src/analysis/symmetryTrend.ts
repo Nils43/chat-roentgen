@@ -1,9 +1,9 @@
 import type { HardFacts } from './hardFacts'
 
-// Local-only symmetry trend — the "objective" side of Modul 04.
+// Local-only symmetry trend — the "objective" side of the evolution module.
 // Turns weekly HardFacts aggregates into a time series that shows how the
 // balance shifts over the chat's life. Zero AI here; this feeds into the
-// Entwicklung view as a diverging-lines chart AND as context for the AI prompt.
+// Evolution view as a diverging-lines chart AND as context for the AI prompt.
 
 export interface SymmetryPoint {
   weekStart: Date
@@ -108,7 +108,7 @@ function buildPromptNote(
   trend: SymmetryTrend['trend'],
   names: string[],
 ): string {
-  if (points.length === 0 || names.length < 2) return 'Unzureichend Daten für eine Symmetrie-Aussage.'
+  if (points.length === 0 || names.length < 2) return 'Not enough data for a symmetry read.'
 
   const startDelta = deltaSeries[0] ?? 0
   const endDelta = deltaSeries[deltaSeries.length - 1] ?? 0
@@ -117,14 +117,14 @@ function buildPromptNote(
 
   const startWeek = points[0].weekStart
   const endWeek = points[points.length - 1].weekStart
-  const fmt = (d: Date) => d.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' })
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 
   const labelTrend = {
-    diverging: 'Das Investment-Gefälle wächst kontinuierlich',
-    converging: 'Das Investment-Gefälle gleicht sich über Zeit an',
-    volatile: 'Das Investment-Gefälle schwankt stark über Zeit',
-    balanced: 'Das Investment-Gefälle bleibt über Zeit weitgehend stabil',
+    diverging: 'The effort gap is widening over time',
+    converging: 'The effort gap is closing over time',
+    volatile: 'The effort gap swings heavily over time',
+    balanced: 'The effort gap stays roughly steady over time',
   }[trend]
 
-  return `Symmetrie-Zeitreihe (lokal berechnet): Zu Beginn (${fmt(startWeek)}) lag das Delta zwischen den Top-Sprechern bei ~${startPct} Prozentpunkten; am Ende (${fmt(endWeek)}) bei ~${endPct} Prozentpunkten. ${labelTrend}.`
+  return `Symmetry series (computed locally): at the start (${fmt(startWeek)}) the delta between the top speakers was ~${startPct} points; at the end (${fmt(endWeek)}) ~${endPct} points. ${labelTrend}.`
 }

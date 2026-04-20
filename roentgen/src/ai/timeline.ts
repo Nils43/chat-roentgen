@@ -34,7 +34,7 @@ export async function runTimeline({
   const response = await analyzer.analyze(
     {
       model: MODEL,
-      max_tokens: 3072,
+      max_tokens: 4096,
       system: TIMELINE_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
       tools: [

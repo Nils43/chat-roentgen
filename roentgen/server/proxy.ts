@@ -76,6 +76,9 @@ export async function handleAnalyze(req: IncomingMessage, res: ServerResponse): 
     res.statusCode = upstream.status
     res.setHeader('content-type', 'application/json')
     res.end(text)
+    if (process.env.ROENTGEN_DEBUG && !upstream.ok) {
+      console.error('[proxy] upstream', upstream.status, text.slice(0, 1000))
+    }
   } catch (err) {
     // Intentionally vague — don't leak infrastructure details to the client.
     res.statusCode = 502

@@ -1,43 +1,43 @@
 {
   "zentrale_themen_gesamt": [
     {
-      "thema": "Nähe & Zuneigung",
+      "thema": "Closeness & affection",
       "praegnanz": "hoch",
       "beispiele": [
-        "Sweet-Notes und Emojis von Person A",
-        "Einmalige warme Momente von Person B"
+        "Sweet notes and emojis from Person A",
+        "One-off warm moments from Person B"
       ]
     },
     {
-      "thema": "Verfügbarkeit & Antwortzeit",
+      "thema": "Availability & reply time",
       "praegnanz": "hoch",
       "beispiele": [
-        "\"Bist du noch da?\"",
-        "\"sorry hatte viel zu tun\""
+        "\"you still there?\"",
+        "\"sorry had a lot going on\""
       ]
     },
     {
-      "thema": "Status der Beziehung",
+      "thema": "State of the relationship",
       "praegnanz": "mittel",
       "beispiele": [
-        "\"Was willst du eigentlich von mir?\"",
-        "\"läuft doch\""
+        "\"what do you actually want from me?\"",
+        "\"it's fine\""
       ]
     },
     {
-      "thema": "Selbstzweifel von Person A",
+      "thema": "Person A's self-doubt",
       "praegnanz": "mittel",
       "beispiele": [
-        "\"Ich glaub ich bin zu viel\"",
-        "\"Sorry das war viel\""
+        "\"I think I'm too much\"",
+        "\"sorry that was a lot\""
       ]
     },
     {
-      "thema": "Alltag & Logistik",
+      "thema": "Daily life & logistics",
       "praegnanz": "niedrig",
       "beispiele": [
-        "\"samstag könnten wir uns sehen\"",
-        "\"nächste woche wird stressig\""
+        "\"we could meet saturday\"",
+        "\"next week's gonna be busy\""
       ]
     }
   ],
@@ -45,106 +45,106 @@
     {
       "start": "2024-01-05",
       "end": "2024-01-22",
-      "titel": "Flirten & Kennenlernen",
+      "titel": "Flirting & getting to know",
       "dominante_themen": [
         {
-          "thema": "Nähe & Zuneigung",
+          "thema": "Closeness & affection",
           "praegnanz": "hoch",
-          "beispiele": ["Gegenseitige Sweet-Notes", "Emojis, warme kurze Verabredungen"]
+          "beispiele": ["Mutual sweet notes", "Emojis, warm short plans"]
         },
         {
-          "thema": "Neugier aufeinander",
+          "thema": "Curiosity about each other",
           "praegnanz": "hoch",
-          "beispiele": ["\"Wie war dein Tag?\"", "\"Was machst du so?\""]
+          "beispiele": ["\"how was your day?\"", "\"what are you up to?\""]
         },
         {
-          "thema": "Spielerische Abend-Bursts",
+          "thema": "Playful evening bursts",
           "praegnanz": "mittel",
-          "beispiele": ["Mehrere kurze Nachrichten am späten Abend"]
+          "beispiele": ["Several short messages late in the evening"]
         }
       ],
       "verschwundene_themen": [],
-      "neue_themen": ["Nähe & Zuneigung", "Neugier aufeinander"]
+      "neue_themen": ["Closeness & affection", "Curiosity about each other"]
     },
     {
       "start": "2024-01-23",
       "end": "2024-02-29",
-      "titel": "Alltag & erste Reibung",
+      "titel": "Daily life & first friction",
       "dominante_themen": [
         {
-          "thema": "Logistik & Verfügbarkeit",
+          "thema": "Logistics & availability",
           "praegnanz": "hoch",
-          "beispiele": ["\"nächste woche wird stressig\"", "\"später mehr\""]
+          "beispiele": ["\"next week's gonna be busy\"", "\"more later\""]
         },
         {
-          "thema": "Einseitige Nähe-Suche",
+          "thema": "One-sided seeking",
           "praegnanz": "mittel",
-          "beispiele": ["\"Ist alles ok bei dir?\"", "Mehrfach-Nachrichten ohne Antwort"]
+          "beispiele": ["\"everything ok with you?\"", "Multiple messages with no reply"]
         },
         {
-          "thema": "Implizite Kritik (Person A)",
+          "thema": "Implicit criticism (Person A)",
           "praegnanz": "mittel",
-          "beispiele": ["\"Du bist so still heute\"", "\"Hab ich was gesagt?\""]
+          "beispiele": ["\"you're so quiet today\"", "\"did I say something?\""]
         }
       ],
-      "verschwundene_themen": ["Gegenseitige Sweet-Notes auf Augenhöhe"],
-      "neue_themen": ["Logistik & Verfügbarkeit", "Implizite Kritik"]
+      "verschwundene_themen": ["Mutual sweet notes on equal footing"],
+      "neue_themen": ["Logistics & availability", "Implicit criticism"]
     },
     {
       "start": "2024-03-01",
       "end": "2024-04-16",
-      "titel": "Einseitige Beziehungsarbeit",
+      "titel": "One-sided relationship work",
       "dominante_themen": [
         {
-          "thema": "Emotionale Monologe",
+          "thema": "Emotional monologues",
           "praegnanz": "hoch",
           "beispiele": [
-            "\"Ich hab heute viel über uns nachgedacht\"",
-            "\"Manchmal weiß ich nicht wo ich stehe\""
+            "\"I've been thinking a lot about us today\"",
+            "\"sometimes I don't know where I stand\""
           ]
         },
         {
-          "thema": "Selbst-Beschämung (Person A)",
+          "thema": "Self-shaming (Person A)",
           "praegnanz": "hoch",
-          "beispiele": ["\"Sorry das war viel\"", "\"Bin halt grad emotional\""]
+          "beispiele": ["\"sorry that was a lot\"", "\"I'm just emotional right now\""]
         },
         {
           "thema": "Stonewalling (Person B)",
           "praegnanz": "mittel",
-          "beispiele": ["Antworten 24h+ später", "\"nicht heute bitte\""]
+          "beispiele": ["Replies 24h+ later", "\"not today please\""]
         }
       ],
-      "verschwundene_themen": ["Neugier aufeinander", "Spielerische Abend-Bursts"],
-      "neue_themen": ["Emotionale Monologe", "Selbst-Beschämung", "Stonewalling"]
+      "verschwundene_themen": ["Curiosity about each other", "Playful evening bursts"],
+      "neue_themen": ["Emotional monologues", "Self-shaming", "Stonewalling"]
     },
     {
       "start": "2024-04-17",
       "end": "2024-04-21",
-      "titel": "Konfrontation",
+      "titel": "Confrontation",
       "dominante_themen": [
         {
-          "thema": "Status-Frage direkt",
+          "thema": "Direct status question",
           "praegnanz": "hoch",
-          "beispiele": ["\"Ich kann so nicht weitermachen\"", "\"Was willst du eigentlich?\""]
+          "beispiele": ["\"I can't keep doing this\"", "\"what do you actually want?\""]
         },
         {
-          "thema": "Deflection durch Person B",
+          "thema": "Deflection by Person B",
           "praegnanz": "hoch",
-          "beispiele": ["\"sorry war viel\"", "\"ich glaub du überdenkst das\""]
+          "beispiele": ["\"sorry that was a lot\"", "\"I think you're overthinking this\""]
         }
       ],
-      "verschwundene_themen": ["Logistik & Verfügbarkeit"],
-      "neue_themen": ["Status-Frage direkt"]
+      "verschwundene_themen": ["Logistics & availability"],
+      "neue_themen": ["Direct status question"]
     }
   ],
   "prognose": {
     "richtung": "negativ",
     "confidence": "mittel",
     "schluesselmuster": [
-      "Kontinuierlich divergierendes Investment-Delta (lokal: von ~15pp auf ~60pp)",
-      "Stonewalling-Muster von Person B seit Phase 3",
-      "Repair-Attempts von Person A bleiben ohne Resonanz",
-      "Verachtungs-Signal (\"du überdenkst das\") in der Konfliktphase"
+      "Continuously diverging investment delta (locally: from ~15pp to ~60pp)",
+      "Stonewalling pattern from Person B since phase 3",
+      "Repair attempts from Person A stay unanswered",
+      "Contempt signal (\"you're overthinking this\") in the conflict phase"
     ],
     "gottman_signale": [
       "stonewalling",
@@ -153,9 +153,9 @@
       "turning_away",
       "repair_attempt"
     ],
-    "wenn_nichts_aendert": "Unter fortgesetzter Asymmetrie wird Person A entweder in den Erschöpfungs-Abbruch gehen oder das Muster weiter intensivieren, bis ein Bruch unvermeidbar wird. Die aktuelle Trajektorie deutet auf eine einseitige Beendigung durch Person A innerhalb weniger Wochen.",
-    "was_verschieben_wuerde": "Eine Veränderung ist hypothetisch nur über eine Verhaltensänderung bei Person B möglich — konkrete Reziprozität bei Bids for Connection, Beantworten der Status-Frage mit Substanz, proaktive Initiative mindestens einmal pro Woche. Ohne das verfestigt sich das Muster weiter.",
-    "disclaimer": "Ein Chat-Export ist keine vollständige Beziehungs-Diagnostik; reale Gespräche, nonverbale Kommunikation und Kontexte jenseits des Chats können das Bild verändern."
+    "wenn_nichts_aendert": "With the asymmetry continuing, Person A will either burn out and end the contact or double down on the pattern until a break becomes inevitable. The current trajectory points to a one-sided ending by Person A within a few weeks.",
+    "was_verschieben_wuerde": "A shift is hypothetically only possible via a behavior change from Person B — concrete reciprocity on bids for connection, answering the status question with substance, proactive initiative at least once a week. Without that, the pattern only hardens.",
+    "disclaimer": "A chat export is not a complete relationship diagnostic; real conversations, nonverbal communication and context outside the chat can change the picture."
   },
-  "gesamtbogen": "Die Beziehung beginnt mit symmetrischer Wärme und wechselseitiger Neugier. Ab Phase 2 verschieben sich die Themen von gemeinsamem Kennenlernen zu einseitiger Bestands-Sicherung durch Person A. In Phase 3 dominieren emotionale Monologe und Selbst-Beschämung — das ist der Kipppunkt. Die Konfrontation in Phase 4 bringt das Unausgesprochene auf den Tisch, ohne dass eine Antwort folgt, die die Dynamik verändern könnte."
+  "gesamtbogen": "The relationship starts with symmetric warmth and mutual curiosity. From phase 2 the topics shift from shared discovery to one-sided status-holding by Person A. In phase 3 emotional monologues and self-shaming dominate — that's the tipping point. The confrontation in phase 4 brings the unspoken to the table, without an answer arriving that could change the dynamic."
 }
