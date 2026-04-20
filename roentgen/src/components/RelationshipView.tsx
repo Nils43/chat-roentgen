@@ -63,6 +63,33 @@ export function RelationshipView({ result, participants, onBack }: Props) {
     return PERSON_COLORS[idx % PERSON_COLORS.length]
   }
 
+  // Sanity: if the model returned a truncated / incomplete payload, fall back
+  // to a graceful "retry" panel instead of crashing the render.
+  const missingSections = collectMissingSections(payload)
+  if (missingSections.length > 0) {
+    return (
+      <div className="max-w-3xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-6">
+        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
+          → incomplete response
+        </div>
+        <h2 className="font-serif text-5xl md:text-7xl leading-[0.92] tracking-tight">
+          ANALYSIS WAS CUT SHORT.
+        </h2>
+        <p className="serif-body text-lg text-ink-muted max-w-2xl">
+          The model returned an incomplete payload. Missing sections:{' '}
+          <span className="font-mono text-sm">{missingSections.join(', ')}</span>.
+          <br />
+          Run it again — usually works on the second try. If it keeps failing, set a bigger model via env (<span className="font-mono text-xs">VITE_ROENTGEN_MODEL=claude-sonnet-4-6</span>).
+        </p>
+        {onBack && (
+          <button onClick={onBack} className="btn-pop">
+            ← back
+          </button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-14">
       <header className="space-y-6">
@@ -630,6 +657,38 @@ function demandWithdrawLabel(dw: DemandWithdraw, participants: string[]): string
 
 function horsemanLabel(h: Horseman): string {
   return { kritik: 'Criticism', verachtung: 'Contempt', abwehr: 'Defensiveness', stonewalling: 'Stonewalling' }[h]
+}
+
+function collectMissingSections(p: unknown): string[] {
+  const required = [
+    'kopplung',
+    'machtstruktur',
+    'bindungsdyade',
+    'bids',
+    'repair',
+    'konflikt_signatur',
+    'mentalisierung',
+    'meta_kommunikation',
+    'berne',
+    'unausgesprochene_regeln',
+    'kern_insight',
+    'safety_flag',
+  ] as const
+  if (!p || typeof p !== 'object') return ['payload']
+  const obj = p as Record<string, unknown>
+  const missing: string[] = []
+  for (const key of required) {
+    const v = obj[key]
+    if (v == null) missing.push(key)
+  }
+  // Deep sanity: mentalisierung.pro_person must be an array, etc.
+  const m = obj.mentalisierung as { pro_person?: unknown } | undefined
+  if (m && !Array.isArray(m.pro_person)) missing.push('mentalisierung.pro_person')
+  const k = obj.konflikt_signatur as { four_horsemen_pro_person?: unknown } | undefined
+  if (k && !Array.isArray(k.four_horsemen_pro_person)) missing.push('konflikt_signatur.four_horsemen_pro_person')
+  const bids = obj.bids as { pro_person?: unknown; beispiele?: unknown } | undefined
+  if (bids && !Array.isArray(bids.pro_person)) missing.push('bids.pro_person')
+  return missing
 }
 
 function mentalisierungLabel(q: 'hoch' | 'mittel' | 'niedrig' | 'ungleichmäßig'): string {

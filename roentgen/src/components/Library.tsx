@@ -1,5 +1,4 @@
-import { type ChatMeta, chatLibrary, useChatLibrary } from '../store/chatLibrary'
-import { MODULE_COSTS, type ModuleId } from '../tokens/store'
+import { type ChatMeta, chatLibrary, type ModuleId, useChatLibrary } from '../store/chatLibrary'
 
 interface Props {
   onOpen: (id: string) => void
@@ -7,6 +6,10 @@ interface Props {
 }
 
 const MODULE_ORDER: ModuleId[] = ['profiles', 'relationship']
+const MODULE_LABELS: Record<ModuleId, string> = {
+  profiles: 'Personal analysis',
+  relationship: 'Relationship analysis',
+}
 
 const TILTS = [-1.4, 0.6, -0.8, 1.1, -0.4, 0.9]
 
@@ -114,9 +117,9 @@ function ChatCard({ chat, onOpen, tilt, index }: { chat: ChatMeta; onOpen: (id: 
                 color: '#0A0A0A',
                 opacity: done ? 1 : 0.4,
               }}
-              title={MODULE_COSTS[m].label}
+              title={MODULE_LABELS[m]}
             >
-              {MODULE_COSTS[m].label.split(' ')[0]}
+              {MODULE_LABELS[m].split(' ')[0]}
             </span>
           )
         })}

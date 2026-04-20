@@ -70,10 +70,10 @@ export class FixtureAnalyzer implements Analyzer {
 function extractTargetPerson(req: ApiRequest): string {
   const lastUser = [...req.messages].reverse().find((m) => m.role === 'user')
   const text = typeof lastUser?.content === 'string' ? lastUser.content : ''
-  // The prompt template writes: "**Analyse-Ziel:** Person X"
-  const m = /Analyse-Ziel:\*{0,2}\s*([^\n]+)/.exec(text)
+  // New prompt template: "Target: Person X" (first line after preamble).
+  const m = /^Target:\s*([^\n]+)/m.exec(text) ?? /Analyse-Ziel:\*{0,2}\s*([^\n]+)/.exec(text)
   if (m) return m[1].trim()
-  throw new Error('Konnte Ziel-Pseudonym im Prompt nicht finden.')
+  throw new Error('Could not find target person in prompt.')
 }
 
 function estimateTokens(req: ApiRequest): number {

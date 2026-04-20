@@ -7,13 +7,12 @@ import { SplitBar } from './charts/SplitBar'
 import { Heatmap } from './charts/Heatmap'
 import { EngagementCurve } from './charts/EngagementCurve'
 import { ReplyDistribution } from './charts/ReplyDistribution'
-import { MODULE_COSTS, useTokenState, type ModuleId } from '../tokens/store'
+import type { ModuleId } from '../store/chatLibrary'
 
 interface Props {
   facts: HardFacts
   onStartAi?: () => void
   onStartModule?: (moduleId: ModuleId) => void
-  onOpenTokens?: () => void
   /** 'exhibit' — page-by-page navigation. 'scroll' — single long page. */
   mode?: 'exhibit' | 'scroll'
   /** Called once when the user finishes the exhibit (reaches final room). */
@@ -23,15 +22,13 @@ interface Props {
 
 const PERSON_COLORS = ['text-a', 'text-b', 'text-blue-400', 'text-orange-400', 'text-violet-400']
 
-export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, mode = 'exhibit', onExhibitComplete, chatId }: Props) {
+export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit', onExhibitComplete, chatId }: Props) {
   const interpretations = interpretHardFacts(facts)
   const shareInterp = interpretations.find((i) => i.metric === 'share')
-  const { balance } = useTokenState()
   const personA = facts.perPerson[0]?.author ?? 'Person A'
   const personB = facts.perPerson[1]?.author ?? 'Person B'
 
   const handleModule = (moduleId: ModuleId) => {
-    if (balance < MODULE_COSTS[moduleId].cost) return onOpenTokens?.()
     if (onStartModule) return onStartModule(moduleId)
     if (onStartAi) return onStartAi()
   }
@@ -308,10 +305,8 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, m
           lateLeaderPct={lateLeaderPct}
           burstLeader={burstLeader}
           burstLongest={burstLongest}
-          balance={balance}
           chatId={chatId ?? null}
           onStart={handleModule}
-          onOpenTokens={onOpenTokens}
         />
       ),
     },
@@ -529,10 +524,8 @@ function PaywallRoom({
   lateLeaderPct: number
   burstLeader: string
   burstLongest: number
-  balance: number
   chatId: string | null
   onStart: (m: ModuleId) => void
-  onOpenTokens?: () => void
 }) {
   const [picked, setPicked] = useState<ModuleId | null>(null)
 
@@ -845,111 +838,6 @@ function ShareBlock({ chatId, personA, personB }: { chatId: string | null; perso
   )
 }
 
-function LockedCard({
-  number,
-  moduleId,
-  title,
-  subtitle,
-  lines,
-  tone,
-  emoji,
-  className,
-  balance,
-  onStart,
-  onBuy,
-}: {
-  number: string
-  moduleId: ModuleId
-  title: string
-  subtitle: string
-  lines: string[]
-  tone: 'a' | 'b'
-  featured?: boolean
-  emoji?: string
-  className?: string
-  balance: number
-  onStart: (moduleId: ModuleId) => void
-  onBuy?: () => void
-}) {
-  const accent = tone === 'a' ? 'text-a' : 'text-b'
-  const glow = tone === 'a' ? 'bg-a/[0.06]' : 'bg-b/[0.08]'
-  const cost = MODULE_COSTS[moduleId].cost
-  const canAfford = balance >= cost
-  const primaryAction = canAfford ? () => onStart(moduleId) : onBuy
-
-  return (
-    <article
-      className={`group relative overflow-hidden rounded-3xl bg-bg-raised border border-line/60 p-6 md:p-8 transition-colors hover:border-line ${className ?? ''}`}
-    >
-      {/* Single quiet glow */}
-      <div
-        className={`absolute -top-24 -right-20 w-56 h-56 rounded-full ${glow} blur-3xl pointer-events-none`}
-      />
-
-      {/* Emoji sticker — subtle */}
-      {emoji && (
-        <span
-          className="absolute top-6 right-6 text-2xl opacity-60 pointer-events-none"
-          aria-hidden
-        >
-          {emoji}
-        </span>
-      )}
-
-      <header className="relative flex items-baseline justify-between mb-4 pr-12">
-        <div className="flex items-baseline gap-3 flex-wrap">
-          <span className={`label-mono ${accent}`}>File {number}</span>
-          <span className="label-mono text-ink-faint hidden md:inline">·</span>
-          <span className="label-mono text-ink-muted hidden md:inline">{subtitle}</span>
-        </div>
-        <span className={`shrink-0 label-mono ${accent}`}>
-          {cost} {cost === 1 ? 'ticket' : 'tickets'}
-        </span>
-      </header>
-
-      <h4 className="font-serif text-2xl md:text-3xl leading-tight mb-1">{title}</h4>
-      <p className="label-mono text-ink-muted mb-5 md:hidden">{subtitle}</p>
-
-      <div className="relative">
-        <div className="select-none pointer-events-none space-y-2.5 font-serif text-base text-ink-muted blur-[4px]">
-          {lines.map((l, i) => (
-            <p key={i}>{l}</p>
-          ))}
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-bg-raised/40 to-bg-raised" />
-      </div>
-
-      <div className="relative mt-5 pt-4 border-t border-line/40">
-        <button
-          onClick={primaryAction}
-          disabled={!primaryAction}
-          className={`w-full px-5 py-3 rounded-full font-sans font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
-            canAfford ? 'btn-pop' : 'btn-pop'
-          }`}
-        >
-          {canAfford ? (
-            <>
-              <span aria-hidden>✨</span>
-              Let's go
-              <span className="label-mono text-bg/70">
-                {cost} {cost === 1 ? 'ticket' : 'tickets'} →
-              </span>
-            </>
-          ) : (
-            <>
-              <span aria-hidden>⚡</span>
-              Top up tickets
-              <span className="label-mono text-bg/70">
-                {balance}/{cost}
-              </span>
-            </>
-          )}
-        </button>
-      </div>
-    </article>
-  )
-}
-
 function Section({
   kicker,
   title,
@@ -1026,114 +914,3 @@ function fmtDayKey(key: string): string {
   return `${m}/${d}/${y.slice(2)}`
 }
 
-const MODULE_TONES: Record<ModuleId, 'a' | 'b'> = {
-  profiles: 'a',
-  relationship: 'b',
-}
-
-const MODULE_CTAS: Record<ModuleId, string> = {
-  profiles: 'the personal file',
-  relationship: 'the diagnosis please',
-}
-
-function InlineTeaser({
-  finding,
-  question,
-  moduleId,
-  balance,
-  onStart,
-  onBuy,
-}: {
-  finding: string
-  question: string
-  moduleId: ModuleId
-  balance: number
-  onStart: (m: ModuleId) => void
-  onBuy?: () => void
-}) {
-  const cost = MODULE_COSTS[moduleId].cost
-  const label = MODULE_COSTS[moduleId].label
-  const canAfford = balance >= cost
-  const action = canAfford ? () => onStart(moduleId) : onBuy
-  const tone = MODULE_TONES[moduleId] ?? 'a'
-  const accent = tone === 'a' ? 'text-a' : 'text-b'
-  const glow = tone === 'a' ? 'bg-a/[0.06]' : 'bg-b/[0.08]'
-
-  void glow
-  void accent
-  return (
-    <aside className="relative my-4 max-w-3xl" style={{ transform: 'rotate(-0.4deg)' }}>
-      <div className="quote-box">
-        <span className="exhibit-label">WAIT — EXHIBIT · {label.toUpperCase()}</span>
-        <div className="flex flex-col md:flex-row gap-5 md:items-center mt-2">
-          <div className="flex-1 min-w-0">
-            <h4 className="font-serif text-2xl md:text-3xl leading-tight tracking-tight mb-2 not-italic">
-              {finding}
-            </h4>
-            <p className="serif-body text-base leading-snug">{question}</p>
-          </div>
-          <button
-            onClick={action}
-            className="btn-pop shrink-0 self-start md:self-center"
-          >
-            {canAfford ? MODULE_CTAS[moduleId].toUpperCase() : `UNLOCK ${label.toUpperCase()}`}
-            <span className="text-[10px] font-mono opacity-70 ml-2">
-              {canAfford ? `· ${cost} TICKET` : `· ${balance}/${cost}`}
-            </span>
-          </button>
-        </div>
-      </div>
-    </aside>
-  )
-}
-
-
-function StickyBuyBar({
-  balance,
-  onStart,
-  onBuy,
-}: {
-  balance: number
-  onStart: (m: ModuleId) => void
-  onBuy?: () => void
-}) {
-  const [dismissed, setDismissed] = useState(false)
-  if (dismissed) return null
-
-  const cost = MODULE_COSTS.profiles.cost
-  const canAfford = balance >= cost
-  const action = canAfford ? () => onStart('profiles') : onBuy
-
-  return (
-    <div className="fixed bottom-16 left-4 right-4 z-30 pointer-events-none">
-      <div className="max-w-3xl mx-auto pointer-events-auto" style={{ transform: 'rotate(-0.4deg)' }}>
-        <div
-          className="flex items-center gap-3 bg-pop-yellow border-2 border-ink pl-4 pr-2 py-2"
-          style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
-        >
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] hidden sm:inline">
-            {balance} {balance === 1 ? 'ticket' : 'tickets'}
-          </span>
-          <span className="font-mono text-[10px] hidden sm:inline">·</span>
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] truncate">
-            {canAfford ? 'ready when you are' : `profiles · ${cost} ticket needed`}
-          </span>
-          <div className="flex-1" />
-          <button
-            onClick={action}
-            className="shrink-0 inline-flex items-center gap-2 px-3 py-1.5 bg-ink text-pop-yellow font-serif text-base tracking-[0.04em] border border-ink hover:bg-pop-yellow hover:text-ink transition-colors"
-          >
-            {canAfford ? 'GO' : 'TOP UP'}
-          </button>
-          <button
-            onClick={() => setDismissed(true)}
-            aria-label="Hide bar"
-            className="shrink-0 w-7 h-7 flex items-center justify-center text-ink hover:bg-ink hover:text-pop-yellow transition-colors text-lg leading-none"
-          >
-            ×
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}

@@ -1,35 +1,53 @@
 import type { ParsedChat } from '../parser/types'
+import { analyzeHardFacts } from '../analysis/hardFacts'
 import { analyzer } from './analyzer'
-import { sampleForAI, type SampleResult } from './sampling'
-import { buildPseudonymMap, pseudonymizeMessages, restoreNamesDeep, type PseudonymMap } from './pseudonymize'
+import { buildEvidence } from './evidence'
+import {
+  buildPseudonymMap,
+  pseudonymizeDeep,
+  restoreNamesDeep,
+  type PseudonymMap,
+} from './pseudonymize'
 import { PROFILE_SYSTEM_PROMPT, PROFILE_TOOL_SCHEMA, buildProfileUserMessage } from './prompts'
 import type { PersonProfile, ProfileResult } from './types'
 
-const MODEL = 'claude-sonnet-4-6'
+// Model selection — ENV override wins, default Haiku 4.5 (cheapest + structured input
+// compensates for model size). Set VITE_ROENTGEN_MODEL=claude-sonnet-4-6 to upgrade.
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
+const MODEL =
+  (import.meta.env.VITE_ROENTGEN_MODEL as string | undefined) ?? DEFAULT_MODEL
 
 export const analyzerKind = analyzer.kind
 
 export interface PrepareResult {
-  sample: SampleResult
   pseudonymMap: PseudonymMap
   messagesSent: number
   approxTokensPerCall: number
   totalCalls: number
   analyzerKind: 'api' | 'fixture'
+  // How many chat messages feed into the curated evidence sample
+  notableCount: number
+  // Total messages in the source chat (for "X of Y" framing in consent)
+  totalAvailable: number
 }
 
-// Prepares the AI batch without sending anything. Used for the consent screen:
-// shows exactly how many messages / tokens / calls are going out.
+// Prepares the AI batch without sending anything. Used for the consent screen.
+// With the evidence-first refactor, "messagesSent" reflects curated moments, not
+// a raw sample. Token count is a rough projection for the biggest call.
 export function prepareAnalysis(chat: ParsedChat): PrepareResult {
-  const sample = sampleForAI(chat)
+  const facts = analyzeHardFacts(chat)
   const pseudonymMap = buildPseudonymMap(chat.participants)
+  // Best-case evidence for the "target is first participant" preview.
+  const preview = buildEvidence(facts, chat, chat.participants[0] ?? null)
+  const approxTokens = estimateTokens(preview)
   return {
-    sample,
     pseudonymMap,
-    messagesSent: sample.messages.length,
-    approxTokensPerCall: sample.approxTokens,
-    totalCalls: chat.participants.length,
+    messagesSent: preview.notableMoments.length,
+    approxTokensPerCall: approxTokens,
+    totalCalls: 1, // personal profile is a single call per user
     analyzerKind: analyzer.kind,
+    notableCount: preview.notableMoments.length,
+    totalAvailable: chat.messages.length,
   }
 }
 
@@ -39,12 +57,10 @@ export interface RunProfilesOptions {
   onProgress?: (done: number, total: number, currentPerson: string | null) => void
   signal?: AbortSignal
   // If set, only profile these specific participants. Per product concept,
-  // the app only profiles the *user themselves* — never the other person,
-  // who has not consented to being psychologically analyzed.
+  // the app only profiles the *user themselves* — never the other person.
   targetPersons?: string[]
 }
 
-// Run one profile analysis per target participant, in parallel. Returns real-name results.
 export async function runProfileAnalyses({
   chat,
   prepared,
@@ -52,8 +68,8 @@ export async function runProfileAnalyses({
   signal,
   targetPersons,
 }: RunProfilesOptions): Promise<ProfileResult[]> {
-  const { sample, pseudonymMap } = prepared
-  const pseudoMessages = pseudonymizeMessages(sample.messages, pseudonymMap)
+  const { pseudonymMap } = prepared
+  const facts = analyzeHardFacts(chat)
 
   const targets =
     targetPersons && targetPersons.length > 0
@@ -66,13 +82,26 @@ export async function runProfileAnalyses({
 
   const tasks = targets.map(async (realName) => {
     const pseudoName = pseudonymMap.forward[realName]
-    const userMessage = buildProfileUserMessage(pseudoName, pseudoMessages)
+    const evidence = buildEvidence(facts, chat, realName)
+    const pseudoEvidence = pseudonymizeDeep(evidence, pseudonymMap)
+    const userMessage = buildProfileUserMessage(pseudoName, pseudoEvidence)
+
+    if (import.meta.env.DEV) {
+      console.log('[profile] evidence bytes:', JSON.stringify(pseudoEvidence).length, 'notable moments:', pseudoEvidence.notableMoments.length)
+    }
 
     const response = await analyzer.analyze(
       {
         model: MODEL,
-        max_tokens: 4096,
-        system: PROFILE_SYSTEM_PROMPT,
+        max_tokens: 3072,
+        // System prompt as a cached block — 90% off on retries within 5 min.
+        system: [
+          {
+            type: 'text',
+            text: PROFILE_SYSTEM_PROMPT,
+            cache_control: { type: 'ephemeral' },
+          },
+        ],
         messages: [{ role: 'user', content: userMessage }],
         tools: [
           {
@@ -92,9 +121,7 @@ export async function runProfileAnalyses({
     }
 
     const profileRaw = toolUse.input as PersonProfile
-    // Restore real names in any textual field
     const profile = restoreNamesDeep(profileRaw, pseudonymMap)
-    // Ensure the displayed name is the real one
     profile.person = realName
 
     done++
@@ -111,4 +138,10 @@ export async function runProfileAnalyses({
   })
 
   return Promise.all(tasks)
+}
+
+// Rough token estimate: ~4 chars per token for JSON payload.
+function estimateTokens(value: unknown): number {
+  const json = JSON.stringify(value)
+  return Math.round(json.length / 4)
 }
