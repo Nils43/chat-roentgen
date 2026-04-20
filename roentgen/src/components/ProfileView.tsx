@@ -5,7 +5,6 @@ interface Props {
   profiles: ProfileResult[]
   chatId: string | null
   onGoToRelationship?: () => void
-  onOpenTokens?: () => void
 }
 
 const PERSON_COLORS = [

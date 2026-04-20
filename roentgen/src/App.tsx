@@ -15,9 +15,7 @@ import { ProfileView } from './components/ProfileView'
 import { prepareAnalysis, runProfileAnalyses, type PrepareResult } from './ai/profile'
 import { runRelationshipAnalysis } from './ai/relationship'
 import { RelationshipView } from './components/RelationshipView'
-import { TokenBadge } from './components/TokenBadge'
-import { TokenOverview } from './components/TokenOverview'
-import { tokenStore, type ModuleId } from './tokens/store'
+import type { ModuleId } from './store/chatLibrary'
 import type { ProfileResult, RelationshipResult } from './ai/types'
 
 type Stage =
@@ -32,7 +30,6 @@ type Stage =
   | 'profiles'
   | 'relationship_loading'
   | 'relationship'
-  | 'tokens'
 
 function App() {
   const library = useChatLibrary()
@@ -83,15 +80,7 @@ function App() {
     window.history.replaceState({}, '', url.toString())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const [tokensReturnTo, setTokensReturnTo] = useState<Stage>('upload')
-  const [tokensPrompt, setTokensPrompt] = useState<{ module: ModuleId } | null>(null)
   const [pendingModule, setPendingModule] = useState<ModuleId>('profiles')
-
-  const openTokens = (returnTo: Stage, prompt?: { module: ModuleId }) => {
-    setTokensReturnTo(returnTo)
-    setTokensPrompt(prompt ?? null)
-    setStage('tokens')
-  }
 
   const facts = useMemo(() => {
     if (!chat || chat.messages.length === 0) return null
@@ -281,10 +270,6 @@ function App() {
       setStage('relationship')
       return
     }
-    if (!tokenStore.charge('relationship')) {
-      openTokens('profiles', { module: 'relationship' })
-      return
-    }
     setRelationshipError(null)
     setStage('relationship_loading')
     try {
@@ -293,20 +278,17 @@ function App() {
       setStage('relationship')
     } catch (e) {
       const err = e as Error
-      tokenStore.refund('relationship')
       setRelationshipError(err.message ?? 'vibe read failed.')
     }
   }
 
-  // Tab mapping for the bottom-nav (LEAKS / INTEL / FILES / STATS)
-  const currentTab: 'leaks' | 'intel' | 'files' | 'stats' =
+  // Tab mapping for the bottom-nav (LEAKS / INTEL / FILES)
+  const currentTab: 'leaks' | 'intel' | 'files' =
     stage === 'library' || stage === 'upload' || stage === 'parsing'
       ? 'leaks'
       : stage === 'analysis' || stage === 'consent' || stage === 'ai'
         ? 'intel'
-        : stage === 'tokens'
-          ? 'stats'
-          : 'files'
+        : 'files'
 
   return (
     <div className="min-h-screen bg-bg text-ink pb-20">
@@ -318,7 +300,7 @@ function App() {
             <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.16em] text-white/50 ml-3">· local only</span>
           </button>
           <div className="flex items-center gap-3 text-white">
-            {currentChatId && stage !== 'library' && stage !== 'tokens' && (
+            {currentChatId && stage !== 'library' && (
               <button
                 onClick={goToLibrary}
                 className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
@@ -361,7 +343,6 @@ function App() {
                   : undefined
               }
             />
-            <TokenBadge onClick={() => openTokens(stage === 'tokens' ? tokensReturnTo : stage)} />
           </div>
         </div>
       </header>
@@ -410,7 +391,6 @@ function App() {
               chatId={currentChatId}
               onStartAi={startAiAnalysis}
               onStartModule={startModule}
-              onOpenTokens={() => openTokens('analysis')}
               mode={hfMode}
               onExhibitComplete={() => {
                 if (currentChatId) chatLibrary.markExhibitSeen(currentChatId)
@@ -434,7 +414,6 @@ function App() {
             moduleId={pendingModule}
             onAccept={onConsentAccept}
             onCancel={() => setStage('analysis')}
-            onOpenTokens={() => openTokens('consent', { module: pendingModule })}
           />
         )}
 
@@ -453,7 +432,6 @@ function App() {
             profiles={profiles}
             chatId={currentChatId}
             onGoToRelationship={goToRelationship}
-            onOpenTokens={() => openTokens('profiles', { module: 'profiles' })}
           />
         )}
 
@@ -472,17 +450,6 @@ function App() {
             result={relationship}
             participants={chat.participants}
             onBack={() => setStage('profiles')}
-          />
-        )}
-
-        {stage === 'tokens' && (
-          <TokenOverview
-            onClose={() => {
-              setTokensPrompt(null)
-              setStage(tokensReturnTo)
-            }}
-            highlightReason={tokensPrompt ? 'insufficient' : null}
-            pendingModule={tokensPrompt?.module ?? null}
           />
         )}
 
@@ -521,13 +488,6 @@ function App() {
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 3 L7 3 L8 5 L14 5 L14 13 L2 13 Z"/></svg>
               files
-            </button>
-            <button
-              onClick={() => openTokens(stage === 'tokens' ? tokensReturnTo : stage)}
-              className={`flex items-center gap-1.5 transition-colors ${currentTab === 'stats' ? 'text-pop-yellow' : 'text-white/50 hover:text-white'}`}
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 13 L2 8 M6 13 L6 5 M10 13 L10 9 M14 13 L14 3"/></svg>
-              stats
             </button>
           </div>
           <div className="hidden md:block font-mono text-[10px] tracking-[0.14em] uppercase text-white/40">

@@ -1,7 +1,9 @@
 import type { ParsedChat } from '../parser/types'
+import { analyzeHardFacts } from '../analysis/hardFacts'
 import { analyzer } from './analyzer'
 import type { PrepareResult } from './profile'
-import { pseudonymizeMessages, restoreNamesDeep } from './pseudonymize'
+import { buildEvidence } from './evidence'
+import { pseudonymizeDeep, restoreNamesDeep } from './pseudonymize'
 import {
   RELATIONSHIP_SYSTEM_PROMPT,
   RELATIONSHIP_TOOL_SCHEMA,
@@ -9,7 +11,9 @@ import {
 } from './prompts'
 import type { RelationshipPayload, RelationshipResult } from './types'
 
-const MODEL = 'claude-sonnet-4-6'
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
+const MODEL =
+  (import.meta.env.VITE_ROENTGEN_MODEL as string | undefined) ?? DEFAULT_MODEL
 
 export interface RunRelationshipOptions {
   chat: ParsedChat
@@ -19,26 +23,38 @@ export interface RunRelationshipOptions {
 }
 
 // Single API call that analyzes the relationship dynamic (not the individuals).
-// Uses the same sample + pseudonym map that the profiles run built.
+// Uses the evidence packet built from HardFacts + curated moments.
 export async function runRelationshipAnalysis({
   chat,
   prepared,
   signal,
   onStart,
 }: RunRelationshipOptions): Promise<RelationshipResult> {
-  const { sample, pseudonymMap } = prepared
-  const pseudoMessages = pseudonymizeMessages(sample.messages, pseudonymMap)
+  const { pseudonymMap } = prepared
+  const facts = analyzeHardFacts(chat)
+  const evidence = buildEvidence(facts, chat, null)
+  const pseudoEvidence = pseudonymizeDeep(evidence, pseudonymMap)
   const pseudoParticipants = chat.participants.map((p) => pseudonymMap.forward[p])
 
   onStart?.()
 
-  const userMessage = buildRelationshipUserMessage(pseudoParticipants, pseudoMessages)
+  const userMessage = buildRelationshipUserMessage(pseudoParticipants, pseudoEvidence)
+
+  if (import.meta.env.DEV) {
+    console.log('[relationship] evidence bytes:', JSON.stringify(pseudoEvidence).length, 'notable moments:', pseudoEvidence.notableMoments.length)
+  }
 
   const response = await analyzer.analyze(
     {
       model: MODEL,
       max_tokens: 8192,
-      system: RELATIONSHIP_SYSTEM_PROMPT,
+      system: [
+        {
+          type: 'text',
+          text: RELATIONSHIP_SYSTEM_PROMPT,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
       messages: [{ role: 'user', content: userMessage }],
       tools: [
         {

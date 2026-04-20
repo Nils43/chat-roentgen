@@ -61,6 +61,32 @@ export function pseudonymizeMessages(messages: Message[], map: PseudonymMap): Me
   }))
 }
 
+// Forward-pseudonymize free text — real name → pseudonym. Used on the evidence
+// packet before serialization so no real names leak to the API.
+export function pseudonymizeText(text: string, map: PseudonymMap): string {
+  let out = text
+  for (const [real, pseudo] of Object.entries(map.forward)) {
+    if (real.length < 2) continue
+    const re = new RegExp(`(?<![\\w])${escapeRe(real.split(/\s+/)[0])}(?![\\w])`, 'gi')
+    out = out.replace(re, pseudo)
+  }
+  return out
+}
+
+// Recursively walk a JSON value and pseudonymize every string leaf and key.
+export function pseudonymizeDeep<T>(value: T, map: PseudonymMap): T {
+  if (typeof value === 'string') return pseudonymizeText(value, map) as unknown as T
+  if (Array.isArray(value)) return value.map((v) => pseudonymizeDeep(v, map)) as unknown as T
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[pseudonymizeText(k, map)] = pseudonymizeDeep(v, map)
+    }
+    return out as T
+  }
+  return value
+}
+
 // Reverse pseudonyms in any text coming back from the AI.
 export function restoreNames(text: string, map: PseudonymMap): string {
   let out = text

@@ -1,13 +1,12 @@
 import type { PrepareResult } from '../ai/profile'
 import type { ParsedChat } from '../parser/types'
-import { MODULE_COSTS, useTokenState, type ModuleId } from '../tokens/store'
+import type { ModuleId } from '../store/chatLibrary'
 
 interface Props {
   chat: ParsedChat
   prepared: PrepareResult
   onAccept: () => void
   onCancel: () => void
-  onOpenTokens?: () => void
   moduleId?: ModuleId
 }
 
@@ -18,15 +17,9 @@ export function ConsentScreen({
   prepared,
   onAccept,
   onCancel,
-  onOpenTokens,
-  moduleId = 'profiles',
 }: Props) {
-  const pctOfChat = ((prepared.messagesSent / prepared.sample.totalAvailable) * 100).toFixed(1)
+  const pctOfChat = ((prepared.messagesSent / Math.max(1, prepared.totalAvailable)) * 100).toFixed(1)
   const isFixture = prepared.analyzerKind === 'fixture'
-  const { balance } = useTokenState()
-  const meta = MODULE_COSTS[moduleId]
-  const cost = meta.cost
-  const insufficient = balance < cost
 
   return (
     <div className="min-h-[80vh] flex items-start justify-center px-5 md:px-8 py-12">
@@ -53,7 +46,7 @@ export function ConsentScreen({
           <Row
             label={isFixture ? 'Messages in the slice' : 'Messages going out'}
             value={prepared.messagesSent.toLocaleString('en-US')}
-            suffix={`of ${prepared.sample.totalAvailable.toLocaleString('en-US')} (${pctOfChat}%)`}
+            suffix={`of ${prepared.totalAvailable.toLocaleString('en-US')} (${pctOfChat}%)`}
           />
           <Row
             label="What's picked"
@@ -74,11 +67,6 @@ export function ConsentScreen({
             label="Who reads along"
             value={isFixture ? 'nobody — just your device' : 'an AI (Anthropic Claude)'}
             suffix={isFixture ? 'in test mode everything stays local' : 'stored up to 30 days, does NOT train on your data'}
-          />
-          <Row
-            label="Costs"
-            value={`${cost} ticket`}
-            suffix={`You have ${balance} · each analysis = 1 ticket`}
           />
         </div>
 
@@ -101,35 +89,14 @@ export function ConsentScreen({
           </ul>
         </div>
 
-        {insufficient && (
-          <div className="card border-b/60 bg-b/5 mb-6">
-            <div className="label-mono text-b mb-2">Out of tickets</div>
-            <p className="serif-body text-lg text-ink mb-4">
-              "{meta.label}" needs {cost} {cost === 1 ? 'ticket' : 'tickets'} — you have {balance} right now.
-            </p>
-            {onOpenTokens && (
-              <button
-                onClick={onOpenTokens}
-                className="px-5 py-2.5 bg-b text-bg rounded-full font-sans text-sm tracking-wide hover:bg-b/90 transition-colors"
-              >
-                Top up tickets →
-              </button>
-            )}
-          </div>
-        )}
-
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={onAccept}
-            disabled={insufficient}
             className="flex-1 btn-pop px-6 py-4 text-base"
           >
             <span aria-hidden>✨</span>
             Start the analysis
-            <span className="label-mono ml-1 text-bg/70">
-              {cost} {cost === 1 ? 'ticket' : 'tickets'}
-            </span>
           </button>
           <button
             onClick={onCancel}

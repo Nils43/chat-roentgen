@@ -259,10 +259,16 @@ export interface RelationshipResult {
   model: string
 }
 
+// System blocks — either a plain string OR an array of blocks with optional
+// cache_control for prompt caching (Anthropic ephemeral cache, 5-min TTL).
+export type SystemBlock =
+  | { type: 'text'; text: string; cache_control?: { type: 'ephemeral' } }
+export type SystemField = string | SystemBlock[]
+
 export interface ApiRequest {
   model: string
   max_tokens: number
-  system: string
+  system: SystemField
   messages: { role: 'user' | 'assistant'; content: string }[]
   tools?: {
     name: string

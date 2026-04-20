@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react'
 import type { ParsedChat } from '../parser/types'
-import type { ModuleId } from '../tokens/store'
 import { clearSession, saveSession, type SessionSnapshot } from './sessionStore'
+
+export type ModuleId = 'profiles' | 'relationship'
 
 export interface ChatMeta {
   id: string

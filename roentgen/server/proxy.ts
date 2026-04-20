@@ -52,10 +52,13 @@ export async function handleAnalyze(req: IncomingMessage, res: ServerResponse): 
 
   // Narrow body to an allow-list of fields. We do NOT forward arbitrary keys.
   const b = body as Record<string, unknown>
+  // `system` can be a string or an array of blocks (for prompt caching).
+  const systemField =
+    typeof b.system === 'string' || Array.isArray(b.system) ? b.system : undefined
   const forward = {
     model: typeof b.model === 'string' ? b.model : 'claude-sonnet-4-6',
     max_tokens: typeof b.max_tokens === 'number' ? b.max_tokens : 2048,
-    system: typeof b.system === 'string' ? b.system : undefined,
+    system: systemField,
     messages: Array.isArray(b.messages) ? b.messages : [],
     tools: Array.isArray(b.tools) ? b.tools : undefined,
     tool_choice: typeof b.tool_choice === 'object' ? b.tool_choice : undefined,
