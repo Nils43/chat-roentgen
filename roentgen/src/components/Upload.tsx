@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import JSZip from 'jszip'
 
 interface Props {
   onFile: (text: string, fileName: string) => void
@@ -11,7 +12,7 @@ export function Upload({ onFile }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const readFile = useCallback(
-    (file: File) => {
+    async (file: File) => {
       setError(null)
       if (!consented) {
         setError('nice try, honey. tick the house rules first — no consent, no tea.')
@@ -26,13 +27,35 @@ export function Upload({ onFile }: Props) {
         setError('that\'s not a WhatsApp export. instructions below — no stress.')
         return
       }
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const text = (e.target?.result as string) ?? ''
-        onFile(text, file.name)
+
+      try {
+        if (ext === 'zip') {
+          // Auto-unzip: find the .txt file inside the ZIP
+          const arrayBuffer = await file.arrayBuffer()
+          const zip = await JSZip.loadAsync(arrayBuffer)
+          const txtFile = Object.values(zip.files).find(
+            (f) => !f.dir && f.name.toLowerCase().endsWith('.txt')
+          )
+          if (!txtFile) {
+            setError('no .txt file found inside the ZIP — is this a WhatsApp export?')
+            return
+          }
+          const text = await txtFile.async('string')
+          const name = txtFile.name.split('/').pop() ?? file.name
+          onFile(text, name)
+        } else {
+          // Plain .txt file
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            const text = (e.target?.result as string) ?? ''
+            onFile(text, file.name)
+          }
+          reader.onerror = () => setError('file isn\'t cooperating. try again.')
+          reader.readAsText(file, 'utf-8')
+        }
+      } catch {
+        setError('couldn\'t unzip that. is the file corrupted?')
       }
-      reader.onerror = () => setError('file isn\'t cooperating. try again.')
-      reader.readAsText(file, 'utf-8')
     },
     [onFile, consented],
   )
