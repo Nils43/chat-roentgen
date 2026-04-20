@@ -135,7 +135,7 @@ function HowToExport() {
     <div className="mt-6 text-center">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="label-mono text-ink-muted hover:text-ink transition-colors inline-flex items-center gap-2"
+        className="btn-pop text-base md:text-lg px-6 py-3 inline-flex items-center gap-2"
       >
         How do I get my WhatsApp chat? <span className="font-serif italic normal-case">{open ? '−' : '+'}</span>
       </button>
