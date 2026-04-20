@@ -14,7 +14,7 @@ export function Upload({ onFile }: Props) {
     (file: File) => {
       setError(null)
       if (!consented) {
-        setError('tick the house rules below first.')
+        setError('nice try, honey. tick the house rules first — no consent, no tea.')
         return
       }
       if (file.size > 50 * 1024 * 1024) {
@@ -51,7 +51,13 @@ export function Upload({ onFile }: Props) {
           const f = e.dataTransfer.files[0]
           if (f) readFile(f)
         }}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => {
+          if (!consented) {
+            setError('nice try, honey. tick the house rules first — no consent, no tea.')
+            return
+          }
+          inputRef.current?.click()
+        }}
         className={`
           relative cursor-pointer group overflow-hidden
           rounded-[2rem]
@@ -90,14 +96,22 @@ export function Upload({ onFile }: Props) {
           Drag your WhatsApp export in here or hit the button. Everything stays on your device — nobody else sees it.
         </div>
 
-        <div className={`relative btn-pop group-hover:scale-[1.03] ${!consented ? 'opacity-40 pointer-events-none' : ''}`}>
+        <div className={`relative btn-pop group-hover:scale-[1.03] transition-all ${!consented ? 'opacity-30 cursor-not-allowed grayscale' : ''}`}>
           <span className="text-base">📎</span>
           PICK A CHAT
           <span className="text-xs">→</span>
         </div>
 
+        {!consented && !error && (
+          <div className="relative mt-6 text-xs font-mono uppercase tracking-[0.14em] text-ink/50 animate-pulse">
+            ↓ sign the house rules to proceed ↓
+          </div>
+        )}
+
         {error && (
-          <div className="relative mt-6 text-sm text-b font-mono">{error}</div>
+          <div className="relative mt-6 px-4 py-3 bg-black text-white font-mono text-sm border-2 border-black" style={{boxShadow:'3px 3px 0 #FFE234', transform:'rotate(-0.5deg)'}}>
+            <span className="text-[var(--yellow)] font-bold">BLOCKED:</span> {error}
+          </div>
         )}
       </div>
 
