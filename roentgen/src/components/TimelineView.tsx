@@ -8,12 +8,12 @@ interface Props {
   highlights?: HighlightsResult | null
 }
 
-// The visual centerpiece — "eine Beziehung auf einer Achse".
+// The visual centerpiece — "a relationship on one axis".
 // Stacks four layers on a shared time axis:
 //   1. Phase bands (colored by emotional temperature)
 //   2. Temperature curve (smooth line connecting phase midpoints)
 //   3. Daily activity — stacked area per person
-//   4. Kipppunkt + Highlight markers as pins
+//   4. Turning point + highlight markers as pins
 //
 // Width is viewport-responsive via viewBox. Clickable markers reveal detail.
 
@@ -47,9 +47,8 @@ export function TimelineView({ timeline, facts, highlights }: Props) {
   return (
     <div className="max-w-5xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-16">
       <header className="space-y-6">
-        <div className="label-mono text-b">Modul 06 · Timeline · Hybrid</div>
         <h2 className="font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight">
-          Die Beziehung <span className="italic text-ink-muted">auf einer Achse.</span>
+          Your story <span className="italic text-ink-muted">on one axis.</span>
         </h2>
         <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl">
           {payload.gesamtbogen}
@@ -174,7 +173,7 @@ export function TimelineView({ timeline, facts, highlights }: Props) {
               opacity="0.08"
             />
 
-            {/* 4. Kipppunkt markers */}
+            {/* 4. Wendepunkt markers */}
             {payload.kipppunkte.map((k, i) => {
               const x = xOf(isoToMs(k.datum))
               const isActive = selectedKipp === i
@@ -265,7 +264,7 @@ export function TimelineView({ timeline, facts, highlights }: Props) {
             />
           )}
           {selectedKipp !== null && (
-            <KipppunktDetail
+            <WendepunktDetail
               kipp={payload.kipppunkte[selectedKipp]}
               onClose={() => setSelectedKipp(null)}
             />
@@ -284,11 +283,11 @@ export function TimelineView({ timeline, facts, highlights }: Props) {
           </span>
           <span className="flex items-center gap-2">
             <span className="inline-block w-8 h-[2px]" style={{ background: '#f5f2ea' }} />
-            Emotionale Temperatur
+            Emotional temperature
           </span>
           <span className="flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#ff9a8b' }} />
-            Kipppunkt
+            Turning point
           </span>
           {highlights && (
             <span className="flex items-center gap-2">
@@ -301,7 +300,8 @@ export function TimelineView({ timeline, facts, highlights }: Props) {
 
       {/* Phase list */}
       <section>
-        <div className="label-mono text-a mb-4">Phasen im Detail</div>
+        <div className="label-mono text-a mb-4">Your chapters in detail</div>
+
         <div className="space-y-3">
           {payload.phasen.map((ph, i) => (
             <PhaseRow
@@ -314,10 +314,10 @@ export function TimelineView({ timeline, facts, highlights }: Props) {
         </div>
       </section>
 
-      {/* Kipppunkt list */}
+      {/* Wendepunkt list */}
       {payload.kipppunkte.length > 0 && (
         <section>
-          <div className="label-mono text-b mb-4">Kipppunkte</div>
+          <div className="label-mono text-b mb-4">Turning points</div>
           <div className="space-y-3">
             {payload.kipppunkte.map((k, i) => (
               <div key={i} className="card">
@@ -344,7 +344,7 @@ export function TimelineView({ timeline, facts, highlights }: Props) {
 
       {/* Final verdict */}
       <section className="card text-center bg-bg-raised/60">
-        <div className="label-mono mb-4">Finaler Zustand</div>
+        <div className="label-mono mb-4">Final state</div>
         <div className={`font-serif text-5xl md:text-6xl tracking-tight ${stateColor(payload.finaler_zustand)}`}>
           {stateLabel(payload.finaler_zustand)}
         </div>
@@ -382,6 +382,7 @@ function PhaseRow({
           <span className="text-ink-muted">Temp</span>{' '}
           <span className="metric-num text-ink text-base">{phase.temperatur}/10</span>
         </span>
+        {/* bar below */}
         <div className="flex-1 h-1 rounded-full bg-line overflow-hidden">
           <div
             className="h-full transition-all duration-1000"
@@ -395,7 +396,7 @@ function PhaseRow({
       </div>
       {active && (
         <div className="mt-5 pt-4 border-t border-line/40 text-base serif-body text-ink animate-fade-in">
-          <span className="label-mono mr-2">Muster</span>
+          <span className="label-mono mr-2">Pattern</span>
           {phase.dominantes_muster}
         </div>
       )}
@@ -420,14 +421,14 @@ function PhaseDetail({
       </div>
       <div className="font-serif text-xl text-ink mb-1">{phase.titel}</div>
       <div className="label-mono text-ink-muted mb-3">
-        {fmtDate(phase.start)} — {fmtDate(phase.end)} · Temp {phase.temperatur}/10
+        {fmtDate(phase.start)} — {fmtDate(phase.end)} · temp {phase.temperatur}/10
       </div>
       <p className="serif-body text-base text-ink leading-snug">{phase.kurzbeschreibung}</p>
     </div>
   )
 }
 
-function KipppunktDetail({
+function WendepunktDetail({
   kipp,
   onClose,
 }: {
@@ -437,7 +438,7 @@ function KipppunktDetail({
   return (
     <div className="absolute left-2 right-2 bottom-2 md:right-4 md:bottom-auto md:top-4 md:w-80 md:left-auto bg-bg-surface/95 border border-b/50 rounded-xl p-4 shadow-2xl animate-fade-in backdrop-blur-xl">
       <div className="flex items-baseline justify-between mb-2 gap-4">
-        <div className="label-mono text-b">Kipppunkt · {fmtDate(kipp.datum)}</div>
+        <div className="label-mono text-b">Wendepunkt · {fmtDate(kipp.datum)}</div>
         <button onClick={onClose} className="label-mono text-ink-faint hover:text-ink">
           ×
         </button>
@@ -559,11 +560,11 @@ function buildDateTicks(start: Date, end: Date): Date[] {
 function fmtDate(iso: string): string {
   const d = parseLocalDate(iso)
   if (!d) return iso
-  return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: '2-digit' })
+  return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: '2-digit' })
 }
 
 function fmtTick(d: Date): string {
-  return d.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' })
+  return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
 }
 
 // Temperature → color. Cool blue → neutral → warm coral/red.
@@ -593,11 +594,11 @@ function tempSolid(t: number): string {
 function stateLabel(state: string): string {
   return (
     {
-      'aufwärts': 'Aufwärts',
-      stabil: 'Stabil',
-      'abwärts': 'Abwärts',
-      gebrochen: 'Gebrochen',
-      unklar: 'Unklar',
+      'aufwärts': 'Rising',
+      stabil: 'Stable',
+      'abwärts': 'Declining',
+      gebrochen: 'Broken',
+      unklar: 'Unclear',
     } as Record<string, string>
   )[state] ?? state
 }

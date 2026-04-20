@@ -188,7 +188,7 @@ export function parseWhatsApp(raw: string): ParsedChat {
 
   if (messages.length === 0) {
     warnings.push(
-      'Keine Nachrichten erkannt. Ist das wirklich ein WhatsApp-Export? Prüfe das Datumsformat in der ersten Zeile.',
+      "No messages detected. Is this actually a WhatsApp export? Check the date format on the first line.",
     )
   }
 
@@ -197,7 +197,7 @@ export function parseWhatsApp(raw: string): ParsedChat {
     .map(([name]) => name)
 
   if (participants.length > 12) {
-    warnings.push(`${participants.length} Teilnehmer erkannt — Gruppenchats werden aktuell nur rudimentär unterstützt.`)
+    warnings.push(`${participants.length} participants detected — group chats are only partially supported right now.`)
   }
 
   return {

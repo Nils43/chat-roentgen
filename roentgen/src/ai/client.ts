@@ -28,14 +28,14 @@ export async function analyze(req: ApiRequest, signal?: AbortSignal): Promise<Ap
   try {
     body = JSON.parse(text)
   } catch {
-    throw new AnalyzeError('invalid_response', 'Proxy hat kein JSON zurückgegeben.', res.status)
+    throw new AnalyzeError('invalid_response', 'Proxy did not return JSON.', res.status)
   }
 
   if (!res.ok) {
     const errBody = body as { error?: string; message?: string }
     throw new AnalyzeError(
       errBody.error ?? 'upstream_error',
-      errBody.message ?? `Request fehlgeschlagen (${res.status}).`,
+      errBody.message ?? `Request failed (${res.status}).`,
       res.status,
     )
   }

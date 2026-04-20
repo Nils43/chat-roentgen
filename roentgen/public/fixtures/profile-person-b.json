@@ -2,63 +2,63 @@
   "person": "Person B",
   "kommunikationsstil": {
     "achsen": {
-      "direktIndirekt": 7,
-      "emotionalSachlich": 6,
-      "ausfuehrlichKnapp": 8,
-      "initiierendReagierend": 7
+      "direktIndirekt": 8,
+      "emotionalSachlich": 8,
+      "ausfuehrlichKnapp": 9,
+      "initiierendReagierend": 8
     },
-    "beschreibung": "Person B antwortet knapp, oft mit einem Wort. Wenig Emojis, wenig Ausschmückung. Kommunikation ist funktional, nicht emotional beladen — eine Strategie, Distanz zu halten, ohne sie auszusprechen. Direktheit ersetzt hier keine Nähe, sie verhindert sie."
+    "beschreibung": "Person B writes in one-word sentences, lowercase. \"ok\", \"yeah\", \"fine\". Reads like indifference, but it's precisely measured: enough contact to not leave, too little to land. Nobody writes like that by accident."
   },
   "horney": {
     "orientierung": "von_menschen",
-    "interpretation": "Person B bewegt sich weg. Nicht konfrontativ, nicht aggressiv — schlicht distanzierend. Die Reduktion ist das Signal. Wenn Nähe-Themen aufkommen, wird das Register noch eine Stufe heruntergefahren: kürzer, später, neutraler. Das ist kein Desinteresse im starken Sinn, eher ein Schutzreflex gegen zu viel Engagement.",
+    "interpretation": "Person B isn't moving away — Person B is moving slower than asked. That's a difference, and it's a strategy. When the other's frequency goes up, Person B's goes down. When emotional topics land, \"sorry, that was a lot\" comes out — not as an excuse, but as a stop sign.",
     "evidenz": [
-      "„jo\"",
-      "„später\"",
-      "„bin grad beschäftigt\""
+      "Reply times double after every emotional opener from Person A",
+      "\"not today please\" — withdrawal named, not explained",
+      "No return questions, even when asked directly"
     ]
   },
   "berne": {
     "dominanter_zustand": "erwachsenen_ich",
     "nuance": "sachlich_rational",
-    "interpretation": "Person B hält das Erwachsenen-Ich hoch, um emotionale Eskalation zu vermeiden. Das wirkt reif, ist aber auch ein Schutzmechanismus — wer keine Emotion sendet, muss auch keine empfangen. In Momenten emotionaler Anfrage wechselt Person B in eine leichte kritisch-elterliche Position: „du überdenkst das\" ist ein klassisches Eltern-Ich-Move.",
+    "interpretation": "Person B keeps the tone low. Matter-of-fact, brief, no drama. Feels like maturity — partly is. But when Person A gets emotional, Person B slips into slightly parental mode: \"I think you're overthinking this\" isn't an adult-to-adult line anymore. That's parent-child, and the roles are clearly set in that moment.",
     "evidenz": [
-      "„läuft doch\"",
-      "„ich glaub du überdenkst das\""
+      "\"it's fine\" — matter-of-factness as deflection, not state",
+      "\"you're overthinking this\" — diagnosis instead of dialogue"
     ]
   },
   "bowlby": {
     "tendenz": "vermeidend",
     "sicherheit": "mittel",
-    "interpretation": "Vermeidende Tendenz: Distanzregulation durch Verzögerung und Minimalantworten, Deflection bei emotionalen Themen, keine proaktiven Rückfragen zu Person A's Zustand. Person B hält Nähe niedrig dosiert — genug, um nicht wegzugehen, zu wenig, um anzukommen. Das Bindungssystem ist deaktiviert, nicht defekt.",
+    "interpretation": "Closeness isn't fought off, it's deactivated. When Person A opens up, Person B goes silent. When Person B opens up — and that does happen, rarely, in half-sentences — the opening isn't built on. Warmth shows up briefly and disappears again before it can become part of a story. Classic avoidant: the capacity is there, the use of it is rationed.",
     "evidenz": [
-      "Antworten mit 24h+ Verzögerung",
-      "Themenwechsel bei Gefühlsthemen",
-      "Keine Gegenfragen nach „wie geht es dir\""
+      "\"you're cute\" — once, no follow-up, never mentioned again",
+      "Replies to Person A's monologues: max 1 sentence, often 24h later",
+      "No questions about the other person's state"
     ]
   },
   "adler": {
-    "kompensation": "Unterengagement als Überlegenheitsposition",
-    "interpretation": "Durch das Minimum an Investition hält Person B eine strukturelle Überlegenheit. Wer weniger braucht, braucht weniger. Das ist keine Bosheit — es ist ein früh gelerntes Muster, sich nicht angreifbar zu machen. Die Kehrseite: die so gewonnene Sicherheit kostet die Tiefe der Beziehung, die Person B vermutlich gleichzeitig vermisst.",
+    "kompensation": "Unneediness as armor",
+    "interpretation": "Person B's stance: I don't need this more than you do. That's not arrogance — it's calculated. Whoever needs less is less exposed. The math works, but has a cost: Person B can never fully arrive. Not for lack of opportunity, but because arriving would break the system.",
     "evidenz": [
-      "„nicht heute bitte\"",
-      "Keine Gegenfragen",
-      "Warme Momente werden nicht verkettet"
+      "Never the first to write in the morning",
+      "Never asks how the other is doing",
+      "Emotional peaks from Person A get defused, not mirrored"
     ]
   },
   "goffman": {
-    "front_stage": "Entspannt, easy, unaufgeregt — jemand, der „nicht kompliziert\" ist und keine großen Gefühlsaufführungen macht.",
-    "back_stage_durchbrueche": "Seltene Wärme-Momente („du bist süß\", „schön dich zu sehen gestern\") die nie ausgebaut werden. Der Rückfall in die Front Stage ist sofort. Gerade diese Momente zeigen: die Kapazität für Nähe ist da, wird aber aktiv reguliert.",
-    "interpretation": "Die Performance: „Ich bin easy.\" Die Kehrseite: die Nähe-Momente bleiben einzeln, werden nicht zu einer Beziehungs-Erzählung verkettet. Jeder Back-Stage-Moment könnte ein Anfang sein — bleibt aber Einzelereignis.",
+    "front_stage": "The relaxed one. Uncomplicated, no drama, \"it's fine\". Someone you won't get stress with.",
+    "back_stage_durchbrueche": "Three warm messages in four months. \"you're cute\", \"nice to see you yesterday\", \"i like you too\". Each stands alone, never linked, never expanded. The backstage exists — it just doesn't get walked into.",
+    "interpretation": "The \"easy\" performance isn't an accident — it's the product. Person B sells calm, and buys in return the ability to never really be fully present. That's not coldness. That's a very old deal between Person B and themselves.",
     "evidenz": [
-      "„du bist süß\" (einmalig, ohne Fortsetzung)",
-      "„schön dich zu sehen gestern\""
+      "Warmth comes in 10-character bursts, never paragraphs",
+      "No references to earlier conversations ever appear"
     ]
   },
   "sprachliche_fingerabdruecke": {
-    "lieblings_formulierungen": ["ok", "klar", "passt", "läuft", "jo"],
-    "wiederkehrende_satzanfaenge": ["sorry …", "war …", "hab …"],
-    "zeichensetzung": "Kein Punkt, keine Fragezeichen. Kleinschreibung durchgehend. Keine Emojis. Die Nachrichten sind formal so unmarkiert wie möglich — das ist selbst eine Markierung."
+    "lieblings_formulierungen": ["ok", "sure", "fine", "chill", "yeah", "sorry"],
+    "wiederkehrende_satzanfaenge": ["sorry …", "was …", "just …", "i'm kinda …"],
+    "zeichensetzung": "No punctuation at the end. Lowercase throughout, even names. No emojis — not even 👍. The absence is the signal."
   },
-  "kern_insight": "Person B hat gelernt, dass Unverbindlichkeit der sicherste Ort ist — und zahlt dafür den Preis, nie wirklich anzukommen."
+  "kern_insight": "Person B learned early that \"i need you\" costs more than \"i'm chill\" — and hasn't said the first one to anyone since."
 }

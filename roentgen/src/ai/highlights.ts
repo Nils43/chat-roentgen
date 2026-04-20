@@ -9,7 +9,7 @@ import {
 import type { HighlightsPayload, HighlightsResult } from './types'
 import type { ParsedChat } from '../parser/types'
 
-const MODEL = 'claude-opus-4-6'
+const MODEL = 'claude-sonnet-4-6'
 
 export interface RunHighlightsOptions {
   chat: ParsedChat
@@ -31,7 +31,7 @@ export async function runHighlights({
   const response = await analyzer.analyze(
     {
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: HIGHLIGHTS_SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userMessage }],
       tools: [

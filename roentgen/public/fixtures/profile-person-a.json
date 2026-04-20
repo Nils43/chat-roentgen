@@ -2,63 +2,63 @@
   "person": "Person A",
   "kommunikationsstil": {
     "achsen": {
-      "direktIndirekt": 4,
-      "emotionalSachlich": -7,
-      "ausfuehrlichKnapp": -6,
-      "initiierendReagierend": -8
+      "direktIndirekt": 5,
+      "emotionalSachlich": -8,
+      "ausfuehrlichKnapp": -7,
+      "initiierendReagierend": -9
     },
-    "beschreibung": "Person A schreibt emotional, häufig ausführlich, und fast immer als erste. Hedges mildern die Aussagen ab, Fragen öffnen Raum für Person B. Unter der Oberfläche pulsiert ein Bedürfnis nach Bestätigung — die Sprache ist ein Werkzeug, um Distanz nicht entstehen zu lassen."
+    "beschreibung": "Person A writes like someone who can't sit with silence. Long messages follow non-responses, careful hedges sit next to sweet notes, question marks at the end of statements that aren't questions. That isn't clumsy — it's a precise tool to keep closeness from slipping."
   },
   "horney": {
     "orientierung": "zu_menschen",
-    "interpretation": "Person A bewegt sich klar auf Person B zu. Nähe-Suche dominiert — Fragen, Rückversicherungen, Emojis, lange Textnachrichten sind die Vehikel. Wenn Distanz entsteht, verstärkt Person A die Bewegung statt sich zurückzuziehen. Das ist weder naiv noch schwach; es ist ein konsistentes Beziehungs-Betriebssystem.",
+    "interpretation": "When Person B goes quiet, Person A writes more. When there's tension, Person A is the first to take the step back toward warmth. That's not naivety — Person A has learned that pulling back grows the gap, so Person A invests toward the direction the fear comes from.",
     "evidenz": [
-      "„Ich vermiss dich manchmal\"",
-      "„Ist alles ok bei dir?\"",
-      "Wiederholte Fragen nach Zustimmung"
+      "Several messages after a long silence from Person B",
+      "\"Sorry that was a lot\" right after an emotional monologue",
+      "Sweet notes as de-escalation after every tension"
     ]
   },
   "berne": {
     "dominanter_zustand": "kind_ich",
     "nuance": "angepasst",
-    "interpretation": "Person A operiert überwiegend aus dem angepassten Kind-Ich — spürbar in den Hedges, den vorsichtigen Formulierungen, dem Warten auf Reaktion. Gelegentlich bricht das freie Kind durch (Emojis, spontane Wärme). Der Erwachsene meldet sich selten, und wenn, dann meist in der Selbstreflexion: „Ich glaub ich bin zu viel\" ist bereits ein Erwachsenen-Moment, nur kommt er in Kind-Ich-Verpackung.",
+    "interpretation": "Person A often speaks from a position of \"hopefully this is okay for you\". Hedges, softeners, a small apology at the end. But right alongside it — sometimes in the same sentence — something breaks through that is clear and direct: the question \"What do you actually want from me?\" is not a child-mode voice. That's the adult taking the wheel briefly and letting go again immediately.",
     "evidenz": [
-      "„Vielleicht sollten wir reden?\"",
-      "„Ich glaub ich bin zu viel\""
+      "\"Maybe we should talk?\" packaged as a question, even though it's a request",
+      "\"I think I'm too much\" — adaptive child naming itself"
     ]
   },
   "bowlby": {
     "tendenz": "aengstlich_ambivalent",
     "sicherheit": "mittel",
-    "interpretation": "Das Muster zeigt klassische Merkmale ängstlich-ambivalenter Bindung: Suchverhalten bei wahrgenommener Distanz, Protest bei ausbleibender Reaktion, sofortige Rückkehr zu Zuneigungsausdrücken. Das System ist überaktiviert — jede Unklarheit wird als Bedrohung gelesen. Die Sicherheit der Einordnung liegt im mittleren Bereich: die Signale sind konsistent, aber ein Chat ist keine klinische Bindungsdiagnostik.",
+    "interpretation": "Silence turns into danger for Person A. The response isn't withdrawal or anger, it's intensified contact. The longer Person B stays silent, the longer Person A's messages get — textbook anxious-ambivalent: protest without break, search without aggression. That a sweet note follows every confrontation isn't forgiveness — it's the fear that having-to-forgive could cost the relationship.",
     "evidenz": [
-      "Protest nach Schweigephasen",
-      "Schnelle Deeskalation nach Konflikten",
-      "Double-Texting bei fehlender Antwort"
+      "Response intensity grows in proportion to Person B's reply time",
+      "After \"I can't keep doing this\" there's no consequence, just waiting",
+      "De-escalation always from the same side"
     ]
   },
   "adler": {
-    "kompensation": "Überinvestition als Schutz vor Kontrollverlust",
-    "interpretation": "Das Überangebot an Kommunikation lässt sich als Adlersches Kompensationsmuster lesen: wer viel gibt, fühlt sich weniger abhängig von dem, was kommt. Paradox — die Investition erzeugt die Asymmetrie, die sie vermeiden wollte. Im Kern liegt vermutlich eine früh gelernte Überzeugung: „Wenn ich genug gebe, werde ich nicht verlassen.\"",
+    "kompensation": "Giving as insurance against being left",
+    "interpretation": "Person A gives early, a lot and visibly — messages, affection, attention. The unspoken hope: whoever gives enough won't be left. The catch: that very giving creates the asymmetry Person A is afraid of. Person A builds the dynamic Person A fears.",
     "evidenz": [
-      "Mehrfach-Nachrichten nach Stille",
-      "Sweet-Notes als Puffer nach Konflikten",
-      "Lange emotionale Monologe"
+      "The investment delta stays one-sided across all phases",
+      "Sweet notes after every perceived distance",
+      "Self-attribution \"I'm too much\" — not \"You give too little\""
     ]
   },
   "goffman": {
-    "front_stage": "Warm, neugierig, offen — will gesehen werden als jemand, der Beziehung ernst nimmt und Zuneigung klar zeigt.",
-    "back_stage_durchbrueche": "Spätabends und nach Verletzungen kippt der Ton: „Ich bin zu viel\", „Ich weiß nicht ob das gut geht\". Die Performance fällt, und darunter zeigt sich die Angst, überwältigend oder lästig zu sein.",
-    "interpretation": "Die öffentliche Person A ist die warme, gebende Partnerin. Die Back-Stage-Momente offenbaren Selbstzweifel und die Angst, zu viel zu sein. Interessant: Person A lässt Back Stage bewusst durchscheinen — vermutlich als unbewusste Einladung an Person B, Verantwortung für die emotionale Regulation zu übernehmen.",
+    "front_stage": "Warm, easy-going, inviting — Person A as someone who makes relationships feel light, demands nothing and offers everything.",
+    "back_stage_durchbrueche": "Just before midnight the tone breaks. Long emotional messages, self-doubt (\"I'm too much\"), and then immediate playing-down (\"Sorry that was a lot\"). The backstage isn't invisible — it shows briefly and gets tucked away fast. More intentional than it looks.",
+    "interpretation": "The front-stage performance \"I'm low-maintenance\" is the bill Person A writes themselves: if I'm easy, you'll stay. The back-stage moments are the ones where that math stops adding up — and Person A clears them away quickly, before anyone sees too much.",
     "evidenz": [
-      "22:30-Nachrichten: „Sorry das war viel\"",
-      "„Bin halt grad emotional\""
+      "11pm-ish messages: full emotion, immediately followed by apology",
+      "\"I'm just emotional right now\" as a meta-cover"
     ]
   },
   "sprachliche_fingerabdruecke": {
-    "lieblings_formulierungen": ["vielleicht", "eigentlich", "irgendwie", "ich glaub", "manchmal"],
-    "wiederkehrende_satzanfaenge": ["Ich …", "Hab grad …", "Manchmal …", "Ich hoff …"],
-    "zeichensetzung": "Wenig Punkte, viele offene Enden. Fragezeichen häufig, auch wenn keine direkte Frage gestellt wird — mehr als Öffnungs-Gesten. Emojis als emotionale Anker, besonders 💕 und 😊."
+    "lieblings_formulierungen": ["maybe", "actually", "kind of", "i think", "sometimes", "right now"],
+    "wiederkehrende_satzanfaenge": ["I …", "Just …", "Sometimes …", "Sorry …"],
+    "zeichensetzung": "Three dots instead of a period. Question marks on statements that aren't questions (\"I think we should talk?\"). Emojis as a soft landing after hard lines — especially 💕 and 😊, almost never 😅 or 🙄. Not a single word in all caps."
   },
-  "kern_insight": "Person A gibt alles, was Person A fürchtet nie zurückzubekommen — und merkt nicht, dass genau dieses Geben die Balance kippt."
+  "kern_insight": "Person A gives earlier, more and more visibly than needed — and calls it love. Which it also is. And at the same time, an insurance policy against the sentence that must never be said."
 }

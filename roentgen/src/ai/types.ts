@@ -1,21 +1,21 @@
-// Structured shape of Modul 02 output. Matches the tool schema we send to Claude.
+// Structured shape of the per-person profile output. Matches the tool schema we send to Claude.
 // Keep this in sync with prompts.ts.
 
 export interface PersonProfile {
   person: string // pseudonym like "Person A" — client restores to real name
   kommunikationsstil: {
     achsen: {
-      direktIndirekt: number // -10 (direkt) … +10 (indirekt)
-      emotionalSachlich: number // -10 (emotional) … +10 (sachlich)
-      ausfuehrlichKnapp: number // -10 (ausführlich) … +10 (knapp)
-      initiierendReagierend: number // -10 (initiierend) … +10 (reagierend)
+      direktIndirekt: number // -10 (direct) … +10 (indirect)
+      emotionalSachlich: number // -10 (emotional) … +10 (matter-of-fact)
+      ausfuehrlichKnapp: number // -10 (verbose) … +10 (terse)
+      initiierendReagierend: number // -10 (initiating) … +10 (reacting)
     }
-    beschreibung: string // 2–3 Sätze Prosa
+    beschreibung: string // 2–3 sentences of prose
   }
   horney: {
     orientierung: 'zu_menschen' | 'gegen_menschen' | 'von_menschen' | 'gemischt'
     interpretation: string
-    evidenz: string[] // 1–2 Chat-Zitat-Paraphrasen
+    evidenz: string[] // 1–2 paraphrased chat quotes
   }
   berne: {
     dominanter_zustand: 'eltern_ich' | 'erwachsenen_ich' | 'kind_ich' | 'gemischt'
@@ -30,7 +30,7 @@ export interface PersonProfile {
     evidenz: string[]
   }
   adler: {
-    kompensation: string // kurze Beschreibung des erkannten Musters
+    kompensation: string // short description of the observed pattern
     interpretation: string
     evidenz: string[]
   }
@@ -45,7 +45,7 @@ export interface PersonProfile {
     wiederkehrende_satzanfaenge: string[]
     zeichensetzung: string
   }
-  // Ein einsatzfähiges, überraschendes Einzelzitat
+  // One sharp, surprising single sentence
   kern_insight: string
 }
 
@@ -57,7 +57,7 @@ export interface ProfileResult {
   model: string
 }
 
-// Modul 05 — Highlights. A single AI call produces N scored moments.
+// Highlights module. A single AI call produces N scored moments.
 
 export type HighlightCategory =
   | 'verletzlichkeit'
@@ -78,16 +78,16 @@ export interface Highlight {
   original_text: string // verbatim quote from the sample
   category: HighlightCategory
   framework: HighlightFramework
-  titel: string // 3–6 Wörter Headline
-  dekodierung: string // 2–4 Sätze: was hier wirklich passiert
-  signifikanz: string // 1–2 Sätze: warum dieser Moment
-  score: number // 0–100, AI-interne Gewichtung
+  titel: string // 3–6 word headline
+  dekodierung: string // 2–4 sentences: what's really happening here
+  signifikanz: string // 1–2 sentences: why this moment
+  score: number // 0–100, AI-internal weighting
 }
 
 export interface HighlightsPayload {
   highlights: Highlight[]
   meta: {
-    gesamtbefund: string // 2–3 Sätze: was die Highlights zusammen zeigen
+    gesamtbefund: string // 2–3 sentences: what the highlights together show
   }
 }
 
@@ -99,111 +99,198 @@ export interface HighlightsResult {
   model: string
 }
 
-// Modul 03 — Beziehungsebene. Ein einziger API-Call der alle Teilnehmer gemeinsam
-// analysiert. Paarweise Sektionen im Dyaden-Fall; bei Gruppen wird zusätzlich ein
-// Netzwerk-Diagramm geliefert.
+// Relationship-level module. One API call that analyzes the dyadic dynamic.
+// Empirically grounded: Gottman (bids, Four Horsemen, repair), Fonagy
+// (mentalization), Stern (attunement), Watzlawick (meta-communication), Bowen
+// (differentiation), Berne (ulterior transactions + games) and Hazan/Shaver
+// (attachment as a dyadic constellation).
 
-export type PowerLead = 'person_a' | 'person_b' | 'balanced' | 'mixed'
-export type BerneTransaction =
-  | 'erwachsenen_erwachsenen' // parallel, gesund
-  | 'eltern_kind' // gekreuzt, Machtgefälle
-  | 'kind_eltern' // gekreuzt, Regression
-  | 'kind_kind' // parallel, spielerisch/eskalativ
-  | 'eltern_eltern' // parallel, Blockade
-  | 'gemischt'
+// --- Shared / atomic types ---
 
-export type ConflictStyle =
-  | 'direkte_ansprache'
-  | 'vermeidung'
-  | 'humor_deflection'
-  | 'passiv_aggressiv'
-  | 'eskalation'
-  | 'repair_oriented'
-  | 'gemischt'
-
-export type CialdiniPrinciple =
-  | 'reciprocity'
-  | 'scarcity'
-  | 'social_proof'
-  | 'authority'
-  | 'commitment_consistency'
-  | 'liking'
-  | 'unity'
-
-export interface RelationshipSection<T extends string> {
-  // strukturierte Kernaussage (Label, Prozent, Kategorie – je nach Sektion)
-  kennwert: T
-  // freie Prosa, 2–4 Sätze
-  interpretation: string
-  // kurze Chat-Paraphrasen als Belege
-  evidenz: string[]
+export interface Zitat {
+  person: string // pseudonym, replaced with real name client-side
+  text: string // short paraphrase, max ~15 words
 }
 
-export interface MachtgefaelleSection {
-  inhaltlich: PowerLead // wer setzt Themen
-  strukturell: PowerLead // wer bestimmt wann/wie
-  interpretation: string
-  evidenz: string[]
+// Attachment dyad — the pairing of two styles, not individual
+export type AttachmentDyad =
+  | 'secure_secure' // secure/secure: sturdy
+  | 'anxious_avoidant' // the classic "insecure trap"
+  | 'avoidant_anxious' // mirrored
+  | 'anxious_anxious' // enmeshed, easily overwhelmed
+  | 'avoidant_avoidant' // distant, little repair
+  | 'secure_anxious'
+  | 'anxious_secure'
+  | 'secure_avoidant'
+  | 'avoidant_secure'
+  | 'disorganisiert_beteiligt' // at least one side disorganized
+  | 'unklar'
+
+// Gottman's Four Horsemen — strongest empirical predictor
+export type Horseman = 'kritik' | 'verachtung' | 'abwehr' | 'stonewalling'
+
+// Demand–withdraw: empirically more robust than "pursuer–distancer"
+export type DemandWithdraw =
+  | 'a_demand_b_withdraw'
+  | 'b_demand_a_withdraw'
+  | 'symmetrisch_demand'
+  | 'symmetrisch_withdraw'
+  | 'kein_muster'
+
+// Bid response classes (Gottman)
+export type BidResponse = 'turning_toward' | 'turning_away' | 'turning_against'
+
+// Ulterior transaction (Berne) — two layers at once
+export interface UlteriorTransaction {
+  sozial: string // what's said on the surface
+  psychologisch: string // what's actually happening underneath
+  beispiel: Zitat
 }
 
-export interface InvestmentDeltaSection {
-  // Wer investiert mehr — und wie stark. 0 = symmetrisch, 100 = maximale Asymmetrie.
-  skala: number // 0–100
-  richtung: PowerLead // wer investiert mehr
-  statik: 'statisch' | 'dynamisch' // konstant vs. pendelnd
-  interpretation: string
-  evidenz: string[]
+// A recognized "game" in the Berne "Games People Play" sense
+export interface BerneGame {
+  name: string // e.g. "Yes, but...", "If you really loved me"
+  funktion: string // the outcome the dynamic produces
+  beispiel: Zitat
 }
 
-export interface BerneSection {
-  dominant: BerneTransaction
-  beispiele: string[] // konkrete Chat-Paraphrasen
-  interpretation: string
+// --- Sections ---
+
+// 01. Coupling — attunement / synchrony (Stern)
+export interface KopplungSection {
+  attunement: number // 0–100, emotional resonance
+  rhythmus_synchron: number // 0–100, reply-rhythm match
+  lexikon_synchron: number // 0–100, language/tone borrowing
+  interpretation: string // 2–4 sentences
+  zitate: Zitat[]
 }
 
-export interface KonfliktstilSection {
-  dominant: ConflictStyle
-  pro_person: { person: string; stil: ConflictStyle }[]
+// 02. Power structure, 3D — content × process × affect
+export interface MachtstrukturSection {
+  inhalt_lead: string // pseudonym or "balanced" or "shifting"
+  prozess_lead: string // who paces / frames (meta-communication)
+  affekt_lead: string // whose emotional temperature the chat follows
+  asymmetrie_skala: number // 0–100 aggregated across axes
+  statik: 'statisch' | 'dynamisch'
   interpretation: string
-  evidenz: string[]
+  zitate: Zitat[]
 }
 
-export interface NaeheDistanzSection {
-  naeheSucher: string // Name der Person (Pseudonym, wird ersetzt)
-  distanzRegulierer: string
-  muster: string // kurze Charakterisierung des Tanzes
+// 03. Attachment dyad — the pairing of attachment styles
+export interface BindungsdyadeSection {
+  konstellation: AttachmentDyad
+  dyaden_beschreibung: string // what this pairing typically produces
+  dyaden_risiko: string // the most common failure mode for this combo
   interpretation: string
-  evidenz: string[]
+  sicherheit: 'niedrig' | 'mittel' | 'hoch'
+  zitate: Zitat[]
 }
 
-export interface CialdiniSection {
-  taktiken: {
-    prinzip: CialdiniPrinciple
-    von: string // Pseudonym
-    beispiel: string
-    wirkung: string // 1 Satz was es im Gespräch bewirkt
+// 04. Bid dynamics (Gottman) — strongest predictor
+export interface BidSection {
+  // Main pattern across the dyad
+  dominante_response: BidResponse
+  // Finer: who offers, who turns how
+  pro_person: {
+    person: string
+    bid_haeufigkeit: 'selten' | 'mittel' | 'hoch'
+    antwort_signatur: BidResponse // how this person usually answers
+  }[]
+  // Concrete bid moments in the chat
+  beispiele: {
+    bid: Zitat // the offer
+    antwort: Zitat // the response
+    klasse: BidResponse
   }[]
   interpretation: string
 }
 
+// 05. Repair capacity — Gottman
+export interface RepairSection {
+  hat_repair: boolean // are there any repair attempts at all
+  wer_repariert: string[] // pseudonyms — often asymmetric
+  annahme_quote: 'niedrig' | 'mittel' | 'hoch' // how often repair is accepted
+  typische_form: string // e.g. "sweet note", "humor", "naming the break"
+  interpretation: string
+  zitate: Zitat[]
+}
+
+// 06. Conflict signature — Gottman + Christensen
+export interface KonfliktSignaturSection {
+  four_horsemen_pro_person: {
+    person: string
+    praesenz: Horseman[] // which horsemen appear for this person
+    dominierend: Horseman | null // the strongest one, if any
+  }[]
+  demand_withdraw: DemandWithdraw
+  flooding_hinweise: {
+    person: string
+    hinweis: string // e.g. "abrupt brevity after escalation"
+  }[]
+  interpretation: string
+  zitate: Zitat[]
+}
+
+// 07. Mentalization — Fonagy
+export interface MentalisierungSection {
+  pro_person: {
+    person: string
+    qualitaet: 'hoch' | 'mittel' | 'niedrig' | 'ungleichmäßig'
+    beschreibung: string // 1–2 sentences: how it shows up
+  }[]
+  projektion_statt_modellierung: string // where projection replaces mentalization
+  interpretation: string
+  zitate: Zitat[]
+}
+
+// 08. Meta-communication — Watzlawick/Bateson
+export interface MetaKommunikationSection {
+  // Can the dyad talk about the relationship itself?
+  kapazitaet: 'hoch' | 'mittel' | 'niedrig' | 'blockiert'
+  initiator: string // who attempts meta-talk (pseudonym, "both" or "nobody")
+  blocker_muster: string // how meta-talk (if at all) gets deflected
+  interpretation: string
+  zitate: Zitat[]
+}
+
+// 09. Berne layer — ulterior transactions + games
+export interface BerneLayerSection {
+  dominanter_modus: 'oberflächlich_parallel' | 'verdeckt_doppelbödig' | 'wiederkehrendes_spiel' | 'gemischt'
+  ulterior_transactions: UlteriorTransaction[] // 1–3 concrete examples
+  games: BerneGame[] // 0–3 recognizable games
+  interpretation: string
+}
+
+// 10. Unspoken rules — mostly unchanged, lightly sharpened
 export interface UnausgesprocheneRegelnSection {
   regeln: {
-    regel: string // "Wir reden nicht über X."
-    evidenz: string // warum das sichtbar ist
+    regel: string
+    funktion: string // what the rule stabilizes in the system
+    evidenz: string // why it's visible in the chat
   }[]
   interpretation: string
 }
 
+// --- Full payload ---
+
 export interface RelationshipPayload {
-  teilnehmer: string[] // Pseudonyme, werden replaced
-  machtgefaelle: MachtgefaelleSection
-  investment_delta: InvestmentDeltaSection
-  berne: BerneSection
-  konfliktstil: KonfliktstilSection
-  naehe_distanz: NaeheDistanzSection
-  cialdini: CialdiniSection
+  teilnehmer: string[] // pseudonyms, replaced client-side
+  kopplung: KopplungSection
+  machtstruktur: MachtstrukturSection
+  bindungsdyade: BindungsdyadeSection
+  bids: BidSection
+  repair: RepairSection
+  konflikt_signatur: KonfliktSignaturSection
+  mentalisierung: MentalisierungSection
+  meta_kommunikation: MetaKommunikationSection
+  berne: BerneLayerSection
   unausgesprochene_regeln: UnausgesprocheneRegelnSection
-  kern_insight: string // ein scharfer Satz über die Dynamik
+  kern_insight: string // one sharp sentence about the dynamic
+  safety_flag: {
+    // gaslighting, control, violence signals, emotional devaluation
+    aktiv: boolean
+    beschreibung: string | null // when active: what exactly, plus a pointer to help
+  }
 }
 
 export interface RelationshipResult {
@@ -214,10 +301,9 @@ export interface RelationshipResult {
   model: string
 }
 
-// Modul 06 — Timeline. Das visuelle Herzstück. Ein AI-Call findet Phasen +
-// emotionale Temperatur + Kipppunkte über den gesamten Chat-Bogen. Die lokalen
-// Aktivitätsdaten (Nachrichten pro Tag, ResponseTimes) werden clientseitig
-// darunter gelegt.
+// Timeline module. The visual centerpiece. An AI call finds phases +
+// emotional temperature + turning points over the whole arc. Local activity
+// data (messages per day, response times) gets layered underneath client-side.
 
 export type PhaseLabel =
   | 'kennenlernen'
@@ -233,30 +319,91 @@ export type PhaseLabel =
 
 export interface TimelinePhase {
   label: PhaseLabel
-  titel: string // z.B. "Die ersten drei Wochen"
+  titel: string // e.g. "The first three weeks"
   start: string // ISO date YYYY-MM-DD
   end: string // ISO date YYYY-MM-DD
-  temperatur: number // 1–10: emotionale Temperatur
-  kurzbeschreibung: string // 1–2 Sätze
-  dominantes_muster: string // z.B. "Tägliche Abendgespräche bis Mitternacht"
+  temperatur: number // 1–10: emotional temperature
+  kurzbeschreibung: string // 1–2 sentences
+  dominantes_muster: string // e.g. "nightly conversations until midnight"
 }
 
 export interface TimelineKipppunkt {
   datum: string // ISO date
-  titel: string // 3–6 Wörter
-  beschreibung: string // 1–2 Sätze: was hier kippt und warum
-  beteiligt: string[] // Pseudonyme
+  titel: string // 3–6 words
+  beschreibung: string // 1–2 sentences: what tips here and why
+  beteiligt: string[] // pseudonyms
 }
 
 export interface TimelinePayload {
-  phasen: TimelinePhase[] // 3–7 Phasen, chronologisch
-  kipppunkte: TimelineKipppunkt[] // 0–5 Kipppunkte
-  gesamtbogen: string // 2–3 Sätze: der Bogen der Beziehung in Prosa
+  phasen: TimelinePhase[] // 3–7 phases, chronological
+  kipppunkte: TimelineKipppunkt[] // 0–5 turning points
+  gesamtbogen: string // 2–3 sentences: the arc in prose
   finaler_zustand: 'aufwärts' | 'stabil' | 'abwärts' | 'gebrochen' | 'unklar'
 }
 
 export interface TimelineResult {
   payload: TimelinePayload
+  raw: string
+  inputTokens: number
+  outputTokens: number
+  model: string
+}
+
+// Evolution module. Complementary to the timeline: timeline draws the arc as a
+// visual poster (temperature phases), evolution analyzes the *topics* and the
+// *symmetry trend*, plus a Gottman-based forecast.
+//
+// The local symmetry time series is computed client-side from HardFacts
+// (share progression, response-time trend). The AI call delivers topics per
+// phase and the forecast narration.
+
+export type ThemePraegnanz = 'niedrig' | 'mittel' | 'hoch'
+
+export interface ThemeCluster {
+  thema: string // short title, 1–4 words
+  praegnanz: ThemePraegnanz
+  beispiele: string[] // 1–2 short chat paraphrases
+}
+
+export interface ThemePhase {
+  start: string // ISO date
+  end: string // ISO date
+  titel: string // e.g. "Flirting phase" or "Daily life & logistics"
+  dominante_themen: ThemeCluster[] // 2–5 clusters
+  verschwundene_themen: string[] // topics missing from this phase onward
+  neue_themen: string[] // topics appearing for the first time
+}
+
+export type PrognoseRichtung = 'positiv' | 'stagnation' | 'negativ' | 'unklar'
+export type GottmanSignal =
+  | 'kritik' // criticism
+  | 'verachtung' // contempt
+  | 'abwehr' // defensiveness
+  | 'stonewalling'
+  | 'repair_attempt'
+  | 'bid_for_connection'
+  | 'turning_away' // turning away from bids
+  | 'keine'
+
+export interface PrognoseSection {
+  richtung: PrognoseRichtung
+  confidence: 'niedrig' | 'mittel' | 'hoch'
+  schluesselmuster: string[] // 2–5 observed patterns carrying the trend
+  gottman_signale: GottmanSignal[] // all observed signals
+  wenn_nichts_aendert: string // 2–3 sentences
+  was_verschieben_wuerde: string // 2–3 sentences, hypothetical
+  disclaimer: string // explicit note on data limits
+}
+
+export interface EntwicklungPayload {
+  zentrale_themen_gesamt: ThemeCluster[] // 3–6 topics running through the whole chat
+  themen_phasen: ThemePhase[] // 2–5 phases
+  prognose: PrognoseSection
+  gesamtbogen: string // 2–3 narrative sentences about the arc
+}
+
+export interface EntwicklungResult {
+  payload: EntwicklungPayload
   raw: string
   inputTokens: number
   outputTokens: number
