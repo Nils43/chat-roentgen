@@ -85,9 +85,6 @@ function collectModules(snap: Partial<SessionSnapshot>): ModuleId[] {
   const done: ModuleId[] = []
   if (snap.profiles) done.push('profiles')
   if (snap.relationship) done.push('relationship')
-  if (snap.highlights) done.push('highlights')
-  if (snap.timeline) done.push('timeline')
-  if (snap.entwicklung) done.push('entwicklung')
   return done
 }
 

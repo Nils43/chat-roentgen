@@ -15,11 +15,8 @@ interface Props {
 }
 
 const MODULE_ID_TO_LABEL: Record<ModuleId, string> = {
-  profiles: 'Personal profiles',
-  relationship: 'Vibe read',
-  entwicklung: 'Evolution',
-  highlights: 'Highlights',
-  timeline: 'Timeline',
+  profiles: 'Personal analysis',
+  relationship: 'Relationship analysis',
 }
 
 export function TokenOverview({ onClose, highlightReason, pendingModule }: Props) {

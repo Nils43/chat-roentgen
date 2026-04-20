@@ -3,12 +3,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 // Token-based payment model. Stored in localStorage so the no-account flow stays intact.
 // The store is a tiny event-subscription singleton so the whole app can react to balance changes.
 
-export type ModuleId =
-  | 'profiles'
-  | 'relationship'
-  | 'entwicklung'
-  | 'highlights'
-  | 'timeline'
+export type ModuleId = 'profiles' | 'relationship'
 
 export interface ModuleMeta {
   id: ModuleId
@@ -17,11 +12,8 @@ export interface ModuleMeta {
 }
 
 export const MODULE_COSTS: Record<ModuleId, ModuleMeta> = {
-  profiles: { id: 'profiles', label: 'Personal profiles', cost: 1 },
-  relationship: { id: 'relationship', label: 'Vibe read', cost: 1 },
-  entwicklung: { id: 'entwicklung', label: 'Evolution', cost: 1 },
-  highlights: { id: 'highlights', label: 'Highlights', cost: 1 },
-  timeline: { id: 'timeline', label: 'Timeline', cost: 1 },
+  profiles: { id: 'profiles', label: 'Personal analysis', cost: 1 },
+  relationship: { id: 'relationship', label: 'Relationship analysis', cost: 1 },
 }
 
 export type TxnKind = 'charge' | 'grant' | 'purchase' | 'refund'

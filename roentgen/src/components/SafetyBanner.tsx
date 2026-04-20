@@ -4,8 +4,8 @@ interface Props {
 }
 
 // Red-flag banner — surfaces concerning patterns and routes to real help.
-// Used by RelationshipView, HighlightsView, and EntwicklungView when the AI
-// flags concerning dynamics (control, gaslighting, threats, abuse signals).
+// Used by RelationshipView when the AI flags concerning dynamics (control,
+// gaslighting, threats, abuse signals).
 export function SafetyBanner({ pattern, context }: Props) {
   return (
     <aside

@@ -4,7 +4,6 @@ import type { ProfileResult } from '../ai/types'
 interface Props {
   profiles: ProfileResult[]
   chatId: string | null
-  onGoToHighlights?: () => void
   onGoToRelationship?: () => void
   onOpenTokens?: () => void
 }
@@ -16,7 +15,7 @@ const PERSON_COLORS = [
   { text: 'text-orange-400', bg: 'bg-orange-400', ring: 'ring-orange-400', dim: 'text-orange-400/60', glow: 'bg-orange-400/10' },
 ]
 
-export function ProfileView({ profiles, onGoToHighlights, onGoToRelationship }: Props) {
+export function ProfileView({ profiles, onGoToRelationship }: Props) {
   // tea profiles only the user themselves. Render the first (and only)
   // result — the other participants are never analyzed.
   const result = profiles[0]
@@ -53,27 +52,6 @@ export function ProfileView({ profiles, onGoToHighlights, onGoToRelationship }: 
               className="px-6 py-3 bg-a text-bg rounded-full font-sans text-sm tracking-wide hover:bg-a/90 transition-colors"
             >
               Show the dynamic →
-            </button>
-          </div>
-        </section>
-      )}
-
-      {onGoToHighlights && (
-        <section className="card relative overflow-hidden text-center">
-          <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-b/10 blur-3xl pointer-events-none" />
-          <div className="relative">
-            <div className="label-mono text-b mb-3">Later</div>
-            <h3 className="font-serif text-3xl md:text-4xl leading-tight mb-3">
-              The <span className="italic text-ink-muted">moments</span> that stick.
-            </h3>
-            <p className="serif-body text-base text-ink-muted max-w-xl mx-auto mb-6">
-              The moments that say a lot — not loud, but dense. Pulled out, placed in context.
-            </p>
-            <button
-              onClick={onGoToHighlights}
-              className="px-6 py-3 bg-b text-bg rounded-full font-sans text-sm tracking-wide hover:bg-b/90 transition-colors"
-            >
-              Show highlights →
             </button>
           </div>
         </section>

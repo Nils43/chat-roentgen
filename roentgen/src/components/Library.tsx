@@ -6,7 +6,7 @@ interface Props {
   onNew: () => void
 }
 
-const MODULE_ORDER: ModuleId[] = ['profiles', 'relationship', 'highlights', 'timeline', 'entwicklung']
+const MODULE_ORDER: ModuleId[] = ['profiles', 'relationship']
 
 const TILTS = [-1.4, 0.6, -0.8, 1.1, -0.4, 0.9]
 
