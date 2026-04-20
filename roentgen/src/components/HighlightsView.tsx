@@ -227,16 +227,9 @@ function HighlightCard({
         {highlight.titel}
       </h3>
 
-      {/* Chat bubble — mimics original style */}
-      <div className="mb-6">
-        <div className={`inline-flex flex-col max-w-full`}>
-          <div className={`label-mono mb-1.5 ${color.text}`}>{highlight.author}</div>
-          <div
-            className={`rounded-2xl rounded-tl-sm border px-4 py-3 font-sans text-[15px] leading-relaxed ${color.bubble}`}
-          >
-            {highlight.original_text}
-          </div>
-        </div>
+      {/* Pattern frame — moment metadata, no verbatim quote */}
+      <div className={`mb-6 border-l-2 ${color.bg.replace('bg-', 'border-')} pl-4 py-1`}>
+        <div className={`label-mono ${color.text}`}>{highlight.author}</div>
       </div>
 
       {/* Toggle */}

@@ -12,9 +12,9 @@ const ROW_HEIGHT = 30
 const VIEWPORT_HEIGHT = 440
 const SAMPLE_COUNT = 110
 
-// Decode moment: real messages stream through the scan zone while the counters
-// tick up in parallel. Gives the user the feeling the whole chat was just
-// X-rayed, even though the real parser finishes in < 200ms.
+// Reading moment: real messages stream through while the counters
+// tick up in parallel. Gives the user the feeling tea is actually reading,
+// even though the real parser finishes in < 200ms.
 export function ParsingAnimation({ chat, onDone }: Props) {
   const [progress, setProgress] = useState(0)
   const startedAt = useRef<number | null>(null)
@@ -60,7 +60,7 @@ export function ParsingAnimation({ chat, onDone }: Props) {
         {/* Kicker */}
         <div className="label-mono text-a mb-5 flex items-center gap-2">
           <span className="inline-block w-1.5 h-1.5 bg-a rounded-full animate-pulse-soft" />
-          <span>Decode · scanning your chat</span>
+          <span>tea · reading</span>
           <span className="text-ink-faint">· runs on your device, not in the cloud</span>
         </div>
 

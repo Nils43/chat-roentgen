@@ -34,10 +34,12 @@ import type {
 } from './ai/types'
 
 type Stage =
+  | 'intro'
   | 'library'
   | 'upload'
   | 'parsing'
   | 'analysis'
+  | 'self_pick'
   | 'consent'
   | 'ai'
   | 'profiles'
@@ -55,6 +57,7 @@ function App() {
   const library = useChatLibrary()
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [stage, setStage] = useState<Stage>(library.length > 0 ? 'library' : 'upload')
+  const finishIntro = () => setStage(library.length > 0 ? 'library' : 'upload')
   const [chat, setChat] = useState<ParsedChat | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [parseError, setParseError] = useState<string | null>(null)
@@ -88,7 +91,7 @@ function App() {
       timeline,
       entwicklung,
     }
-    saveSession(currentChatId, snap)
+    void saveSession(currentChatId, snap)
     chatLibrary.syncModules(currentChatId, snap)
   }, [currentChatId, fileName, chat, prepared, profiles, relationship, highlights, timeline, entwicklung])
   const [tokensReturnTo, setTokensReturnTo] = useState<Stage>('upload')
@@ -126,7 +129,7 @@ function App() {
         ? 'done'
         : 'local'
 
-  const handleFile = (text: string, name: string) => {
+  const handleFile = async (text: string, name: string) => {
     setParseError(null)
     const parsed = parseWhatsApp(text)
     if (parsed.messages.length === 0) {
@@ -134,7 +137,7 @@ function App() {
       return
     }
     const meta = chatLibrary.create(parsed, name)
-    const ok = saveSession(meta.id, {
+    const ok = await saveSession(meta.id, {
       fileName: name,
       chat: parsed,
       prepared: null,
@@ -175,8 +178,8 @@ function App() {
     setAiProgress({ done: 0, total: 0, current: null })
   }
 
-  const openChat = (id: string) => {
-    const snap = loadSession(id)
+  const openChat = async (id: string) => {
+    const snap = await loadSession(id)
     if (!snap?.chat) {
       alert(
         "this chat isn't on your device anymore — probably deleted or too big. kicking the card.",
@@ -218,6 +221,19 @@ function App() {
   const startAiAnalysis = () => {
     if (!chat) return
     setPendingModule('profiles')
+    const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
+    if (!meta?.selfPerson) {
+      setStage('self_pick')
+      return
+    }
+    const p = prepareAnalysis(chat)
+    setPrepared(p)
+    setStage('consent')
+  }
+
+  const confirmSelfPerson = (person: string) => {
+    if (!currentChatId || !chat) return
+    chatLibrary.setSelf(currentChatId, person)
     const p = prepareAnalysis(chat)
     setPrepared(p)
     setStage('consent')
@@ -279,15 +295,19 @@ function App() {
 
   const runAi = async () => {
     if (!chat || !prepared) return
-    // Free trial: profiles run without charge. Other-person profiles get
-    // unlocked individually inside ProfileView (1 coin per person).
+    // Only the user themselves is profiled — the other person has not
+    // consented to be psychologically analyzed.
+    const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
+    const selfPerson = meta?.selfPerson ?? chat.participants[0]
+    if (!selfPerson) return
     setAiError(null)
-    setAiProgress({ done: 0, total: chat.participants.length, current: chat.participants[0] })
+    setAiProgress({ done: 0, total: 1, current: selfPerson })
     setStage('ai')
     try {
       const results = await runProfileAnalyses({
         chat,
         prepared,
+        targetPersons: [selfPerson],
         onProgress: (done, total, current) => setAiProgress({ done, total, current }),
       })
       setProfiles(results)
@@ -406,9 +426,9 @@ function App() {
       <header className="sticky top-0 z-40 bg-black text-white border-b-2 border-ink">
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-2 flex items-center justify-between gap-4">
           <button onClick={goToLibrary} className="flex items-baseline gap-2 group">
-            <span className="font-serif text-2xl tracking-tight text-white group-hover:text-yellow-300 transition-colors">tell</span>
+            <span className="font-serif italic text-2xl tracking-tight text-white group-hover:text-yellow-300 transition-colors">tea</span>
             <span className="bg-pop-yellow text-ink px-1.5 leading-none text-2xl font-serif">.</span>
-            <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.16em] text-white/50 ml-3">forensic gossip os · vol. iii</span>
+            <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.16em] text-white/50 ml-3">· local only</span>
           </button>
           <div className="flex items-center gap-3 text-white">
             {currentChatId && stage !== 'library' && stage !== 'tokens' && (
@@ -556,6 +576,8 @@ function App() {
       </header>
 
       <main className="relative z-10">
+        {stage === 'intro' && <TeaIntro onDone={finishIntro} />}
+
         {stage === 'library' && <Library onOpen={openChat} onNew={startNewChat} />}
 
         {stage === 'upload' && (
@@ -594,6 +616,14 @@ function App() {
             onStartAi={startAiAnalysis}
             onStartModule={startModule}
             onOpenTokens={() => openTokens('analysis')}
+          />
+        )}
+
+        {stage === 'self_pick' && chat && (
+          <SelfPick
+            participants={chat.participants}
+            onPick={confirmSelfPerson}
+            onCancel={() => setStage('analysis')}
           />
         )}
 
@@ -770,6 +800,78 @@ function PrivacyStripe() {
           <div className="serif-body text-base mt-2">{p.body}</div>
         </div>
       ))}
+    </div>
+  )
+}
+
+function TeaIntro({ onDone }: { onDone: () => void }) {
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data === 'tea-intro-done') onDone()
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [onDone])
+  return (
+    <div className="fixed inset-0 z-[60] bg-bg">
+      <iframe
+        src="/prototypes/tea-exhibit.html?embed=1"
+        title="tea · the tape"
+        className="w-full h-full border-0"
+      />
+      <button
+        onClick={onDone}
+        className="absolute top-3 right-3 md:top-4 md:right-4 z-[70] font-mono text-[10px] tracking-[0.18em] uppercase text-ink hover:bg-white bg-white/80 border-2 border-ink px-3 py-1.5 transition-colors"
+        style={{ boxShadow: '2px 2px 0 #0A0A0A' }}
+        aria-label="Skip intro"
+      >
+        Skip →
+      </button>
+    </div>
+  )
+}
+
+function SelfPick({
+  participants,
+  onPick,
+  onCancel,
+}: {
+  participants: string[]
+  onPick: (p: string) => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-5 md:px-8 py-12">
+      <div className="w-full max-w-xl space-y-8">
+        <div className="space-y-3">
+          <div className="label-mono text-ink/60">before we read</div>
+          <h2 className="font-serif italic text-4xl md:text-5xl leading-tight text-ink">
+            Which one is you<span className="bg-pop-yellow px-1">?</span>
+          </h2>
+          <p className="serif-body text-lg text-ink">
+            I only profile you. The other person didn't agree to be read.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {participants.map((p) => (
+            <button
+              key={p}
+              onClick={() => onPick(p)}
+              className="btn-pop w-full justify-start text-left"
+            >
+              I am {p}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={onCancel}
+          className="label-mono text-ink/60 hover:text-ink transition-colors"
+        >
+          ← back
+        </button>
+      </div>
     </div>
   )
 }
