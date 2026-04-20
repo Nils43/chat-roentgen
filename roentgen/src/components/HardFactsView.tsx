@@ -368,18 +368,13 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, m
       return (
         <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8">
           <div className="space-y-8">{paywall.render()}</div>
-          <div className="mt-14 flex justify-center">
+          <div className="mt-16 text-center">
             <button
               onClick={() => setScrollPaywallPassed(true)}
-              className="btn-pop px-8 md:px-12 py-4 md:py-5 font-serif text-3xl md:text-5xl tracking-[0.04em]"
-              style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.4deg)' }}
+              className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/40 hover:text-ink/70 transition-colors underline underline-offset-4 decoration-dotted"
             >
-              <span>OR JUST READ THE NUMBERS</span>
-              <span aria-hidden className="ml-2">↓</span>
+              or scroll the numbers ↓
             </button>
-          </div>
-          <div className="mt-3 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-ink/50">
-            skip the upsell · scroll the receipts
           </div>
         </div>
       )
@@ -403,14 +398,13 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, m
             </div>
           ),
         )}
-        {/* A quieter paywall echo at the bottom, for those who scrolled past */}
-        <div className="pt-6 border-t-2 border-ink/20">
+        {/* Quiet link back up to the paywall */}
+        <div className="pt-6 text-center">
           <button
             onClick={() => setScrollPaywallPassed(false)}
-            className="w-full btn-pop py-4 text-xl md:text-2xl"
+            className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/40 hover:text-ink/70 transition-colors underline underline-offset-4 decoration-dotted"
           >
-            <span>BACK TO THE DEEP FILES</span>
-            <span aria-hidden className="ml-2">↑</span>
+            ↑ back to the analyses
           </button>
         </div>
       </div>
@@ -557,8 +551,8 @@ function PaywallRoom({
   // After a pick: upsell — now with clear WHAT-YOU-GET on the "other" file
   if (picked) {
     const otherId: ModuleId = picked === 'profiles' ? 'relationship' : 'profiles'
-    const pickedName = picked === 'profiles' ? 'YOUR PATTERNS' : 'THE DYNAMIC'
-    const otherName = otherId === 'profiles' ? 'YOUR PATTERNS' : 'THE DYNAMIC'
+    const pickedName = picked === 'profiles' ? 'PERSONAL ANALYSIS' : 'RELATIONSHIP ANALYSIS'
+    const otherName = otherId === 'profiles' ? 'PERSONAL ANALYSIS' : 'RELATIONSHIP ANALYSIS'
     const otherBullets = otherId === 'profiles' ? youBullets : usBullets
 
     return (
@@ -573,13 +567,19 @@ function PaywallRoom({
         >
           <span className="exhibit-label">WAIT.</span>
           <div
-            className="absolute -top-3 -right-3 sticker"
-            style={{ transform: 'rotate(8deg)', background: '#FFFFFF' }}
+            className="absolute -top-3 -right-3 inline-flex items-center gap-2 px-3 py-1 bg-ink text-pop-yellow border-2 border-ink"
+            style={{
+              transform: 'rotate(8deg)',
+              boxShadow: '2px 2px 0 #0A0A0A',
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: '14px',
+              letterSpacing: '0.04em',
+            }}
           >
             SAVE €{PRICE_SINGLE * 2 - PRICE_BUNDLE}
           </div>
 
-          <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink/70">
+          <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink">
             add file {otherId === 'profiles' ? '01' : '02'} · {otherName.toLowerCase()}
           </div>
           <div className="font-serif text-5xl md:text-7xl leading-[0.9] tracking-[-0.02em] text-ink mt-1">
@@ -591,10 +591,10 @@ function PaywallRoom({
               : `what's actually happening between ${personA.toLowerCase()} and ${personB.toLowerCase()}.`}
           </p>
 
-          <ul className="mt-4 space-y-1.5 border-t-2 border-ink/30 border-dashed pt-4">
+          <ul className="mt-4 space-y-1.5 border-t-2 border-ink border-dashed pt-4">
             {otherBullets.map((b, i) => (
               <li key={i} className="serif-body text-base md:text-lg text-ink flex gap-2">
-                <span className="text-ink/60 shrink-0">—</span>
+                <span className="text-ink shrink-0">—</span>
                 <span>{b}</span>
               </li>
             ))}
@@ -608,18 +608,18 @@ function PaywallRoom({
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => onStart(picked)}
-            className="border-2 border-ink bg-white px-4 md:px-6 py-4 md:py-5 flex flex-col items-start gap-1 hover:bg-ink hover:text-pop-yellow transition-colors"
+            className="border-2 border-ink bg-pop-yellow px-4 md:px-6 py-4 md:py-5 flex flex-col items-start gap-1 hover:bg-white transition-colors"
             style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
           >
-            <span className="font-mono text-[10px] uppercase tracking-[0.16em] opacity-60">just {pickedName.toLowerCase()}</span>
-            <span className="font-serif text-3xl md:text-5xl leading-[0.9]">€{PRICE_SINGLE}</span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink">just {pickedName.toLowerCase()}</span>
+            <span className="font-serif text-3xl md:text-5xl leading-[0.9] text-ink">€{PRICE_SINGLE}</span>
           </button>
           <button
             onClick={() => onStart(picked)}
             className="bg-ink text-pop-yellow border-2 border-ink px-4 md:px-6 py-4 md:py-5 flex flex-col items-start gap-1 hover:bg-pop-yellow hover:text-ink transition-colors relative"
             style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
           >
-            <span className="font-mono text-[10px] uppercase tracking-[0.16em] opacity-70">
+            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-pop-yellow">
               both · save €{PRICE_SINGLE * 2 - PRICE_BUNDLE}
             </span>
             <span className="font-serif text-3xl md:text-5xl leading-[0.9]">€{PRICE_BUNDLE}</span>
@@ -644,21 +644,23 @@ function PaywallRoom({
   return (
     <section className="space-y-6 md:space-y-8">
       <header>
-        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-1">→ the deep cut</div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-1">→ two analyses · €3 each</div>
         <h3 className="font-serif text-[20vw] md:text-[180px] leading-[0.82] tracking-[-0.02em] text-ink">
-          GET THE WHY.
+          THE DEEP <span className="bg-pop-yellow px-1">TEA.</span>
         </h3>
         <p className="serif-body text-lg md:text-xl text-ink mt-2 max-w-2xl">
-          the numbers were the <span className="italic">what</span>. two files are the <span className="italic">why</span>.
+          the numbers were the <span className="italic">what</span>.
+          <br />
+          two analyses are the <span className="italic">why</span>.
         </p>
       </header>
 
       <div className="grid md:grid-cols-2 gap-3 md:gap-5">
         <FileCard
           num="01"
-          title="YOUR PATTERNS"
-          tag="about you"
-          lede="how you actually write in this chat."
+          title="PERSONAL ANALYSIS."
+          tag={`about ${personA.toLowerCase()}`}
+          lede={`a psychological read of how ${personA.toLowerCase()} writes in this chat — patterns, tells, the moves you keep making.`}
           bullets={youBullets}
           price={PRICE_SINGLE}
           tilt={-0.4}
@@ -666,9 +668,9 @@ function PaywallRoom({
         />
         <FileCard
           num="02"
-          title="THE DYNAMIC"
+          title="RELATIONSHIP ANALYSIS."
           tag={`${personA.toLowerCase()} × ${personB.toLowerCase()}`}
-          lede={`what's actually going on between you two.`}
+          lede={`what's actually going on between ${personA.toLowerCase()} and ${personB.toLowerCase()} — who gives more, unwritten rules, who leads when.`}
           bullets={usBullets}
           price={PRICE_SINGLE}
           tilt={0.5}
@@ -726,8 +728,13 @@ function FileCard({
         ))}
       </ul>
 
-      <div className="mt-4 flex items-baseline justify-between pt-3 border-t-2 border-ink">
-        <span className="font-mono text-[10px] uppercase tracking-[0.14em] font-bold">unlock</span>
+      <div className="mt-4 flex items-center justify-between pt-3 border-t-2 border-ink">
+        <span
+          className="font-serif text-xl md:text-2xl tracking-[0.04em] bg-pop-yellow text-ink border-2 border-ink px-3 py-1.5 leading-none"
+          style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+        >
+          UNLOCK
+        </span>
         <span className="font-serif text-3xl md:text-4xl leading-none">€{price}</span>
       </div>
     </button>
@@ -743,24 +750,38 @@ function MiniShare({ chatId, personA, personB }: { chatId: string | null; person
     try {
       await navigator.clipboard.writeText(url)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      setTimeout(() => setCopied(false), 2400)
     } catch {
       /* ignore */
     }
   }
   void personA
   return (
-    <button
-      onClick={copyLink}
-      disabled={!canShare}
-      className="w-full border-2 border-ink border-dashed bg-transparent px-5 py-3 flex items-center justify-between gap-3 hover:bg-white transition-colors disabled:opacity-40"
+    <div
+      className="w-full bg-white border-2 border-ink p-4 md:p-5 flex items-center justify-between gap-4"
+      style={{ boxShadow: '4px 4px 0 #0A0A0A', transform: 'rotate(-0.2deg)' }}
     >
-      <span className="font-mono text-[11px] md:text-xs uppercase tracking-[0.16em] text-ink">
-        {copied ? '✓ copied · paste to ' : 'or send it to '}
-        <span className="font-bold">{personB.toLowerCase()}</span>
-      </span>
-      <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/60">⎘</span>
-    </button>
+      <div className="min-w-0 flex flex-col gap-0.5">
+        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">share this read</span>
+        <span className="font-serif text-2xl md:text-3xl leading-[0.95] text-ink truncate">
+          SEND TO {personB.toUpperCase()}.
+        </span>
+      </div>
+      <button
+        onClick={copyLink}
+        disabled={!canShare}
+        className="btn-pop shrink-0 disabled:opacity-40"
+      >
+        {copied ? (
+          <>✓ COPIED</>
+        ) : (
+          <>
+            COPY
+            <span aria-hidden className="ml-1">→</span>
+          </>
+        )}
+      </button>
+    </div>
   )
 }
 
