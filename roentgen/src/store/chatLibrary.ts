@@ -14,6 +14,9 @@ export interface ChatMeta {
   modulesDone: ModuleId[]
   selfPerson?: string | null
   unlockedProfiles?: string[]
+  // Flipped to true once the user has walked through the page-by-page
+  // Hard Facts exhibit. Future opens render as a scroll view.
+  exhibitSeen?: boolean
 }
 
 const INDEX_KEY = 'roentgen.library.v1'
@@ -145,6 +148,10 @@ export const chatLibrary = {
 
   setSelf(id: string, person: string | null): void {
     update((list) => list.map((m) => (m.id === id ? { ...m, selfPerson: person } : m)))
+  },
+
+  markExhibitSeen(id: string): void {
+    update((list) => list.map((m) => (m.id === id ? { ...m, exhibitSeen: true } : m)))
   },
 
   unlockProfile(id: string, person: string): void {

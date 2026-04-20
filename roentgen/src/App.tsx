@@ -610,14 +610,22 @@ function App() {
           <ParsingAnimation chat={chat} onDone={() => setStage('analysis')} />
         )}
 
-        {stage === 'analysis' && facts && (
-          <HardFactsView
-            facts={facts}
-            onStartAi={startAiAnalysis}
-            onStartModule={startModule}
-            onOpenTokens={() => openTokens('analysis')}
-          />
-        )}
+        {stage === 'analysis' && facts && (() => {
+          const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
+          const hfMode: 'exhibit' | 'scroll' = meta?.exhibitSeen ? 'scroll' : 'exhibit'
+          return (
+            <HardFactsView
+              facts={facts}
+              onStartAi={startAiAnalysis}
+              onStartModule={startModule}
+              onOpenTokens={() => openTokens('analysis')}
+              mode={hfMode}
+              onExhibitComplete={() => {
+                if (currentChatId) chatLibrary.markExhibitSeen(currentChatId)
+              }}
+            />
+          )
+        })()}
 
         {stage === 'self_pick' && chat && (
           <SelfPick

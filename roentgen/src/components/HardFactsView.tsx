@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { HardFacts } from '../analysis/hardFacts'
 import { formatDuration } from '../analysis/hardFacts'
 import { interpretHardFacts } from '../analysis/interpretation'
@@ -14,11 +14,15 @@ interface Props {
   onStartAi?: () => void
   onStartModule?: (moduleId: ModuleId) => void
   onOpenTokens?: () => void
+  /** 'exhibit' — page-by-page navigation. 'scroll' — single long page. */
+  mode?: 'exhibit' | 'scroll'
+  /** Called once when the user finishes the exhibit (reaches final room). */
+  onExhibitComplete?: () => void
 }
 
 const PERSON_COLORS = ['text-a', 'text-b', 'text-blue-400', 'text-orange-400', 'text-violet-400']
 
-export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens }: Props) {
+export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens, mode = 'exhibit', onExhibitComplete }: Props) {
   const interpretations = interpretHardFacts(facts)
   const shareInterp = interpretations.find((i) => i.metric === 'share')
   const { balance } = useTokenState()
@@ -349,20 +353,63 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens }:
   ]
 
   const [roomIdx, setRoomIdx] = useState(0)
-  const [curtain, setCurtain] = useState(false)
-  const [curtainStamp, setCurtainStamp] = useState('FILED')
-
-  const TRANSITION_STAMPS = ['FILED ✓', 'NEXT EXHIBIT', 'KEEP GOING', 'READ', 'HOLD UP']
+  const [transitioning, setTransitioning] = useState(false)
 
   const go = (delta: number) => {
     const target = roomIdx + delta
     if (target < 0 || target >= rooms.length) return
-    setCurtainStamp(TRANSITION_STAMPS[Math.floor(Math.random() * TRANSITION_STAMPS.length)])
-    setCurtain(true)
+    setTransitioning(true)
     setTimeout(() => {
       setRoomIdx(target)
-      setCurtain(false)
-    }, 900)
+      requestAnimationFrame(() => setTransitioning(false))
+    }, 140)
+  }
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault()
+        if (!transitioning && roomIdx < rooms.length - 1) go(1)
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        if (!transitioning && roomIdx > 0) go(-1)
+      }
+    }
+    if (mode === 'exhibit') window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [roomIdx, transitioning, rooms.length, mode])
+
+  // Mark exhibit seen when user reaches the final paywall room
+  useEffect(() => {
+    if (mode === 'exhibit' && roomIdx === rooms.length - 1) {
+      onExhibitComplete?.()
+    }
+  }, [roomIdx, rooms.length, mode, onExhibitComplete])
+
+  // Scroll mode — all content rooms stacked, gimmicks as slim dividers
+  if (mode === 'scroll') {
+    return (
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-14">
+        {rooms.map((r, i) =>
+          r.kind === 'content' ? (
+            <div key={`${r.id}-${i}`} className="space-y-8">
+              {r.render()}
+            </div>
+          ) : (
+            <div key={`gimmick-${i}`} className="flex justify-center py-4">
+              <div
+                className="inline-block font-serif text-ink border-2 border-ink px-4 py-1.5 text-xl md:text-2xl tracking-[0.04em] bg-pop-yellow"
+                style={{ transform: `rotate(${i % 2 === 0 ? -2 : 2}deg)`, boxShadow: '4px 4px 0 #0A0A0A' }}
+              >
+                {r.stamp}
+              </div>
+            </div>
+          ),
+        )}
+      </div>
+    )
   }
 
   const currentRoom = rooms[roomIdx]
@@ -370,25 +417,23 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens }:
 
   return (
     <div className="relative min-h-[calc(100vh-80px)]">
-      {/* Curtain transition */}
-      {curtain && (
-        <div
-          className="fixed inset-0 z-[55] bg-black flex items-center justify-center animate-fade-in"
-          style={{ animation: 'fadeIn 180ms ease forwards' }}
-        >
-          <div
-            className="font-serif text-pop-yellow border-4 border-pop-yellow px-6 py-3 text-5xl md:text-7xl tracking-[0.08em]"
-            style={{ transform: 'rotate(-6deg)', animation: 'popIn 500ms cubic-bezier(0.34, 1.56, 0.64, 1) both' }}
-          >
-            {curtainStamp}
-          </div>
-        </div>
-      )}
-
-      {/* Progress strip */}
+      {/* Progress strip — BACK on the far left, counter, bar, percent */}
       <div className="sticky top-[52px] z-20 bg-bg/95 backdrop-blur border-b-2 border-ink">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 py-2 flex items-center justify-between gap-4">
-          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-2 flex items-center gap-3 md:gap-4">
+          {roomIdx > 0 ? (
+            <button
+              onClick={() => go(-1)}
+              disabled={transitioning}
+              className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border-2 border-ink font-mono text-[10px] uppercase tracking-[0.16em] font-bold hover:bg-pop-yellow transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ boxShadow: '2px 2px 0 #0A0A0A' }}
+              aria-label="Previous"
+            >
+              ← BACK
+            </button>
+          ) : (
+            <span className="shrink-0 w-[60px]" aria-hidden />
+          )}
+          <div className="shrink-0 font-mono text-[10px] uppercase tracking-[0.16em] text-ink">
             <span className="font-bold">{String(roomIdx + 1).padStart(2, '0')}</span>
             <span className="opacity-50"> / {String(rooms.length).padStart(2, '0')}</span>
             <span className="opacity-50 hidden md:inline ml-3">· {currentRoom.kind === 'content' ? currentRoom.id : 'intermission'}</span>
@@ -396,51 +441,61 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onOpenTokens }:
           <div className="flex-1 h-1 bg-ink/10 relative">
             <div className="absolute inset-y-0 left-0 bg-ink transition-all duration-500" style={{ width: `${progressPct}%` }} />
           </div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 hidden md:block">{progressPct}%</div>
+          <div className="shrink-0 font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 hidden md:block">{progressPct}%</div>
         </div>
       </div>
 
       {/* Room content */}
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-8 pb-32">
-        {currentRoom.kind === 'gimmick' ? (
-          <div className="min-h-[60vh] flex items-center justify-center py-12">
-            <div className="text-center">
-              <div
-                className="inline-block font-serif text-ink border-4 border-ink px-6 py-3 text-5xl md:text-8xl tracking-[0.04em] bg-pop-yellow"
-                style={{ transform: 'rotate(-3deg)', boxShadow: '8px 8px 0 #0A0A0A', animation: 'popIn 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both' }}
-              >
-                {currentRoom.stamp}
-              </div>
-              {currentRoom.sub && (
-                <div className="mt-8 font-mono italic text-base md:text-lg text-ink-muted">
-                  {currentRoom.sub}
+        <div
+          key={roomIdx}
+          className="transition-all duration-200 ease-out"
+          style={{
+            opacity: transitioning ? 0 : 1,
+            transform: transitioning ? 'translateY(6px)' : 'translateY(0)',
+          }}
+        >
+          {currentRoom.kind === 'gimmick' ? (
+            <div className="min-h-[60vh] flex items-center justify-center py-12">
+              <div className="text-center">
+                <div
+                  className="inline-block font-serif text-ink border-4 border-ink px-6 py-3 text-5xl md:text-8xl tracking-[0.04em] bg-pop-yellow"
+                  style={{ transform: 'rotate(-3deg)', boxShadow: '8px 8px 0 #0A0A0A' }}
+                >
+                  {currentRoom.stamp}
                 </div>
-              )}
+                {currentRoom.sub && (
+                  <div className="mt-8 font-mono italic text-base md:text-lg text-ink-muted">
+                    {currentRoom.sub}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-8 animate-fade-in">{currentRoom.render()}</div>
-        )}
+          ) : (
+            <div className="space-y-8">{currentRoom.render()}</div>
+          )}
+        </div>
       </div>
 
-      {/* Navigation bar */}
+      {/* Next button — big, centered at the bottom */}
       <div className="fixed bottom-14 left-0 right-0 z-30 pointer-events-none">
-        <div className="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between gap-4 pointer-events-none">
-          <button
-            onClick={() => go(-1)}
-            disabled={roomIdx === 0 || curtain}
-            className="pointer-events-auto inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-ink font-mono text-xs uppercase tracking-[0.16em] font-bold disabled:opacity-30"
-            style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
-          >
-            ← BACK
-          </button>
-          <button
-            onClick={() => go(1)}
-            disabled={roomIdx === rooms.length - 1 || curtain}
-            className="pointer-events-auto btn-pop"
-          >
-            {roomIdx === 0 ? 'OPEN' : roomIdx >= rooms.length - 2 ? 'FINAL' : 'NEXT'} →
-          </button>
+        <div className="max-w-6xl mx-auto px-4 md:px-6 pointer-events-none">
+          <div className="relative flex items-center justify-center">
+            <div className="pointer-events-auto flex flex-col items-center gap-1" style={{ transform: 'rotate(-0.6deg)' }}>
+              <button
+                onClick={() => go(1)}
+                disabled={roomIdx === rooms.length - 1 || transitioning}
+                className="inline-flex items-center gap-3 px-8 md:px-10 py-3 md:py-4 bg-pop-yellow border-2 border-ink font-serif text-2xl md:text-4xl tracking-[0.04em] text-ink hover:bg-white active:translate-x-[1px] active:translate-y-[1px] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ boxShadow: '6px 6px 0 #0A0A0A' }}
+              >
+                <span>{roomIdx === 0 ? 'OPEN IT' : roomIdx >= rooms.length - 2 ? 'FINAL TAKE' : 'NEXT'}</span>
+                <span aria-hidden>→</span>
+              </button>
+              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-ink/60 hidden md:block">
+                or press space
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
