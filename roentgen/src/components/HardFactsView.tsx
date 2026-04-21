@@ -18,11 +18,15 @@ interface Props {
   /** Called once when the user finishes the exhibit (reaches final room). */
   onExhibitComplete?: () => void
   chatId?: string | null
+  /** Modules the user already generated — cards show OPEN instead of UNLOCK. */
+  completedModules?: ModuleId[]
+  /** Relationship analysis only makes sense for exactly two participants. */
+  canAnalyzeRelationship?: boolean
 }
 
 const PERSON_COLORS = ['text-a', 'text-b', 'text-blue-400', 'text-orange-400', 'text-violet-400']
 
-export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit', onExhibitComplete, chatId }: Props) {
+export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit', onExhibitComplete, chatId, completedModules = [], canAnalyzeRelationship = true }: Props) {
   const interpretations = interpretHardFacts(facts)
   const shareInterp = interpretations.find((i) => i.metric === 'share')
   const personA = facts.perPerson[0]?.author ?? 'Person A'
@@ -33,15 +37,19 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
     if (onStartAi) return onStartAi()
   }
 
-  // Pick the more striking person on a metric — used for data-driven teasers.
-  const moreShareIdx = facts.perPerson[0] && facts.perPerson[1]
-    ? facts.perPerson[0].sharePct >= facts.perPerson[1].sharePct ? 0 : 1
-    : 0
+  // Argmax helper that scans all perPerson entries, not just the first two.
+  const argmax = <K extends keyof typeof facts.perPerson[number]>(key: K): number => {
+    let best = 0
+    for (let i = 1; i < facts.perPerson.length; i++) {
+      if ((facts.perPerson[i][key] as number) > (facts.perPerson[best][key] as number)) best = i
+    }
+    return best
+  }
+
+  const moreShareIdx = facts.perPerson.length > 0 ? argmax('sharePct') : 0
   const shareLeader = facts.perPerson[moreShareIdx]?.author ?? personA
   const shareLeaderPct = facts.perPerson[moreShareIdx]?.sharePct ?? 50
-  const moreHedgeIdx = facts.perPerson[0] && facts.perPerson[1]
-    ? facts.perPerson[0].hedgeRatio >= facts.perPerson[1].hedgeRatio ? 0 : 1
-    : 0
+  const moreHedgeIdx = facts.perPerson.length > 0 ? argmax('hedgeRatio') : 0
   const hedgeLeader = facts.perPerson[moreHedgeIdx]?.author ?? personA
   const hedgePct = Math.round((facts.perPerson[moreHedgeIdx]?.hedgeRatio ?? 0) * 100)
   const fasterIdx = facts.perPerson.reduce(
@@ -49,26 +57,21 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
     0,
   )
   const fasterPerson = facts.perPerson[fasterIdx]?.author ?? personA
-  const slowerPerson = facts.perPerson[1 - fasterIdx]?.author ?? personB
+  // Slowest = largest medianReplyMs (skipping nulls). For N=2 this coincides with "the other one".
+  const slowerIdx = facts.perPerson.reduce(
+    (worst, p, i, arr) => (p.medianReplyMs != null && (arr[worst].medianReplyMs == null || p.medianReplyMs > arr[worst].medianReplyMs!) ? i : worst),
+    0,
+  )
+  const slowerPerson = facts.perPerson[slowerIdx]?.author ?? personB
 
   // Late-night leader
-  const lateLeaderIdx =
-    facts.perPerson[0] && facts.perPerson[1]
-      ? facts.perPerson[0].lateNightCount >= facts.perPerson[1].lateNightCount
-        ? 0
-        : 1
-      : 0
+  const lateLeaderIdx = facts.perPerson.length > 0 ? argmax('lateNightCount') : 0
   const lateLeader = facts.perPerson[lateLeaderIdx]?.author ?? personA
   const lateLeaderCount = facts.perPerson[lateLeaderIdx]?.lateNightCount ?? 0
   const lateLeaderPct = Math.round((facts.perPerson[lateLeaderIdx]?.lateNightRatio ?? 0) * 100)
 
   // Burst leader (most consecutive un-answered messages)
-  const burstLeaderIdx =
-    facts.perPerson[0] && facts.perPerson[1]
-      ? facts.perPerson[0].longestBurst >= facts.perPerson[1].longestBurst
-        ? 0
-        : 1
-      : 0
+  const burstLeaderIdx = facts.perPerson.length > 0 ? argmax('longestBurst') : 0
   const burstLeader = facts.perPerson[burstLeaderIdx]?.author ?? personA
   const burstLongest = facts.perPerson[burstLeaderIdx]?.longestBurst ?? 0
   const burstCount = facts.perPerson[burstLeaderIdx]?.burstCount ?? 0
@@ -88,6 +91,11 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
     | { kind: 'content'; id: string; render: () => ReactNode }
     | { kind: 'gimmick'; stamp: string; sub?: string }
 
+  const isGroup = facts.perPerson.length > 2
+  const peopleLabel = isGroup
+    ? `${facts.perPerson.length} voices`
+    : `${personA.toLowerCase()} & ${personB.toLowerCase()}`
+
   const rooms: RoomDef[] = [
     {
       kind: 'content',
@@ -96,7 +104,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
         <>
           <header>
             <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-2">
-              intel · {personA.toLowerCase()} & {personB.toLowerCase()} · filed
+              intel · {peopleLabel} · filed
             </div>
             <h2 className="font-serif text-[20vw] md:text-[180px] leading-[0.85] tracking-[-0.01em] text-ink overflow-hidden whitespace-nowrap">
               RECEIPTS
@@ -105,7 +113,12 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
           <div className="quote-box mt-6 max-w-2xl" style={{ transform: 'rotate(-0.3deg)' }}>
             <span className="exhibit-label">EXHIBIT 0: PREMISE</span>
             <p className="serif-body text-base md:text-lg mt-2">
-              Honey. <strong className="not-italic font-bold">{facts.totalMessages.toLocaleString('en-US')} messages</strong> across <strong className="not-italic font-bold">{facts.durationDays} days</strong> between <span className="circled">{personA}</span> and <span className="circled">{personB}</span>. Ten findings coming up — one per room.
+              Honey. <strong className="not-italic font-bold">{facts.totalMessages.toLocaleString('en-US')} messages</strong> across <strong className="not-italic font-bold">{facts.durationDays} days</strong>
+              {isGroup ? (
+                <> across <span className="circled">{facts.perPerson.length} people</span>.</>
+              ) : (
+                <> between <span className="circled">{personA}</span> and <span className="circled">{personB}</span>.</>
+              )} Ten findings coming up — one per room.
             </p>
           </div>
           <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-8">
@@ -307,6 +320,8 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
           burstLongest={burstLongest}
           chatId={chatId ?? null}
           onStart={handleModule}
+          completedModules={completedModules}
+          canAnalyzeRelationship={canAnalyzeRelationship}
         />
       ),
     },
@@ -314,7 +329,6 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
 
   const [roomIdx, setRoomIdx] = useState(0)
   const [transitioning, setTransitioning] = useState(false)
-  const [scrollPaywallPassed, setScrollPaywallPassed] = useState(false)
 
   const go = (delta: number) => {
     const target = roomIdx + delta
@@ -349,35 +363,17 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
     }
   }, [roomIdx, rooms.length, mode, onExhibitComplete])
 
-  // Scroll mode — all content rooms stacked, gimmicks as slim dividers
+  // Scroll mode — all content rooms stacked in order, including paywall at the
+  // end as just another section. No gate, no interstitial — opening a chat
+  // means you see the facts immediately.
   if (mode === 'scroll') {
-    const paywall = rooms.find((r) => r.kind === 'content' && r.id === 'paywall')
-    const rest = rooms.filter(
-      (r) =>
-        !(r.kind === 'content' && r.id === 'paywall') &&
-        !(r.kind === 'gimmick' && r.stamp === 'SPILL IT.'),
+    const sections = rooms.filter(
+      (r) => !(r.kind === 'gimmick' && r.stamp === 'SPILL IT.'),
     )
-
-    // Gate — paywall lives on its own page BEFORE the scroll facts.
-    if (!scrollPaywallPassed && paywall?.kind === 'content') {
-      return (
-        <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8">
-          <div className="space-y-8">{paywall.render()}</div>
-          <div className="mt-16 text-center">
-            <button
-              onClick={() => setScrollPaywallPassed(true)}
-              className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/40 hover:text-ink/70 transition-colors underline underline-offset-4 decoration-dotted"
-            >
-              or scroll the numbers ↓
-            </button>
-          </div>
-        </div>
-      )
-    }
 
     return (
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-14">
-        {rest.map((r, i) =>
+        {sections.map((r, i) =>
           r.kind === 'content' ? (
             <div key={`${r.id}-${i}`} className="space-y-8">
               {r.render()}
@@ -393,15 +389,6 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
             </div>
           ),
         )}
-        {/* Quiet link back up to the paywall */}
-        <div className="pt-6 text-center">
-          <button
-            onClick={() => setScrollPaywallPassed(false)}
-            className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/40 hover:text-ink/70 transition-colors underline underline-offset-4 decoration-dotted"
-          >
-            ↑ back to the analyses
-          </button>
-        </div>
       </div>
     )
   }
@@ -510,6 +497,8 @@ function PaywallRoom({
   lateLeader,
   chatId,
   onStart,
+  completedModules,
+  canAnalyzeRelationship,
 }: {
   facts: HardFacts
   personA: string
@@ -526,8 +515,12 @@ function PaywallRoom({
   burstLongest: number
   chatId: string | null
   onStart: (m: ModuleId) => void
+  completedModules: ModuleId[]
+  canAnalyzeRelationship: boolean
 }) {
   const [picked, setPicked] = useState<ModuleId | null>(null)
+  const profilesDone = completedModules.includes('profiles')
+  const relationshipDone = completedModules.includes('relationship')
 
   // Personalized bullet copy — 3 concrete deliverables per file
   const youBullets = [
@@ -541,8 +534,10 @@ function PaywallRoom({
     `who leads, who follows, and when it flipped`,
   ]
 
-  // After a pick: upsell — now with clear WHAT-YOU-GET on the "other" file
-  if (picked) {
+  // After a pick: upsell — now with clear WHAT-YOU-GET on the "other" file.
+  // In group chats there is no "other" file, so the upsell is skipped and the
+  // FileCard dispatches straight to onStart.
+  if (picked && canAnalyzeRelationship) {
     const otherId: ModuleId = picked === 'profiles' ? 'relationship' : 'profiles'
     const pickedName = picked === 'profiles' ? 'PERSONAL ANALYSIS' : 'RELATIONSHIP ANALYSIS'
     const otherName = otherId === 'profiles' ? 'PERSONAL ANALYSIS' : 'RELATIONSHIP ANALYSIS'
@@ -633,22 +628,29 @@ function PaywallRoom({
     )
   }
 
-  // Initial choice — two cards, each with what-you-get
+  // Initial choice — two cards, each with what-you-get. In group chats only
+  // the personal file is offered since "relationship" is inherently pairwise.
   return (
     <section className="space-y-6 md:space-y-8">
       <header>
-        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-1">→ two analyses · €3 each</div>
+        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-1">
+          {canAnalyzeRelationship ? '→ two analyses · €3 each' : '→ personal file · €3'}
+        </div>
         <h3 className="font-serif text-[20vw] md:text-[180px] leading-[0.82] tracking-[-0.02em] text-ink">
           THE DEEP <span className="bg-pop-yellow px-1">TEA.</span>
         </h3>
         <p className="serif-body text-lg md:text-xl text-ink mt-2 max-w-2xl">
           the numbers were the <span className="italic">what</span>.
           <br />
-          two analyses are the <span className="italic">why</span>.
+          {canAnalyzeRelationship ? (
+            <>two analyses are the <span className="italic">why</span>.</>
+          ) : (
+            <>the personal file is the <span className="italic">why</span>.</>
+          )}
         </p>
       </header>
 
-      <div className="grid md:grid-cols-2 gap-3 md:gap-5">
+      <div className={`grid gap-3 md:gap-5 ${canAnalyzeRelationship ? 'md:grid-cols-2' : ''}`}>
         <FileCard
           num="01"
           title="PERSONAL ANALYSIS."
@@ -657,21 +659,29 @@ function PaywallRoom({
           bullets={youBullets}
           price={PRICE_SINGLE}
           tilt={-0.4}
-          onPick={() => setPicked('profiles')}
+          done={profilesDone}
+          onPick={() => {
+            if (profilesDone) return onStart('profiles')
+            if (!canAnalyzeRelationship) return onStart('profiles')
+            setPicked('profiles')
+          }}
         />
-        <FileCard
-          num="02"
-          title="RELATIONSHIP ANALYSIS."
-          tag={`${personA.toLowerCase()} × ${personB.toLowerCase()}`}
-          lede={`what's actually going on between ${personA.toLowerCase()} and ${personB.toLowerCase()} — who gives more, unwritten rules, who leads when.`}
-          bullets={usBullets}
-          price={PRICE_SINGLE}
-          tilt={0.5}
-          onPick={() => setPicked('relationship')}
-        />
+        {canAnalyzeRelationship && (
+          <FileCard
+            num="02"
+            title="RELATIONSHIP ANALYSIS."
+            tag={`${personA.toLowerCase()} × ${personB.toLowerCase()}`}
+            lede={`what's actually going on between ${personA.toLowerCase()} and ${personB.toLowerCase()} — who gives more, unwritten rules, who leads when.`}
+            bullets={usBullets}
+            price={PRICE_SINGLE}
+            tilt={0.5}
+            done={relationshipDone}
+            onPick={() => (relationshipDone ? onStart('relationship') : setPicked('relationship'))}
+          />
+        )}
       </div>
 
-      <MiniShare chatId={chatId} personA={personA} personB={personB} />
+      <MiniShare chatId={chatId} personA={personA} personB={personB} isGroup={!canAnalyzeRelationship} />
     </section>
   )
 }
@@ -684,6 +694,7 @@ function FileCard({
   bullets,
   price,
   tilt,
+  done,
   onPick,
 }: {
   num: string
@@ -693,15 +704,30 @@ function FileCard({
   bullets: string[]
   price: number
   tilt: number
+  done?: boolean
   onPick: () => void
 }) {
   return (
     <button
       onClick={onPick}
-      className="bg-white border-2 border-ink p-5 md:p-6 relative text-left hover:bg-pop-yellow transition-colors flex flex-col"
+      className={`relative p-5 md:p-6 text-left flex flex-col border-2 border-ink transition-colors ${done ? 'bg-pop-yellow hover:bg-white' : 'bg-white hover:bg-pop-yellow'}`}
       style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: `rotate(${tilt}deg)` }}
     >
       <span className="exhibit-label">FILE {num}</span>
+      {done && (
+        <span
+          className="absolute -top-3 -right-3 inline-flex items-center gap-1 px-2.5 py-0.5 bg-ink text-pop-yellow border-2 border-ink"
+          style={{
+            transform: 'rotate(6deg)',
+            boxShadow: '2px 2px 0 #0A0A0A',
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: '13px',
+            letterSpacing: '0.04em',
+          }}
+        >
+          ✓ YOURS
+        </span>
+      )}
       <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
         {tag}
       </div>
@@ -722,19 +748,30 @@ function FileCard({
       </ul>
 
       <div className="mt-4 flex items-center justify-between pt-3 border-t-2 border-ink">
-        <span
-          className="font-serif text-xl md:text-2xl tracking-[0.04em] bg-pop-yellow text-ink border-2 border-ink px-3 py-1.5 leading-none"
-          style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
-        >
-          UNLOCK
-        </span>
-        <span className="font-serif text-3xl md:text-4xl leading-none">€{price}</span>
+        {done ? (
+          <span
+            className="font-serif text-xl md:text-2xl tracking-[0.04em] bg-ink text-pop-yellow border-2 border-ink px-3 py-1.5 leading-none"
+            style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+          >
+            OPEN →
+          </span>
+        ) : (
+          <>
+            <span
+              className="font-serif text-xl md:text-2xl tracking-[0.04em] bg-pop-yellow text-ink border-2 border-ink px-3 py-1.5 leading-none"
+              style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+            >
+              UNLOCK
+            </span>
+            <span className="font-serif text-3xl md:text-4xl leading-none">€{price}</span>
+          </>
+        )}
       </div>
     </button>
   )
 }
 
-function MiniShare({ chatId, personA, personB }: { chatId: string | null; personA: string; personB: string }) {
+function MiniShare({ chatId, personA, personB, isGroup = false }: { chatId: string | null; personA: string; personB: string; isGroup?: boolean }) {
   const [copied, setCopied] = useState(false)
   const canShare = Boolean(chatId)
   const copyLink = async () => {
@@ -749,6 +786,7 @@ function MiniShare({ chatId, personA, personB }: { chatId: string | null; person
     }
   }
   void personA
+  const sendLabel = isGroup ? 'SEND TO THE GROUP.' : `SEND TO ${personB.toUpperCase()}.`
   return (
     <div
       className="w-full bg-white border-2 border-ink p-4 md:p-5 flex items-center justify-between gap-4"
@@ -757,7 +795,7 @@ function MiniShare({ chatId, personA, personB }: { chatId: string | null; person
       <div className="min-w-0 flex flex-col gap-0.5">
         <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">share this read</span>
         <span className="font-serif text-2xl md:text-3xl leading-[0.95] text-ink truncate">
-          SEND TO {personB.toUpperCase()}.
+          {sendLabel}
         </span>
       </div>
       <button

@@ -15,6 +15,10 @@ import { ProfileView } from './components/ProfileView'
 import { prepareAnalysis, runProfileAnalyses, type PrepareResult } from './ai/profile'
 import { runRelationshipAnalysis } from './ai/relationship'
 import { RelationshipView } from './components/RelationshipView'
+import { PrivacyPolicy } from './components/PrivacyPolicy'
+import { Imprint } from './components/Imprint'
+import { Settings } from './components/Settings'
+import { PrivacyBanner } from './components/PrivacyBanner'
 import type { ModuleId } from './store/chatLibrary'
 import type { ProfileResult, RelationshipResult } from './ai/types'
 
@@ -30,6 +34,9 @@ type Stage =
   | 'profiles'
   | 'relationship_loading'
   | 'relationship'
+  | 'privacy'
+  | 'imprint'
+  | 'settings'
 
 function App() {
   const library = useChatLibrary()
@@ -91,6 +98,10 @@ function App() {
       return null
     }
   }, [chat])
+
+  // Relationship analysis is inherently pairwise. Group chats only get the
+  // personal file.
+  const canAnalyzeRelationship = (chat?.participants.length ?? 0) === 2
 
   const networkMode: NetworkMode =
     stage === 'ai' || stage === 'relationship_loading'
@@ -202,6 +213,7 @@ function App() {
   // skip the consent and dispatch to the specific runner.
   const startModule = (moduleId: ModuleId) => {
     if (!chat) return
+    if (moduleId === 'relationship' && !canAnalyzeRelationship) return
     // If a result for this module already exists, navigate there
     const existingStage: Record<ModuleId, Stage> = {
       profiles: 'profiles',
@@ -266,6 +278,7 @@ function App() {
 
   const goToRelationship = async () => {
     if (!chat || !prepared) return
+    if (!canAnalyzeRelationship) return
     if (relationship) {
       setStage('relationship')
       return
@@ -316,12 +329,14 @@ function App() {
                 >
                   ← Hard Facts
                 </button>
-                <button
-                  onClick={goToRelationship}
-                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
-                >
-                  Relationship →
-                </button>
+                {canAnalyzeRelationship && (
+                  <button
+                    onClick={goToRelationship}
+                    className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
+                  >
+                    Relationship →
+                  </button>
+                )}
               </>
             )}
             {stage === 'relationship' && (
@@ -391,7 +406,12 @@ function App() {
               chatId={currentChatId}
               onStartAi={startAiAnalysis}
               onStartModule={startModule}
+              canAnalyzeRelationship={canAnalyzeRelationship}
               mode={hfMode}
+              completedModules={[
+                profiles ? ('profiles' as const) : null,
+                relationship ? ('relationship' as const) : null,
+              ].filter((m): m is ModuleId => m !== null)}
               onExhibitComplete={() => {
                 if (currentChatId) chatLibrary.markExhibitSeen(currentChatId)
               }}
@@ -461,7 +481,26 @@ function App() {
             </button>
           </div>
         )}
+
+        {stage === 'privacy' && (
+          <PrivacyPolicy onBack={() => setStage(library.length > 0 ? 'library' : 'upload')} />
+        )}
+        {stage === 'imprint' && (
+          <Imprint onBack={() => setStage(library.length > 0 ? 'library' : 'upload')} />
+        )}
+        {stage === 'settings' && (
+          <Settings
+            onBack={() => setStage(library.length > 0 ? 'library' : 'upload')}
+            onOpenPrivacy={() => setStage('privacy')}
+            onOpenImprint={() => setStage('imprint')}
+          />
+        )}
       </main>
+
+      {/* First-visit privacy banner */}
+      {stage !== 'privacy' && stage !== 'imprint' && stage !== 'settings' && (
+        <PrivacyBanner onReadPolicy={() => setStage('privacy')} />
+      )}
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-black text-white border-t-2 border-ink">
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-2.5 flex items-center justify-between gap-3">
@@ -490,8 +529,25 @@ function App() {
               files
             </button>
           </div>
-          <div className="hidden md:block font-mono text-[10px] tracking-[0.14em] uppercase text-white/40">
-            local · 24h delete · no account
+          <div className="flex items-center gap-3 md:gap-5 font-mono text-[10px] tracking-[0.14em] uppercase">
+            <button
+              onClick={() => setStage('settings')}
+              className="text-white/50 hover:text-pop-yellow transition-colors"
+            >
+              settings
+            </button>
+            <button
+              onClick={() => setStage('privacy')}
+              className="text-white/50 hover:text-pop-yellow transition-colors"
+            >
+              privacy
+            </button>
+            <button
+              onClick={() => setStage('imprint')}
+              className="text-white/50 hover:text-pop-yellow transition-colors hidden md:inline"
+            >
+              imprint
+            </button>
           </div>
         </div>
       </nav>

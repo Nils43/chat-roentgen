@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+/* Bunny Fonts — GDPR-compliant drop-in replacement for Google Fonts.
+ * No IP logging, no tracking, EU-hosted. The Google Fonts CDN is a known
+ * DSGVO risk in Germany (LG München 2022, 3 O 17493/20). */
+@import url('https://fonts.bunny.net/css?family=bebas-neue:400|courier-prime:400,400i,700,700i&display=swap');
 
 @tailwind base;
 @tailwind components;
