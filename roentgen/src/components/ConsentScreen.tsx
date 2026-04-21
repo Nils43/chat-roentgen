@@ -65,10 +65,30 @@ export function ConsentScreen({
           />
           <Row
             label="Who reads along"
-            value={isFixture ? 'nobody — just your device' : 'an AI (Anthropic Claude)'}
-            suffix={isFixture ? 'in test mode everything stays local' : 'stored up to 30 days, does NOT train on your data'}
+            value={isFixture ? 'nobody — just your device' : 'Anthropic Claude · USA'}
+            suffix={
+              isFixture
+                ? 'in test mode everything stays local'
+                : '30-day retention, no training, transfer under EU SCCs / DPF'
+            }
           />
         </div>
+
+        {/* Art. 9 GDPR explicit consent — chats can contain special-category data */}
+        {!isFixture && (
+          <div className="bg-pop-yellow border-2 border-ink p-5 mb-6" style={{ boxShadow: '4px 4px 0 #0A0A0A', transform: 'rotate(-0.3deg)' }}>
+            <div className="label-mono mb-2 text-ink">Explicit consent · Art. 9 GDPR</div>
+            <p className="serif-body text-base text-ink leading-snug">
+              Chats can contain sensitive stuff — health, sex life, politics, beliefs. By starting
+              this analysis, you give <strong className="not-italic">explicit consent</strong> under
+              Art. 9(2)(a) GDPR for that content to be processed by an AI in the USA, as described
+              above and in the{' '}
+              <a href="#" className="underline">privacy policy</a>.
+              You can withdraw it any time — just don't run further analyses. Already-sent slices
+              clear themselves after 30 days.
+            </p>
+          </div>
+        )}
 
         {/* Trust reassurance — plain language */}
         <div className="bg-bg-surface/60 border border-line/60 rounded-xl p-5 mb-10">
@@ -96,7 +116,7 @@ export function ConsentScreen({
             className="flex-1 btn-pop px-6 py-4 text-base"
           >
             <span aria-hidden>✨</span>
-            Start the analysis
+            {isFixture ? 'Start the analysis' : 'Consent & start'}
           </button>
           <button
             onClick={onCancel}
@@ -107,7 +127,9 @@ export function ConsentScreen({
         </div>
 
         <p className="text-ink-faint text-[11px] font-mono mt-6 leading-relaxed">
-          Hitting "Start the analysis" confirms: the chat is yours or you were part of it. No strangers' chats, please.
+          Hitting "{isFixture ? 'Start the analysis' : 'Consent & start'}" confirms: the chat is yours or you were
+          part of it, and — in live mode — you explicitly consent to the AI processing described
+          above.
         </p>
       </div>
     </div>

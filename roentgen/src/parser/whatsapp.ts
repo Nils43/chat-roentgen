@@ -196,10 +196,6 @@ export function parseWhatsApp(raw: string): ParsedChat {
     .sort((a, b) => a[1] - b[1])
     .map(([name]) => name)
 
-  if (participants.length > 12) {
-    warnings.push(`${participants.length} participants detected — group chats are only partially supported right now.`)
-  }
-
   return {
     messages,
     participants,
