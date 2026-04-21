@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>tea. — simulierter Prototyp</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+  <style>
+    :root { --pink: #FF90BB; --black: #0A0A0A; --white: #FFFFFF; --yellow: #FFE234; --ink-faint: #666; --person-a: #0A0A0A; --person-b: #FF90BB; }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--pink); color: var(--black); }
+    body { font-family: 'Courier Prime', monospace; -webkit-font-smoothing: antialiased; padding-bottom: 72px; }
+    body::before { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 0; background-image: radial-gradient(rgba(10,10,10,0.5) 1px, transparent 1.5px); background-size: 8px 8px; opacity: 0.08; }
+    #app { position: relative; z-index: 1; }
+    .bebas { font-family: 'Bebas Neue', sans-serif; }
+    .label-mono { font-family: 'Courier Prime', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; }
+    .serif-body { font-family: 'Courier Prime', monospace; font-style: italic; line-height: 1.5; }
+    .card { background: var(--white); border: 2px solid var(--black); padding: 20px 24px; box-shadow: 4px 4px 0 var(--black); position: relative; }
+    .exhibit-label { position: absolute; top: -10px; left: 16px; background: var(--black); color: var(--white); padding: 4px 8px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; transform: rotate(-2deg); z-index: 2; }
+    .circled { position: relative; display: inline-block; padding: 0 0.1em; }
+    .circled::after { content: ''; position: absolute; left: -8%; right: -8%; top: -10%; bottom: -15%; border: 2px solid var(--black); border-radius: 50%; transform: rotate(-3deg) scaleY(0.95); pointer-events: none; }
+    .btn-pop { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; background: var(--yellow); color: var(--black); border: 2px solid var(--black); box-shadow: 3px 3px 0 var(--black); font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 0.04em; cursor: pointer; transition: all 160ms; }
+    .btn-pop:hover { background: var(--white); transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--black); }
+    .sticker { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--yellow); color: var(--black); border: 1.5px solid var(--black); box-shadow: 2px 2px 0 var(--black); font-family: 'Bebas Neue', sans-serif; font-size: 14px; }
+    .split-bar { display: flex; height: 32px; border: 2px solid var(--black); overflow: hidden; }
+    .split-a { background: var(--black); color: var(--white); display: flex; align-items: center; padding: 0 10px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }
+    .split-b { background: var(--yellow); color: var(--black); display: flex; align-items: center; padding: 0 10px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; border-left: 2px solid var(--black); }
+    .metric-num { font-family: 'Bebas Neue', sans-serif; line-height: 0.9; }
+    .black-box { background: var(--black); color: var(--white); padding: 16px; box-shadow: 4px 4px 0 var(--black); }
+    .text-a { color: var(--person-a); } .text-b { color: var(--person-b); }
+
+    header.top { position: sticky; top: 0; z-index: 40; background: var(--black); color: var(--white); border-bottom: 2px solid var(--black); padding: 8px 24px; display: flex; align-items: center; justify-content: space-between; }
+    header.top .brand { font-size: 22px; font-weight: 700; cursor: pointer; font-style: italic; }
+    header.top .brand .dot { background: var(--yellow); color: var(--black); padding: 0 3px; font-style: normal; }
+    nav.bottom { position: fixed; bottom: 0; left: 0; right: 0; z-index: 40; background: var(--black); color: var(--white); border-top: 2px solid var(--black); padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; }
+    nav.bottom .tabs { display: flex; gap: 20px; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; }
+    nav.bottom .tabs button { background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; font: inherit; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; }
+    nav.bottom .tabs button.active { color: var(--yellow); }
+
+    /* Progress bar */
+    .progress-bar { position: sticky; top: 52px; z-index: 20; background: rgba(255,144,187,0.95); backdrop-filter: blur(8px); border-bottom: 2px solid var(--black); padding: 8px 24px; display: flex; align-items: center; gap: 12px; }
+    .progress-bar .counter { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700; white-space: nowrap; }
+    .progress-bar .bar { flex: 1; height: 4px; background: rgba(10,10,10,0.1); position: relative; }
+    .progress-bar .bar .fill { position: absolute; inset: 0; right: auto; background: var(--black); transition: width 300ms; }
+
+    .page { display: none; max-width: 1080px; margin: 0 auto; padding: 28px 24px 40px; }
+    .page.active { display: block; }
+    .room { display: none; }
+    .room.active { display: block; }
+    .section-kicker { display: flex; align-items: baseline; gap: 8px; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 8px; }
+    .section-kicker .num { color: var(--ink-faint); }
+    .section-kicker .label { color: var(--person-b); }
+    .section-title { font-family: 'Bebas Neue', sans-serif; font-size: clamp(28px, 6vw, 48px); line-height: 1.05; letter-spacing: 0.01em; margin: 0 0 8px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+    .gimmick { min-height: 60vh; display: flex; align-items: center; justify-content: center; text-align: center; }
+    .gimmick .stamp { display: inline-block; font-family: 'Bebas Neue', sans-serif; font-size: clamp(48px, 12vw, 80px); border: 4px solid var(--black); padding: 8px 24px; background: var(--yellow); box-shadow: 8px 8px 0 var(--black); transform: rotate(-3deg); }
+    .gimmick .sub { margin-top: 24px; font-style: italic; color: var(--ink-faint); font-size: 16px; }
+
+    .next-btn-wrap { position: fixed; bottom: 56px; left: 0; right: 0; z-index: 30; text-align: center; pointer-events: none; }
+    .next-btn-wrap button { pointer-events: auto; font-family: 'Bebas Neue', sans-serif; font-size: clamp(20px, 5vw, 36px); padding: 12px 32px; background: var(--yellow); border: 2px solid var(--black); box-shadow: 6px 6px 0 var(--black); cursor: pointer; transform: rotate(-0.6deg); }
+    .next-btn-wrap button:hover { background: var(--white); }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-up { animation: fadeUp 400ms ease both; }
+    @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr 1fr; } .grid-3 { grid-template-columns: 1fr 1fr 1fr; } }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <header class="top">
+    <div class="brand" onclick="goRoom(0)">tea<span class="dot">.</span></div>
+    <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.4);">local only</div>
+  </header>
+
+  <!-- Progress bar -->
+  <div class="progress-bar">
+    <button onclick="prevRoom()" style="background:var(--white);border:2px solid var(--black);padding:4px 10px;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;cursor:pointer;box-shadow:2px 2px 0 var(--black);" id="back-btn">← BACK</button>
+    <div class="counter"><span id="room-num">01</span> / 11</div>
+    <div class="bar"><div class="fill" id="progress-fill" style="width:9%"></div></div>
+  </div>
+
+  <div class="page active" id="rooms-page" style="padding-bottom:100px;">
+
+    <!-- ROOM 1: OPENER -->
+    <div class="room active" id="room-0">
+      <div class="label-mono" style="color:var(--ink-faint);margin-bottom:8px;">intel · lena & max · filed</div>
+      <h2 class="bebas" style="font-size:clamp(60px,18vw,160px);line-height:0.85;margin:0 0 16px;">RECEIPTS</h2>
+      <div class="card" style="transform:rotate(-0.3deg);margin-bottom:20px;">
+        <span class="exhibit-label">EXHIBIT 0</span>
+        <p class="serif-body" style="font-size:16px;margin:8px 0 0;">
+          <strong style="font-style:normal;">13.327 messages</strong> in <strong style="font-style:normal;">412 days</strong>. <span class="circled">Lena</span> writes <strong style="font-style:normal;">67%</strong> of them.
+        </p>
+      </div>
+      <div class="grid-3">
+        <div class="card"><div class="label-mono" style="margin-bottom:4px;">Messages</div><div class="metric-num" style="font-size:36px;">13.327</div></div>
+        <div class="card"><div class="label-mono" style="margin-bottom:4px;">Active days</div><div class="metric-num" style="font-size:36px;">312</div></div>
+        <div class="card"><div class="label-mono" style="margin-bottom:4px;">Longest silence</div><div class="metric-num" style="font-size:36px;">7D</div></div>
+      </div>
+    </div>
+
+    <!-- ROOM 2: DISTRIBUTION -->
+    <div class="room" id="room-1">
+      <div class="section-kicker"><span class="num">01</span><span>/</span><span class="label">distribution</span></div>
+      <h3 class="section-title">WHO WRITES MORE?</h3>
+      <p class="serif-body" style="font-size:15px;margin-bottom:16px;">Lena puts in 67% of the words. Noticeably uneven.</p>
+      <div class="card">
+        <div class="label-mono" style="margin-bottom:8px;">Share of messages</div>
+        <div class="split-bar"><div class="split-a" style="flex:67;">Lena · 67%</div><div class="split-b" style="flex:33;">Max · 33%</div></div>
+        <div class="grid-2" style="margin-top:16px;">
+          <div><div class="label-mono text-a" style="margin-bottom:4px;">Lena</div><div class="metric-num" style="font-size:28px;">16 words/msg</div><div style="font-size:20px;margin-top:4px;">💕 😊 🥺</div></div>
+          <div><div class="label-mono text-b" style="margin-bottom:4px;">Max</div><div class="metric-num" style="font-size:28px;">9 words/msg</div><div style="font-size:20px;margin-top:4px;">👍 😂</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROOM 3: SPEED -->
+    <div class="room" id="room-2">
+      <div class="section-kicker"><span class="num">02</span><span>/</span><span class="label">speed</span></div>
+      <h3 class="section-title">WHO REPLIES HOW FAST?</h3>
+      <p class="serif-body" style="font-size:15px;margin-bottom:16px;">Lena replies in 4 minutes. Max takes 3 hours. That gap says something.</p>
+      <div class="grid-2">
+        <div class="card"><div class="label-mono">Lena</div><div class="metric-num" style="font-size:48px;">4min</div></div>
+        <div class="card"><div class="label-mono text-b">Max</div><div class="metric-num text-b" style="font-size:48px;">3h</div></div>
+      </div>
+    </div>
+
+    <!-- ROOM 4: INITIATIVE -->
+    <div class="room" id="room-3">
+      <div class="section-kicker"><span class="num">03</span><span>/</span><span class="label">initiative</span></div>
+      <h3 class="section-title">WHO STARTS THE CONVERSATION?</h3>
+      <p class="serif-body" style="font-size:15px;margin-bottom:16px;">After a pause of 4h+, Lena writes first 82% of the time.</p>
+      <div class="card" style="margin-bottom:12px;">
+        <div class="label-mono" style="margin-bottom:8px;">First message after a pause</div>
+        <div class="split-bar"><div class="split-a" style="flex:82;">Lena · 82%</div><div class="split-b" style="flex:18;">Max · 18%</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card"><div class="label-mono" style="margin-bottom:4px;">Peak day</div><div class="metric-num" style="font-size:22px;">03/12 · 47 msgs</div></div>
+        <div class="card"><div class="label-mono" style="margin-bottom:4px;">Longest silence</div><div class="metric-num" style="font-size:28px;">7 days</div></div>
+      </div>
+    </div>
+
+    <!-- ROOM 5: AFTER HOURS -->
+    <div class="room" id="room-4">
+      <div class="section-kicker"><span class="num">04</span><span>/</span><span class="label">after hours</span></div>
+      <h3 class="section-title">WHO WRITES WHEN NOBODY IS WATCHING?</h3>
+      <p class="serif-body" style="font-size:15px;margin-bottom:16px;">Late night messages (11pm-5am) and burst sequences. When masks slip.</p>
+      <div class="grid-2">
+        <div class="card">
+          <div class="label-mono" style="margin-bottom:8px;">Lena</div>
+          <div class="metric-num" style="font-size:28px;">214 late</div>
+          <div style="font-size:13px;color:var(--ink-faint);margin:4px 0 12px;">73% of late-night messages</div>
+          <div style="border-top:1px solid #ddd;padding-top:8px;">
+            <div class="metric-num" style="font-size:22px;">22 bursts</div>
+            <div style="font-size:12px;color:var(--ink-faint);">longest: 11 in a row</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="label-mono text-b" style="margin-bottom:8px;">Max</div>
+          <div class="metric-num" style="font-size:28px;">79 late</div>
+          <div style="font-size:13px;color:var(--ink-faint);margin:4px 0 12px;">27% of late-night messages</div>
+          <div style="border-top:1px solid #ddd;padding-top:8px;">
+            <div class="metric-num" style="font-size:22px;">6 bursts</div>
+            <div style="font-size:12px;color:var(--ink-faint);">longest: 4 in a row</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROOM 6: YOUR HOUR -->
+    <div class="room" id="room-5">
+      <div class="section-kicker"><span class="num">05</span><span>/</span><span class="label">your hour</span></div>
+      <h3 class="section-title">WHEN DO YOU THINK OF EACH OTHER?</h3>
+      <p class="serif-body" style="font-size:15px;margin-bottom:16px;">Lena texts most at 11pm. Max at 2pm. Different rhythms.</p>
+      <div class="grid-2">
+        <div class="card" style="text-align:center;padding:28px 16px;">
+          <div class="label-mono" style="margin-bottom:8px;">Lena</div>
+          <div class="metric-num" style="font-size:56px;">11PM</div>
+          <div style="font-size:13px;color:var(--ink-faint);margin-top:4px;">most active hour</div>
+        </div>
+        <div class="card" style="text-align:center;padding:28px 16px;">
+          <div class="label-mono text-b" style="margin-bottom:8px;">Max</div>
+          <div class="metric-num text-b" style="font-size:56px;">2PM</div>
+          <div style="font-size:13px;color:var(--ink-faint);margin-top:4px;">most active hour</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROOM 7: EFFORT -->
+    <div class="room" id="room-6">
+      <div class="section-kicker"><span class="num">06</span><span>/</span><span class="label">effort</span></div>
+      <h3 class="section-title">WHO GIVES ONE-WORD ANSWERS?</h3>
+      <p class="serif-body" style="font-size:15px;margin-bottom:16px;">48% of Max's messages are 3 words or less. Short replies aren't always bad - but they add up.</p>
+      <div class="grid-2">
+        <div class="card">
+          <div class="label-mono" style="margin-bottom:8px;">Lena</div>
+          <div class="metric-num" style="font-size:40px;">12%</div>
+          <div style="font-size:12px;color:var(--ink-faint);">messages with 1-3 words</div>
+          <div style="border-top:1px solid #ddd;padding-top:8px;margin-top:12px;">
+            <div class="metric-num" style="font-size:24px;">16</div>
+            <div style="font-size:12px;color:var(--ink-faint);">avg words per message</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="label-mono text-b" style="margin-bottom:8px;">Max</div>
+          <div class="metric-num text-b" style="font-size:40px;">48%</div>
+          <div style="font-size:12px;color:var(--ink-faint);">messages with 1-3 words</div>
+          <div style="border-top:1px solid #ddd;padding-top:8px;margin-top:12px;">
+            <div class="metric-num" style="font-size:24px;">9</div>
+            <div style="font-size:12px;color:var(--ink-faint);">avg words per message</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROOM 8: FIRST & LAST -->
+    <div class="room" id="room-7">
+      <div class="section-kicker"><span class="num">07</span><span>/</span><span class="label">first & last</span></div>
+      <h3 class="section-title">WHO STARTS THE DAY - WHO ENDS IT?</h3>
+      <p class="serif-body" style="font-size:15px;margin-bottom:16px;">Out of 312 active days. The person who texts first in the morning is thinking of you before anything else.</p>
+      <div class="card" style="margin-bottom:12px;transform:rotate(-0.2deg);">
+        <div class="label-mono" style="margin-bottom:12px;">First message of the day</div>
+        <div class="grid-2">
+          <div><div class="metric-num" style="font-size:36px;">241x</div><div style="font-size:12px;color:var(--ink-faint);">Lena · 77%</div></div>
+          <div><div class="metric-num text-b" style="font-size:36px;">71x</div><div style="font-size:12px;color:var(--ink-faint);">Max · 23%</div></div>
+        </div>
+      </div>
+      <div class="card" style="transform:rotate(0.15deg);">
+        <div class="label-mono" style="margin-bottom:12px;">Last message of the day</div>
+        <div class="grid-2">
+          <div><div class="metric-num" style="font-size:36px;">198x</div><div style="font-size:12px;color:var(--ink-faint);">Lena · 63%</div></div>
+          <div><div class="metric-num text-b" style="font-size:36px;">114x</div><div style="font-size:12px;color:var(--ink-faint);">Max · 37%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROOM 9: OVER TIME -->
+    <div class="room" id="room-8">
+      <div class="section-kicker"><span class="num">08</span><span>/</span><span class="label">over time</span></div>
+      <h3 class="section-title">HOW THIS CHAT CHANGED</h3>
+      <p class="serif-body" style="font-size:15px;margin-bottom:16px;">This chat is cooling down. The last weeks had 61% fewer messages than the beginning. Peak week: Mar 8 with 218 messages.</p>
+      <!-- Simulated chart -->
+      <div class="card" style="padding:16px;">
+        <svg viewBox="0 0 300 80" style="width:100%;height:auto;">
+          <line x1="0" y1="79" x2="300" y2="79" stroke="#0A0A0A" stroke-width="0.5" opacity="0.2"/>
+          <line x1="0" y1="40" x2="300" y2="40" stroke="#0A0A0A" stroke-width="0.3" stroke-dasharray="2,4" opacity="0.15"/>
+          <!-- Lena line -->
+          <polyline points="0,20 30,15 60,10 90,25 120,18 150,30 180,40 210,50 240,55 270,65 300,70" fill="none" stroke="#0A0A0A" stroke-width="2"/>
+          <!-- Max line -->
+          <polyline points="0,50 30,48 60,45 90,52 120,50 150,55 180,60 210,65 240,68 270,72 300,75" fill="none" stroke="#FF90BB" stroke-width="2"/>
+          <!-- Peak marker -->
+          <line x1="60" y1="0" x2="60" y2="79" stroke="#FFE234" stroke-width="1.5" stroke-dasharray="3,3"/>
+          <rect x="42" y="0" width="36" height="12" fill="#FFE234" stroke="#0A0A0A" stroke-width="0.8"/>
+          <text x="60" y="9" text-anchor="middle" font-size="6" font-family="Courier Prime" font-weight="bold">PEAK</text>
+        </svg>
+        <div style="display:flex;gap:12px;margin-top:8px;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;">
+          <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:2px;background:#0A0A0A;"></span> Lena</span>
+          <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:2px;background:#FF90BB;"></span> Max</span>
+        </div>
+      </div>
+      <div class="grid-3" style="margin-top:12px;">
+        <div class="card"><div class="label-mono" style="margin-bottom:4px;">Start</div><div class="metric-num" style="font-size:24px;">52/wk</div></div>
+        <div class="card"><div class="label-mono" style="margin-bottom:4px;">Peak</div><div class="metric-num" style="font-size:24px;color:var(--person-b);">218/wk</div></div>
+        <div class="card"><div class="label-mono" style="margin-bottom:4px;">Now</div><div class="metric-num" style="font-size:24px;color:red;">20/wk</div></div>
+      </div>
+      <div class="card" style="margin-top:12px;transform:rotate(-0.2deg);">
+        <div class="label-mono" style="margin-bottom:8px;">Who holds the contact</div>
+        <div class="grid-2">
+          <div><div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:2px;">First half</div><div class="metric-num" style="font-size:24px;">Lena · 78%</div></div>
+          <div><div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:2px;">Second half</div><div class="metric-num" style="font-size:24px;">Lena · 89%</div></div>
+        </div>
+        <p class="serif-body" style="font-size:13px;margin:8px 0 0;color:var(--ink-faint);">Lena kept the initiative throughout - rose by 11 points.</p>
+      </div>
+    </div>
+
+    <!-- ROOM 10: SPILL IT -->
+    <div class="room" id="room-9">
+      <div class="gimmick">
+        <div>
+          <div class="stamp">SPILL IT.</div>
+          <div class="sub">the numbers were the what. the analysis is the why.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROOM 11: PAYWALL -->
+    <div class="room" id="room-10">
+      <div class="label-mono" style="color:var(--ink-faint);margin-bottom:4px;">two analyses · 3 each</div>
+      <h3 class="bebas" style="font-size:clamp(48px,14vw,120px);line-height:0.82;margin:0 0 8px;">THE DEEP <span style="background:var(--yellow);padding:0 4px;">TEA.</span></h3>
+      <p class="serif-body" style="font-size:17px;margin-bottom:24px;">the numbers were the <em>what</em>. two analyses are the <em>why</em>.</p>
+      <div class="grid-2" style="gap:16px;">
+        <div class="card" style="transform:rotate(-0.4deg);display:flex;flex-direction:column;">
+          <span class="exhibit-label">FILE 01</span>
+          <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-faint);margin-top:4px;">about lena</div>
+          <div class="bebas" style="font-size:28px;margin:4px 0;">PERSONAL ANALYSIS.</div>
+          <p class="serif-body" style="font-size:13px;margin:0 0 12px;">how you actually write - patterns, tells, the moves you keep making.</p>
+          <div style="border-top:2px dashed rgba(10,10,10,0.2);padding-top:8px;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:rgba(10,10,10,0.6);flex:1;">
+            <div>- how you write when max goes quiet</div>
+            <div>- the soft words you use 28% of the time</div>
+            <div>- the move you keep making after every fight</div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:8px;border-top:2px solid var(--black);">
+            <span class="btn-pop" style="font-size:16px;padding:6px 14px;">UNLOCK</span>
+            <span class="bebas" style="font-size:32px;">3</span>
+          </div>
+        </div>
+        <div class="card" style="transform:rotate(0.5deg);display:flex;flex-direction:column;">
+          <span class="exhibit-label">FILE 02</span>
+          <div style="font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink-faint);margin-top:4px;">lena x max</div>
+          <div class="bebas" style="font-size:28px;margin:4px 0;">RELATIONSHIP ANALYSIS.</div>
+          <p class="serif-body" style="font-size:13px;margin:0 0 12px;">what's actually going on between lena and max - who gives more, unwritten rules.</p>
+          <div style="border-top:2px dashed rgba(10,10,10,0.2);padding-top:8px;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:rgba(10,10,10,0.6);flex:1;">
+            <div>- why lena does 67% of the talking</div>
+            <div>- the rule neither of you said out loud</div>
+            <div>- who leads, who follows, and when it flipped</div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:8px;border-top:2px solid var(--black);">
+            <span class="btn-pop" style="font-size:16px;padding:6px 14px;">UNLOCK</span>
+            <span class="bebas" style="font-size:32px;">3</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- NEXT button -->
+  <div class="next-btn-wrap" id="next-wrap">
+    <button onclick="nextRoom()" id="next-btn">OPEN IT →</button>
+  </div>
+
+  <nav class="bottom">
+    <div class="tabs">
+      <button class="active">leaks</button>
+      <button class="active">intel</button>
+      <button>files</button>
+    </div>
+    <div style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.3);">local · no account</div>
+  </nav>
+</div>
+
+<script>
+const TOTAL = 11;
+let current = 0;
+
+function goRoom(idx) {
+  if (idx < 0 || idx >= TOTAL) return;
+  document.querySelectorAll('.room').forEach((r, i) => r.classList.toggle('active', i === idx));
+  current = idx;
+  document.getElementById('room-num').textContent = String(idx + 1).padStart(2, '0');
+  document.getElementById('progress-fill').style.width = `${((idx + 1) / TOTAL) * 100}%`;
+  document.getElementById('back-btn').style.visibility = idx > 0 ? 'visible' : 'hidden';
+  const btn = document.getElementById('next-btn');
+  if (idx === 0) btn.textContent = 'OPEN IT →';
+  else if (idx >= TOTAL - 2) btn.textContent = 'FINAL TAKE →';
+  else btn.textContent = 'NEXT →';
+  document.getElementById('next-wrap').style.display = idx >= TOTAL - 1 ? 'none' : '';
+  window.scrollTo(0, 0);
+}
+
+function nextRoom() { goRoom(current + 1); }
+function prevRoom() { goRoom(current - 1); }
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); nextRoom(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prevRoom(); }
+});
+
+goRoom(0);
+</script>
+</body>
+</html>
