@@ -88,7 +88,19 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
     | { kind: 'content'; id: string; render: () => ReactNode }
     | { kind: 'gimmick'; stamp: string; sub?: string }
 
+  // Initiation leader
+  const initLeaderIdx = facts.perPerson[0] && facts.perPerson[1]
+    ? facts.perPerson[0].initiationShare >= facts.perPerson[1].initiationShare ? 0 : 1
+    : 0
+  const initLeader = facts.perPerson[initLeaderIdx]?.author ?? personA
+  const initLeaderPct = Math.round((facts.perPerson[initLeaderIdx]?.initiationShare ?? 0) * 100)
+
+  // Top emojis comparison
+  const aEmojis = facts.perPerson[0]?.topEmojis ?? []
+  const bEmojis = facts.perPerson[1]?.topEmojis ?? []
+
   const rooms: RoomDef[] = [
+    // ── ROOM 1: OPENER — the hardest-hitting asymmetry ──
     {
       kind: 'content',
       id: 'opener',
@@ -102,101 +114,43 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
               RECEIPTS
             </h2>
           </header>
+
+          {/* The punch — biggest asymmetry front and center */}
           <div className="quote-box mt-6 max-w-2xl" style={{ transform: 'rotate(-0.3deg)' }}>
-            <span className="exhibit-label">EXHIBIT 0: PREMISE</span>
-            <p className="serif-body text-base md:text-lg mt-2">
-              Honey. <strong className="not-italic font-bold">{facts.totalMessages.toLocaleString('en-US')} messages</strong> across <strong className="not-italic font-bold">{facts.durationDays} days</strong> between <span className="circled">{personA}</span> and <span className="circled">{personB}</span>. Ten findings coming up — one per room.
+            <span className="exhibit-label">EXHIBIT 0</span>
+            <p className="serif-body text-lg md:text-xl mt-2">
+              <strong className="not-italic font-bold">{facts.totalMessages.toLocaleString('en-US')} messages</strong> in <strong className="not-italic font-bold">{facts.durationDays} days</strong>.{' '}
+              <span className="circled">{shareLeader}</span> writes <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong> of them.
             </p>
           </div>
-          <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-8">
+
+          {/* Three mini context tiles — not the main event, just orientation */}
+          <section className="grid grid-cols-3 gap-3 mt-6">
             <Tile label="Messages" value={<CountUp value={facts.totalMessages} format={(n) => Math.round(n).toLocaleString('en-US')} />} />
-            <Tile label="Words" value={<CountUp value={facts.totalWords} format={(n) => Math.round(n).toLocaleString('en-US')} />} />
             <Tile label="Active days" value={<CountUp value={facts.activeDays} format={(n) => Math.round(n).toLocaleString('en-US')} />} />
-            <Tile label="Emojis" value={<CountUp value={facts.totalEmojis} format={(n) => Math.round(n).toLocaleString('en-US')} />} />
+            <Tile label="Longest silence" value={`${facts.longestSilenceDays}d`} />
           </section>
         </>
       ),
     },
-    { kind: 'gimmick', stamp: 'TEN FINDINGS', sub: 'no judgement · just receipts' },
+
+    // ── ROOM 2: WHO WRITES MORE — distribution + words ──
     {
       kind: 'content',
       id: 'distribution',
       render: () => (
         <Section kicker="01 · Distribution" title="Who writes more?" body={shareInterp?.body}>
           <SplitBar perPerson={facts.perPerson} metric="share" label="Share of messages" />
-          <div className="mt-10">
-            <SplitBar perPerson={facts.perPerson} metric="words" label="Share of words" />
-          </div>
-        </Section>
-      ),
-    },
-    {
-      kind: 'content',
-      id: 'speed',
-      render: () => (
-        <Section kicker="02 · Speed" title="Who replies how fast?" body={interpretations.find((i) => i.metric.startsWith('reply:'))?.body}>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-10">
-            {facts.perPerson.map((p, i) => (
-              <Tile
-                key={p.author}
-                label={`${p.author} · typical`}
-                accent={PERSON_COLORS[i % PERSON_COLORS.length]}
-                value={formatDuration(p.medianReplyMs)}
-              />
-            ))}
-            {facts.perPerson.length === 2 && <div className="hidden md:block" />}
-          </div>
-          <ReplyDistribution perPerson={facts.perPerson} />
-        </Section>
-      ),
-    },
-    {
-      kind: 'content',
-      id: 'initiative',
-      render: () => (
-        <Section kicker="03 · Initiative" title="Who thinks of the other?" body={interpretations.find((i) => i.metric.startsWith('init:'))?.body}>
-          <SplitBar
-            perPerson={facts.perPerson}
-            metric="initiation"
-            label={`First message after a pause · ${facts.perPerson.reduce((s, p) => s + p.initiations, 0)} times`}
-          />
-          <div className="mt-10 grid md:grid-cols-2 gap-4">
+          <div className="mt-6 grid grid-cols-2 gap-3">
             {facts.perPerson.map((p, i) => (
               <div key={p.author} className="bg-bg-surface rounded-xl p-5">
-                <div className="label-mono mb-1">Questions</div>
-                <div className="flex items-baseline gap-3">
-                  <span className={`metric-num text-3xl ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>
-                    {(p.questionRatio * 100).toFixed(0)}%
-                  </span>
-                  <span className="font-sans text-sm text-ink-muted">of messages · {p.author}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
-      ),
-    },
-    { kind: 'gimmick', stamp: 'PLOT THICKENS', sub: 'keep going' },
-    {
-      kind: 'content',
-      id: 'howwrite',
-      render: () => (
-        <Section kicker="04 · How they write" title="Words, emojis, hedges" body={interpretations.find((i) => i.metric.startsWith('hedge:'))?.body ?? interpretations.find((i) => i.metric.startsWith('emoji:'))?.body}>
-          <div className="grid md:grid-cols-2 gap-4">
-            {facts.perPerson.map((p, i) => (
-              <div key={p.author} className="bg-bg-surface rounded-xl p-6 space-y-5">
-                <div className={`font-sans ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
-                <MiniRow label="Avg words per message" value={p.avgWords.toFixed(1)} />
-                <MiniRow label={'Soft words ("maybe", "actually")'} value={`${(p.hedgeRatio * 100).toFixed(0)}%`} />
-                <MiniRow label="Emojis per message" value={p.emojiPerMsg.toFixed(2)} />
+                <div className={`label-mono mb-1 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
+                <div className="metric-num text-2xl">{p.avgWords.toFixed(0)} words/msg</div>
                 {p.topEmojis.length > 0 && (
-                  <div>
-                    <div className="label-mono mb-2">Top emojis</div>
-                    <div className="flex gap-3 text-2xl">
-                      {p.topEmojis.map((e) => (
-                        <span key={e.emoji} title={`${e.count}×`}>{e.emoji}</span>
-                      ))}
-                    </div>
+                  <div className="flex gap-2 text-xl mt-2">
+                    {p.topEmojis.slice(0, 3).map((e) => (
+                      <span key={e.emoji} title={`${e.count}x`}>{e.emoji}</span>
+                    ))}
                   </div>
                 )}
               </div>
@@ -205,55 +159,66 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
         </Section>
       ),
     },
+
+    // ── ROOM 3: SPEED — reply times side by side ──
     {
       kind: 'content',
-      id: 'rhythm',
+      id: 'speed',
       render: () => (
-        <Section kicker="05 · Rhythm" title="When do they write?" body={`Most active day: ${fmtDayKey(facts.peakDay.date)} with ${facts.peakDay.count} messages. Messages sent on ${facts.activeDays} of ${facts.durationDays} days.`}>
-          <Heatmap matrix={facts.heatmap} />
-        </Section>
-      ),
-    },
-    {
-      kind: 'content',
-      id: 'arc',
-      render: () => (
-        <Section kicker="06 · Arc" title="How much was written — over time?" body="Each line a month, every tall spike a weekend you couldn't stop. Is it going up, holding steady, or quieting down?">
-          <EngagementCurve facts={facts} />
-        </Section>
-      ),
-    },
-    { kind: 'gimmick', stamp: 'NOW IT GETS SPICY', sub: 'nobody dares look at these' },
-    {
-      kind: 'content',
-      id: 'latenight',
-      render: () => (
-        <Section kicker="08 · After midnight" title="Who writes while the world sleeps?" body="11pm to 5am. The daytime facade drops. What's written now carries different weight.">
-          <div className="grid grid-cols-2 gap-3 md:gap-4">
+        <Section kicker="02 · Speed" title="Who replies how fast?" body={interpretations.find((i) => i.metric.startsWith('reply:'))?.body}>
+          <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
             {facts.perPerson.map((p, i) => (
               <Tile
                 key={p.author}
-                label={`${p.author} · late`}
+                label={p.author}
                 accent={PERSON_COLORS[i % PERSON_COLORS.length]}
-                value={`${p.lateNightCount} (${Math.round(p.lateNightRatio * 100)}%)`}
+                value={formatDuration(p.medianReplyMs)}
               />
             ))}
+          </div>
+          <ReplyDistribution perPerson={facts.perPerson} />
+        </Section>
+      ),
+    },
+
+    // ── ROOM 4: INITIATIVE + SILENCE — who holds the contact ──
+    {
+      kind: 'content',
+      id: 'initiative',
+      render: () => (
+        <Section kicker="03 · Initiative" title="Who starts the conversation?" body={interpretations.find((i) => i.metric.startsWith('init:'))?.body}>
+          <SplitBar
+            perPerson={facts.perPerson}
+            metric="initiation"
+            label={`After a pause of 4h+ · ${facts.perPerson.reduce((s, p) => s + p.initiations, 0)} times total`}
+          />
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <Tile label="Peak day" value={`${fmtDayKey(facts.peakDay.date)} · ${facts.peakDay.count} msgs`} />
+            <Tile label="Longest silence" value={`${facts.longestSilenceDays} days`} />
           </div>
         </Section>
       ),
     },
+
+    // ── ROOM 5: LATE NIGHT + BURSTS — the raw stuff ──
     {
       kind: 'content',
-      id: 'bursts',
+      id: 'latenight',
       render: () => (
-        <Section kicker="09 · Bursts" title="Who spams a run of messages without a reply?" body="Three or more messages in a row before the other person responds. Bursts say a lot — urgency, worry, need, pressure.">
+        <Section kicker="04 · After hours" title="Who writes when nobody is watching?" body="Late night messages (11pm–5am) and burst sequences (3+ messages without reply). When masks slip.">
           <div className="grid grid-cols-2 gap-3 md:gap-4">
             {facts.perPerson.map((p, i) => (
               <div key={p.author} className="bg-bg-surface rounded-xl p-5">
                 <div className={`label-mono mb-2 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
-                <div className="metric-num text-2xl mb-1">{p.burstCount}</div>
-                <div className="text-sm text-ink-muted">
-                  Burst sequences · longest: <span className="text-ink">{p.longestBurst}</span> messages in a row
+                <div className="metric-num text-2xl mb-1">{p.lateNightCount} late</div>
+                <div className="text-sm text-ink-muted mb-3">
+                  {Math.round(p.lateNightRatio * 100)}% of their messages
+                </div>
+                <div className="border-t border-line/40 pt-3">
+                  <div className="metric-num text-xl">{p.burstCount} bursts</div>
+                  <div className="text-sm text-ink-muted">
+                    longest: {p.longestBurst} in a row
+                  </div>
                 </div>
               </div>
             ))}
@@ -261,32 +226,159 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
         </Section>
       ),
     },
-    ...(drift.firstHalfLeader && drift.secondHalfLeader
-      ? [
-          {
-            kind: 'content' as const,
-            id: 'shift',
-            render: () => (
-              <Section kicker="10 · Shift" title="Who started — back then vs. now?" body="Whoever sends the first message after a pause is the one holding the contact. When that changes, the relationship is shifting too.">
-                <div className="grid grid-cols-2 gap-3 md:gap-4">
-                  <Tile label="First half · leader" value={`${drift.firstHalfLeader} (${Math.round(drift.firstHalfShare * 100)}%)`} />
-                  <Tile
-                    label="Second half · leader"
-                    value={`${drift.secondHalfLeader} (${Math.round(drift.secondHalfShare * 100)}%)`}
-                    accent={drift.swap ? 'text-b' : undefined}
-                  />
+
+    // ── ROOM 6: YOUR HOUR — peak texting hour per person ──
+    {
+      kind: 'content',
+      id: 'yourhour',
+      render: () => (
+        <Section kicker="05 · Your hour" title="When do you think of each other?" body={
+          facts.perPerson.length >= 2
+            ? `${personA} texts most at ${fmtHour(facts.perPerson[0].peakHour)}. ${personB} at ${fmtHour(facts.perPerson[1].peakHour)}.${facts.perPerson[0].peakHour !== facts.perPerson[1].peakHour ? ' Different rhythms.' : ' Same rhythm.'}`
+            : undefined
+        }>
+          <div className="grid grid-cols-2 gap-3">
+            {facts.perPerson.map((p, i) => (
+              <div key={p.author} className="bg-bg-surface rounded-xl p-5 text-center">
+                <div className={`label-mono mb-2 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
+                <div className="metric-num text-4xl md:text-5xl">{fmtHour(p.peakHour)}</div>
+                <div className="text-sm text-ink-muted mt-1">most active hour</div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      ),
+    },
+
+    // ── ROOM 7: SHORT REPLIES — who puts in effort ──
+    {
+      kind: 'content',
+      id: 'effort',
+      render: () => {
+        const moreShortIdx = facts.perPerson[0] && facts.perPerson[1]
+          ? facts.perPerson[0].shortReplyRatio >= facts.perPerson[1].shortReplyRatio ? 0 : 1
+          : 0
+        const shortLeader = facts.perPerson[moreShortIdx]?.author ?? personA
+        const shortPct = Math.round((facts.perPerson[moreShortIdx]?.shortReplyRatio ?? 0) * 100)
+        return (
+          <Section kicker="06 · Effort" title="Who gives one-word answers?" body={`${shortPct}% of ${shortLeader}'s messages are 3 words or less. Short replies aren't always bad — but they add up.`}>
+            <div className="grid grid-cols-2 gap-3">
+              {facts.perPerson.map((p, i) => (
+                <div key={p.author} className="bg-bg-surface rounded-xl p-5">
+                  <div className={`label-mono mb-2 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
+                  <div className="metric-num text-3xl mb-1">{Math.round(p.shortReplyRatio * 100)}%</div>
+                  <div className="text-sm text-ink-muted">messages with 1-3 words</div>
+                  <div className="mt-3 border-t border-line/40 pt-3">
+                    <div className="metric-num text-xl">{p.avgWords.toFixed(0)}</div>
+                    <div className="text-sm text-ink-muted">avg words per message</div>
+                  </div>
                 </div>
-                <p className="serif-body text-base text-ink-muted mt-4">
+              ))}
+            </div>
+          </Section>
+        )
+      },
+    },
+
+    // ── ROOM 8: FIRST & LAST — who starts and ends the day ──
+    {
+      kind: 'content',
+      id: 'firstlast',
+      render: () => {
+        const totalDays = facts.activeDays || 1
+        return (
+          <Section kicker="07 · First & last" title="Who starts the day — who ends it?" body={`Out of ${totalDays} active days. The person who texts first in the morning is thinking of you before anything else.`}>
+            <div className="space-y-4">
+              <div className="card" style={{ transform: 'rotate(-0.2deg)' }}>
+                <div className="label-mono mb-3">First message of the day</div>
+                <div className="grid grid-cols-2 gap-4">
+                  {facts.perPerson.map((p, i) => (
+                    <div key={p.author}>
+                      <div className={`metric-num text-3xl ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.firstOfDayCount}x</div>
+                      <div className="text-sm text-ink-muted">{p.author} · {Math.round((p.firstOfDayCount / totalDays) * 100)}%</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="card" style={{ transform: 'rotate(0.15deg)' }}>
+                <div className="label-mono mb-3">Last message of the day</div>
+                <div className="grid grid-cols-2 gap-4">
+                  {facts.perPerson.map((p, i) => (
+                    <div key={p.author}>
+                      <div className={`metric-num text-3xl ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.lastOfDayCount}x</div>
+                      <div className="text-sm text-ink-muted">{p.author} · {Math.round((p.lastOfDayCount / totalDays) * 100)}%</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Section>
+        )
+      },
+    },
+
+    // ── ROOM 9: ARC + SHIFT — how it changed over time ──
+    {
+      kind: 'content',
+      id: 'arc',
+      render: () => {
+        // Compute trend: compare first third vs last third of weekly data
+        const w = facts.weekly
+        const thirdLen = Math.max(1, Math.floor(w.length / 3))
+        const firstThird = w.slice(0, thirdLen)
+        const lastThird = w.slice(-thirdLen)
+        const avgFirst = firstThird.reduce((s, b) => s + b.count, 0) / firstThird.length
+        const avgLast = lastThird.reduce((s, b) => s + b.count, 0) / lastThird.length
+        const changePct = avgFirst > 0 ? Math.round(((avgLast - avgFirst) / avgFirst) * 100) : 0
+        const peakWeek = w.reduce((best, b) => b.count > best.count ? b : best, w[0])
+
+        let trendBody: string
+        if (changePct > 30) {
+          trendBody = `This chat is heating up. The last weeks had ${Math.abs(changePct)}% more messages than the beginning. Peak week: ${fmtDayKey2(peakWeek.weekStart)} with ${peakWeek.count} messages.`
+        } else if (changePct < -30) {
+          trendBody = `This chat is cooling down. The last weeks had ${Math.abs(changePct)}% fewer messages than the beginning. Peak week: ${fmtDayKey2(peakWeek.weekStart)} with ${peakWeek.count} messages.`
+        } else {
+          trendBody = `Message volume stayed roughly stable. Peak week: ${fmtDayKey2(peakWeek.weekStart)} with ${peakWeek.count} messages.`
+        }
+
+        return (
+          <Section kicker="05 · Over time" title="How this chat changed" body={trendBody}>
+            <EngagementCurve facts={facts} />
+
+            {/* Concrete before/after comparison */}
+            <div className="mt-6 grid grid-cols-3 gap-3">
+              <Tile label="Start" value={`${Math.round(avgFirst)}/wk`} />
+              <Tile label="Peak" value={`${peakWeek.count}/wk`} accent="text-a" />
+              <Tile label="Now" value={`${Math.round(avgLast)}/wk`} accent={changePct < -20 ? 'text-b' : undefined} />
+            </div>
+
+            {drift.firstHalfLeader && drift.secondHalfLeader && (
+              <div className="mt-6 card" style={{ transform: 'rotate(-0.2deg)' }}>
+                <div className="label-mono mb-2">Who holds the contact</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/50 mb-1">First half</div>
+                    <div className="metric-num text-2xl">{drift.firstHalfLeader} · {Math.round(drift.firstHalfShare * 100)}%</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/50 mb-1">Second half</div>
+                    <div className={`metric-num text-2xl ${drift.swap ? 'text-b' : ''}`}>{drift.secondHalfLeader} · {Math.round(drift.secondHalfShare * 100)}%</div>
+                  </div>
+                </div>
+                <p className="serif-body text-sm text-ink-muted mt-3">
                   {drift.swap
-                    ? `Initiative flipped: first ${drift.firstHalfLeader}, now ${drift.secondHalfLeader}.`
-                    : `${drift.firstHalfLeader}'s initiative ${driftDirection} by ${Math.abs(driftDeltaPct)} points.`}
+                    ? `Initiative flipped. First ${drift.firstHalfLeader} started most conversations. Now it's ${drift.secondHalfLeader}.`
+                    : `${drift.firstHalfLeader} kept the initiative throughout — ${driftDirection} by ${Math.abs(driftDeltaPct)} points.`}
                 </p>
-              </Section>
-            ),
-          },
-        ]
-      : []),
-    { kind: 'gimmick', stamp: "SPILL IT.", sub: 'the real read starts now' },
+              </div>
+            )}
+          </Section>
+        )
+      },
+    },
+
+    // ── ROOM 7: SPILL IT + PAYWALL ──
+    { kind: 'gimmick', stamp: "SPILL IT.", sub: 'the numbers were the what. the analysis is the why.' },
     {
       kind: 'content',
       id: 'paywall',
@@ -912,5 +1004,16 @@ function fmtDayKey(key: string): string {
   if (!key) return '—'
   const [y, m, d] = key.split('-')
   return `${m}/${d}/${y.slice(2)}`
+}
+
+function fmtDayKey2(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function fmtHour(h: number): string {
+  if (h === 0) return '12am'
+  if (h < 12) return `${h}am`
+  if (h === 12) return '12pm'
+  return `${h - 12}pm`
 }
 

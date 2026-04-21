@@ -33,6 +33,15 @@ export interface PerPersonStats {
   // Bursts: sequences of 3+ messages from this person without other-side reply.
   burstCount: number
   longestBurst: number
+  // Short replies: messages with 1-3 words.
+  shortReplyCount: number
+  shortReplyRatio: number
+  // First/last message of the day
+  firstOfDayCount: number
+  lastOfDayCount: number
+  // Peak hour (0-23) — the hour this person sends the most messages
+  peakHour: number
+  peakHourCount: number
 }
 
 export interface HardFacts {
@@ -188,9 +197,19 @@ export function analyzeHardFacts(chat: ParsedChat): HardFacts {
   // Side accumulators for the new metrics.
   const lateNightAgg: Record<string, number> = {}
   const burstStats: Record<string, { count: number; longest: number }> = {}
+  const shortReplyAgg: Record<string, number> = {}
+  const hourAgg: Record<string, number[]> = {} // per person, 24 buckets
+  const firstOfDay: Record<string, number> = {}
+  const lastOfDay: Record<string, number> = {}
+  const dayLastAuthor: Map<string, string> = new Map() // dayKey -> last author seen
+  const dayFirstAuthor: Map<string, string> = new Map() // dayKey -> first author seen
   for (const p of participants) {
     lateNightAgg[p] = 0
     burstStats[p] = { count: 0, longest: 0 }
+    shortReplyAgg[p] = 0
+    hourAgg[p] = Array(24).fill(0)
+    firstOfDay[p] = 0
+    lastOfDay[p] = 0
   }
   let currentRunAuthor: string | null = null
   let currentRunLen = 0
@@ -293,10 +312,24 @@ export function analyzeHardFacts(chat: ParsedChat): HardFacts {
     const hr = msg.ts.getHours()
     if (hr >= 23 || hr < 5) lateNightAgg[msg.author] = (lateNightAgg[msg.author] ?? 0) + 1
 
+    // Short replies: 1-3 words
+    if (w >= 1 && w <= 3) shortReplyAgg[msg.author] = (shortReplyAgg[msg.author] ?? 0) + 1
+
+    // Per-hour tracking
+    if (hourAgg[msg.author]) hourAgg[msg.author][hr]++
+
+    // First/last of day tracking
+    if (!dayFirstAuthor.has(k)) dayFirstAuthor.set(k, msg.author)
+    dayLastAuthor.set(k, msg.author)
+
     prev = msg
   }
   // Flush the final run.
   flushRun()
+
+  // Tally first/last of day
+  for (const [, author] of dayFirstAuthor) firstOfDay[author] = (firstOfDay[author] ?? 0) + 1
+  for (const [, author] of dayLastAuthor) lastOfDay[author] = (lastOfDay[author] ?? 0) + 1
 
   // Peak day
   let peakDay = { date: '', count: 0 }
@@ -352,6 +385,12 @@ export function analyzeHardFacts(chat: ParsedChat): HardFacts {
       lateNightRatio: agg.messages ? (lateNightAgg[author] ?? 0) / agg.messages : 0,
       burstCount: burstStats[author]?.count ?? 0,
       longestBurst: burstStats[author]?.longest ?? 0,
+      shortReplyCount: shortReplyAgg[author] ?? 0,
+      shortReplyRatio: agg.messages ? (shortReplyAgg[author] ?? 0) / agg.messages : 0,
+      firstOfDayCount: firstOfDay[author] ?? 0,
+      lastOfDayCount: lastOfDay[author] ?? 0,
+      peakHour: (hourAgg[author] ?? []).reduce((best, c, h, arr) => c > arr[best] ? h : best, 0),
+      peakHourCount: Math.max(...(hourAgg[author] ?? [0])),
     }
   })
 
