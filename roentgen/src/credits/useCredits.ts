@@ -56,8 +56,11 @@ export function useCredits(): CreditsState {
     // Realtime: any change to the accounts/transactions rows for this user
     // bumps a refresh. Scoped by account_id so we're not listening globally.
     const sb = getSupabase()
+    // Unique suffix per mount — in StrictMode the effect runs twice and
+    // reusing the same channel name makes Supabase return the half-torn-down
+    // instance, which errors on `.on()` after `.subscribe()`.
     const channel = sb
-      .channel('credits-' + userId)
+      .channel(`credits-${userId}-${Math.random().toString(36).slice(2, 10)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'accounts', filter: `id=eq.${userId}` },
