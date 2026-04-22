@@ -1,16 +1,16 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getUnlock, setUnlock, type UnlockRecord } from './_kv'
+import { adminClient, userFromAuthHeader } from './_supabase'
 
-// Zone-2 analyzer proxy. Runs as a Vercel Function in production and is the
-// single gate between the browser and Anthropic. Two responsibilities:
+// Zone-2 analyzer proxy. Single entry between the browser and Anthropic.
 //
-//   1. Hold the Anthropic API key server-side.
-//   2. Enforce that the caller has a valid unlock receipt — a token written to
-//      Vercel KV by the Stripe webhook after a successful checkout.
+// Flow:
+//   1. Authenticate via Supabase access token (Authorization header)
+//   2. Spend one credit via the `spend_credit` Postgres RPC (atomic, returns
+//      false if balance is 0 — caller gets 402)
+//   3. Forward an allow-listed body to Anthropic
+//   4. If upstream fails, refund the credit (client gets a nice retry)
 //
-// Security posture: the request body is kept in memory for the duration of the
-// fetch only, nothing is logged, and error detail from Anthropic is suppressed
-// so infrastructure specifics don't leak to the browser.
+// Nothing logged, nothing stored. Bodies held in memory only for the fetch.
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const MAX_BODY_BYTES = 500_000
@@ -31,13 +31,27 @@ function toolName(body: AnthropicBody): string | null {
   return typeof first.name === 'string' ? first.name : null
 }
 
-// Map a tool name back to the module it serves. Keeps the paywall and the
-// analyzer in lockstep: a 'profiles' token can only run submit_profile,
-// 'relationship' can only run submit_relationship. Bundle unlocks both.
-function moduleForTool(name: string | null): 'profiles' | 'relationship' | null {
-  if (name === 'submit_profile') return 'profiles'
+function noteForTool(name: string | null): string {
+  if (name === 'submit_profile') return 'profile'
   if (name === 'submit_relationship') return 'relationship'
-  return null
+  return 'analysis'
+}
+
+async function refundCredit(accountId: string, note: string): Promise<void> {
+  const sb = adminClient()
+  // Insert a refund transaction and bump the balance. Done as a pair — not a
+  // single RPC because refunds are rare and can tolerate a second of drift.
+  await sb.from('transactions').insert({
+    account_id: accountId,
+    delta: 1,
+    kind: 'refund',
+    note,
+  })
+  const { data: acc } = await sb.from('accounts').select('credits').eq('id', accountId).maybeSingle()
+  await sb
+    .from('accounts')
+    .update({ credits: (acc?.credits ?? 0) + 1 })
+    .eq('id', accountId)
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
@@ -52,38 +66,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return
   }
 
-  // Paywall bypass — dev/preview toggle. Set PAYWALL_DISABLED=true in .env to
-  // run analyses without a paid token for product testing. Never flip this on
-  // in production.
+  // Dev bypass: PAYWALL_DISABLED=true skips auth and credits entirely. Never
+  // flip on in production.
   const paywallDisabled = process.env.PAYWALL_DISABLED === 'true'
 
-  const token = req.headers['x-unlock-token']
-  const tokenStr = Array.isArray(token) ? token[0] : token
+  let userId: string | null = null
   if (!paywallDisabled) {
-    if (!tokenStr || typeof tokenStr !== 'string' || tokenStr.length < 16) {
-      res.status(402).json({ error: 'missing_unlock_token' })
+    userId = await userFromAuthHeader(req.headers.authorization)
+    if (!userId) {
+      res.status(401).json({ error: 'not_signed_in' })
       return
     }
   }
 
-  const record = !paywallDisabled && tokenStr ? await getUnlock(tokenStr) : null
-  if (!paywallDisabled) {
-    if (!record || !record.paid) {
-      res.status(402).json({ error: 'unpaid' })
-      return
-    }
-    if (record.used) {
-      res.status(402).json({ error: 'token_used' })
-      return
-    }
-  }
-
-  // Vercel parses JSON for us by default. Fall back to raw body if it arrives
-  // as a string — belt-and-suspenders with a guard for malformed JSON.
   let body: AnthropicBody
   try {
-    body =
-      typeof req.body === 'string' ? JSON.parse(req.body) : (req.body as AnthropicBody)
+    body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body as AnthropicBody)
   } catch {
     res.status(400).json({ error: 'invalid_json' })
     return
@@ -95,22 +93,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return
   }
 
-  // Token ↔ tool check. A 'profiles' unlock cannot run the relationship tool.
-  const requestedModule = moduleForTool(toolName(body))
-  if (!requestedModule) {
-    res.status(400).json({ error: 'unknown_tool' })
-    return
-  }
-  if (!paywallDisabled && record) {
-    const tokenAllows =
-      record.module === 'bundle' || record.module === requestedModule
-    if (!tokenAllows) {
-      res.status(402).json({ error: 'wrong_module_for_token' })
+  const note = noteForTool(toolName(body))
+
+  // Spend 1 credit before calling Anthropic so a concurrent request can't
+  // double-spend. Atomic at the DB level (SELECT … FOR UPDATE).
+  if (!paywallDisabled && userId) {
+    const sb = adminClient()
+    const { data: spent, error: spendErr } = await sb.rpc('spend_credit', {
+      p_account: userId,
+      p_note: note,
+    })
+    if (spendErr) {
+      res.status(500).json({ error: 'spend_failed', message: spendErr.message })
       return
     }
-    // Bundle: already spent this half?
-    if (record.module === 'bundle' && record.spent?.includes(requestedModule)) {
-      res.status(402).json({ error: 'module_already_used' })
+    if (spent !== true) {
+      res.status(402).json({ error: 'insufficient_credits' })
       return
     }
   }
@@ -139,24 +137,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     })
 
     const text = await upstream.text()
-    if (upstream.ok && !paywallDisabled && record && tokenStr) {
-      // Burn the token only on success. If Anthropic failed the user can retry.
-      const next: UnlockRecord =
-        record.module === 'bundle'
-          ? (() => {
-              const spent = record.spent ?? []
-              const nextSpent = spent.includes(requestedModule)
-                ? spent
-                : [...spent, requestedModule]
-              const fullySpent =
-                nextSpent.includes('profiles') && nextSpent.includes('relationship')
-              return { ...record, spent: nextSpent, used: fullySpent }
-            })()
-          : { ...record, used: true }
-      await setUnlock(tokenStr, next)
+    if (!upstream.ok && !paywallDisabled && userId) {
+      // Anthropic failed — refund so the user isn't charged for a broken call.
+      try {
+        await refundCredit(userId, note + '_refund')
+      } catch {
+        // Refund failure is logged server-side only; don't leak to client.
+      }
     }
     res.status(upstream.status).setHeader('content-type', 'application/json').send(text)
   } catch {
+    if (!paywallDisabled && userId) {
+      try {
+        await refundCredit(userId, note + '_refund')
+      } catch {
+        /* ignore */
+      }
+    }
     res.status(502).json({ error: 'upstream_unreachable' })
   }
 }

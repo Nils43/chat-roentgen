@@ -1,28 +1,32 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
-import type { UnlockModule } from './_kv'
+import { userFromAuthHeader } from './_supabase'
 
-// Creates a Stripe Checkout Session and returns the hosted URL.
-//
-// The browser generates an `unlockToken` (UUID) and includes it in the body —
-// it ends up as `client_reference_id` + in session metadata. After the session
-// completes, the Stripe webhook looks up the token and writes a paid record to
-// KV. The client polls /api/unlock/:token after redirect and then unlocks the
-// corresponding module locally.
+// Create a Stripe Checkout session for a credit pack. The browser has already
+// signed the user in via Supabase phone auth and sends the access token in the
+// Authorization header — we use that to stamp the resulting session with the
+// user's auth.users.id so the webhook knows who to credit.
 
-const PRICE_ID: Record<UnlockModule, string | undefined> = {
-  profiles: process.env.STRIPE_PRICE_PROFILES,
-  relationship: process.env.STRIPE_PRICE_RELATIONSHIP,
-  bundle: process.env.STRIPE_PRICE_BUNDLE,
+type PackId = 'pack_1' | 'pack_3' | 'pack_10'
+
+const PACK_PRICE: Record<PackId, string | undefined> = {
+  pack_1: process.env.STRIPE_PRICE_PACK_1,
+  pack_3: process.env.STRIPE_PRICE_PACK_3,
+  pack_10: process.env.STRIPE_PRICE_PACK_10,
+}
+
+const PACK_TOKENS: Record<PackId, number> = {
+  pack_1: 1,
+  pack_3: 3,
+  pack_10: 10,
+}
+
+function isPackId(v: unknown): v is PackId {
+  return v === 'pack_1' || v === 'pack_3' || v === 'pack_10'
 }
 
 interface Body {
-  unlockToken?: unknown
-  module?: unknown
-}
-
-function isModule(v: unknown): v is UnlockModule {
-  return v === 'profiles' || v === 'relationship' || v === 'bundle'
+  packId?: unknown
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
@@ -37,6 +41,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return
   }
 
+  const userId = await userFromAuthHeader(req.headers.authorization)
+  if (!userId) {
+    res.status(401).json({ error: 'not_signed_in' })
+    return
+  }
+
   let body: Body
   try {
     body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) as Body
@@ -44,37 +54,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     res.status(400).json({ error: 'invalid_json' })
     return
   }
-  const token = typeof body.unlockToken === 'string' ? body.unlockToken : null
-  const mod = isModule(body.module) ? body.module : null
 
-  if (!token || token.length < 16) {
-    res.status(400).json({ error: 'invalid_token' })
-    return
-  }
-  if (!mod) {
-    res.status(400).json({ error: 'invalid_module' })
+  const pack = body.packId
+  if (!isPackId(pack)) {
+    res.status(400).json({ error: 'invalid_pack' })
     return
   }
 
-  const priceId = PRICE_ID[mod]
+  const priceId = PACK_PRICE[pack]
   if (!priceId) {
-    res.status(500).json({ error: 'missing_price_id', module: mod })
+    res.status(500).json({ error: 'missing_price_id', pack })
     return
   }
 
   const stripe = new Stripe(secret)
-
   try {
-    // Embedded checkout: Stripe's form renders inside our modal instead of
-    // redirecting. `redirect_on_completion: 'never'` pairs with an `onComplete`
-    // callback in the client — no success_url hop.
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       ui_mode: 'embedded_page',
       redirect_on_completion: 'never',
       line_items: [{ price: priceId, quantity: 1 }],
-      client_reference_id: token,
-      metadata: { unlockToken: token, module: mod },
+      client_reference_id: userId,
+      metadata: {
+        accountId: userId,
+        packId: pack,
+        tokens: String(PACK_TOKENS[pack]),
+      },
       automatic_tax: { enabled: false },
     })
     if (!session.client_secret) {

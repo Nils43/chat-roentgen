@@ -8,17 +8,13 @@ import { analyze as callApi } from './client'
 
 export interface Analyzer {
   kind: 'api' | 'fixture'
-  analyze(req: ApiRequest, signal?: AbortSignal, unlockToken?: string): Promise<ApiResponse>
+  analyze(req: ApiRequest, signal?: AbortSignal): Promise<ApiResponse>
 }
 
 export class ApiAnalyzer implements Analyzer {
   kind = 'api' as const
-  async analyze(
-    req: ApiRequest,
-    signal?: AbortSignal,
-    unlockToken?: string,
-  ): Promise<ApiResponse> {
-    return callApi(req, signal, unlockToken)
+  async analyze(req: ApiRequest, signal?: AbortSignal): Promise<ApiResponse> {
+    return callApi(req, signal)
   }
 }
 

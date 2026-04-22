@@ -61,8 +61,6 @@ export interface RunProfilesOptions {
   // If set, only profile these specific participants. Per product concept,
   // the app only profiles the *user themselves* — never the other person.
   targetPersons?: string[]
-  // Unlock token from a completed Stripe checkout. Required in 'api' mode.
-  unlockToken?: string
 }
 
 export async function runProfileAnalyses({
@@ -71,7 +69,6 @@ export async function runProfileAnalyses({
   onProgress,
   signal,
   targetPersons,
-  unlockToken,
 }: RunProfilesOptions): Promise<ProfileResult[]> {
   const { pseudonymMap } = prepared
   const facts = analyzeHardFacts(chat)
@@ -122,7 +119,6 @@ export async function runProfileAnalyses({
         tool_choice: { type: 'tool', name: PROFILE_TOOL_SCHEMA.name },
       },
       signal,
-      unlockToken,
     )
 
     const toolUse = response.content.find((b) => b.type === 'tool_use')

@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
 import { t, useLocale } from '../i18n'
 import type { HardFacts } from '../analysis/hardFacts'
 import { formatDuration } from '../analysis/hardFacts'
@@ -10,19 +9,14 @@ import { ReplyDistribution } from './charts/ReplyDistribution'
 import { ChatClock } from './charts/ChatClock'
 import type { ModuleId } from '../store/chatLibrary'
 
-type UnlockModule = 'profiles' | 'relationship' | 'bundle'
-
 interface Props {
   facts: HardFacts
   onStartAi?: () => void
   onStartModule?: (moduleId: ModuleId) => void
-  /**
-   * Paywall entry point. Called when the user picks a file they haven't paid
-   * for yet. App handles: "has receipt? → open" vs "no receipt? → Stripe".
-   */
-  onBuy?: (target: UnlockModule) => void
-  /** Which unlock is currently loading — used to disable/indicate on buttons. */
-  pendingBuy?: UnlockModule | null
+  /** Signed-in user's current credit balance. 0 → paywall nudges to buy. */
+  creditsBalance?: number
+  /** Navigate to the credits purchase page. */
+  onBuyCredits?: () => void
   /** 'exhibit' — page-by-page navigation. 'scroll' — single long page. */
   mode?: 'exhibit' | 'scroll'
   /** Called once when the user finishes the exhibit (reaches final room). */
@@ -36,7 +30,7 @@ interface Props {
 
 const PERSON_COLORS = ['text-a', 'text-b', 'text-blue-400', 'text-orange-400', 'text-violet-400']
 
-export function HardFactsView({ facts, onStartAi, onStartModule, onBuy, pendingBuy = null, mode = 'exhibit', onExhibitComplete, chatId, completedModules = [], canAnalyzeRelationship = true }: Props) {
+export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance = 0, onBuyCredits, mode = 'exhibit', onExhibitComplete, chatId, completedModules = [], canAnalyzeRelationship = true }: Props) {
   const locale = useLocale()
   const personA = facts.perPerson[0]?.author ?? 'Person A'
   const personB = facts.perPerson[1]?.author ?? 'Person B'
@@ -59,7 +53,6 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onBuy, pendingB
   const shareLeader = facts.perPerson[moreShareIdx]?.author ?? personA
   const shareLeaderPct = facts.perPerson[moreShareIdx]?.sharePct ?? 50
   const moreHedgeIdx = facts.perPerson.length > 0 ? argmax('hedgeRatio') : 0
-  const hedgeLeader = facts.perPerson[moreHedgeIdx]?.author ?? personA
   const hedgePct = Math.round((facts.perPerson[moreHedgeIdx]?.hedgeRatio ?? 0) * 100)
   const fasterIdx = facts.perPerson.reduce(
     (best, p, i, arr) => (p.medianReplyMs != null && (arr[best].medianReplyMs == null || p.medianReplyMs < arr[best].medianReplyMs!) ? i : best),
@@ -1080,23 +1073,15 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onBuy, pendingB
       id: 'paywall',
       render: () => (
         <PaywallRoom
-          facts={facts}
           personA={personA}
           personB={personB}
           shareLeader={shareLeader}
           shareLeaderPct={shareLeaderPct}
-          fasterPerson={fasterPerson}
-          slowerPerson={slowerPerson}
-          hedgeLeader={hedgeLeader}
           hedgePct={hedgePct}
-          lateLeader={lateLeader}
-          lateLeaderPct={lateLeaderPct}
-          burstLeader={burstLeader}
-          burstLongest={burstLongest}
           chatId={chatId ?? null}
           onStart={handleModule}
-          onBuy={onBuy}
-          pendingBuy={pendingBuy}
+          creditsBalance={creditsBalance}
+          onBuyCredits={onBuyCredits}
           completedModules={completedModules}
           canAnalyzeRelationship={canAnalyzeRelationship}
         />
@@ -1270,9 +1255,6 @@ export function HardFactsView({ facts, onStartAi, onStartModule, onBuy, pendingB
   )
 }
 
-const PRICE_SINGLE = 3
-const PRICE_BUNDLE = 5
-
 function ClosingRoom({ total }: { total: number }) {
   const locale = useLocale()
   return (
@@ -1304,49 +1286,28 @@ function PaywallRoom({
   hedgePct,
   chatId,
   onStart,
-  onBuy,
-  pendingBuy,
+  creditsBalance,
+  onBuyCredits,
   completedModules,
   canAnalyzeRelationship,
 }: {
-  facts: HardFacts
   personA: string
   personB: string
   shareLeader: string
   shareLeaderPct: number
-  fasterPerson: string
-  slowerPerson: string
-  hedgeLeader: string
   hedgePct: number
-  lateLeader: string
-  lateLeaderPct: number
-  burstLeader: string
-  burstLongest: number
   chatId: string | null
   onStart: (m: ModuleId) => void
-  onBuy?: (target: UnlockModule) => void
-  pendingBuy?: UnlockModule | null
+  creditsBalance: number
+  onBuyCredits?: () => void
   completedModules: ModuleId[]
   canAnalyzeRelationship: boolean
 }) {
   const locale = useLocale()
-  const [picked, setPicked] = useState<ModuleId | null>(null)
   const profilesDone = completedModules.includes('profiles')
   const relationshipDone = completedModules.includes('relationship')
+  const hasCredit = creditsBalance > 0
 
-  // Lock the body scroll while the upsell overlay is open — same idea as the
-  // checkout modal. Without this the paywall underneath can scroll behind the
-  // overlay which feels broken.
-  useEffect(() => {
-    if (!picked) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [picked])
-
-  // Personalized bullet copy — 3 concrete deliverables per file
   const youBullets = locale === 'de' ? [
     `wie du schreibst, wenn ${personB.toLowerCase()} ghostet`,
     `die softeren Wörter, die du in ${hedgePct}% deiner Messages nutzt — was sie verbergen`,
@@ -1366,225 +1327,7 @@ function PaywallRoom({
     `who leads, who follows, and when it flipped`,
   ]
 
-  // After a pick: upsell — now with clear WHAT-YOU-GET on the "other" file.
-  // In group chats there is no "other" file, so the upsell is skipped and the
-  // FileCard dispatches straight to onStart.
-  // Whether the upsell toggle is checked. Lives on the PaywallRoom so it resets
-  // every time the user re-enters the overlay.
-  const [addOther, setAddOther] = useState(false)
-  // Reset the toggle whenever the pick changes.
-  useEffect(() => {
-    setAddOther(false)
-  }, [picked])
-
-  // Upsell overlay — full-screen layer, not a same-page swap, so there's no
-  // jumpy height change in the underlying paywall room. Cart-pattern UI: the
-  // picked file is locked in, the other is a single toggle, the CTA shows the
-  // live total.
-  const upsellOverlay =
-    picked && canAnalyzeRelationship
-      ? (() => {
-          const otherId: ModuleId = picked === 'profiles' ? 'relationship' : 'profiles'
-          const pickedName = picked === 'profiles' ? 'PERSONAL ANALYSIS' : 'RELATIONSHIP ANALYSIS'
-          const otherName = otherId === 'profiles' ? 'PERSONAL ANALYSIS' : 'RELATIONSHIP ANALYSIS'
-          const pickedBullets = picked === 'profiles' ? youBullets : usBullets
-          const otherBullets = otherId === 'profiles' ? youBullets : usBullets
-          const pickedLede =
-            picked === 'profiles'
-              ? `a psychological read of how ${personA.toLowerCase()} writes — patterns, tells, the moves you keep making.`
-              : `what's actually going on between ${personA.toLowerCase()} and ${personB.toLowerCase()} — who gives more, unwritten rules, who leads when.`
-          const otherLede =
-            otherId === 'profiles'
-              ? `how ${personA.toLowerCase()} actually writes — when stakes rise, when the room goes quiet.`
-              : `what's actually happening between ${personA.toLowerCase()} and ${personB.toLowerCase()}.`
-          const total = addOther ? PRICE_BUNDLE : PRICE_SINGLE
-          const moduleToBuy: UnlockModule = addOther ? 'bundle' : picked
-          const buttonLoading = pendingBuy === moduleToBuy
-          return (
-            <div
-              className="fixed inset-0 z-[60] bg-bg overflow-y-auto"
-              style={{ animation: 'slideUpPage 220ms ease-out' }}
-            >
-              <style>{`@keyframes slideUpPage { from { transform: translateY(18px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }`}</style>
-              <div className="max-w-xl mx-auto px-5 md:px-8 py-10 space-y-6">
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setPicked(null)}
-                    className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 hover:text-ink"
-                  >
-                    ← change pick
-                  </button>
-                  <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
-                    your order
-                  </div>
-                </div>
-
-                {/* Line item: the file the user actually picked. Locked in. */}
-                <div
-                  className="bg-pop-yellow border-2 border-ink relative p-5 md:p-6"
-                  style={{ boxShadow: '6px 6px 0 #0A0A0A' }}
-                >
-                  <div className="flex items-baseline justify-between gap-3 mb-2">
-                    <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink">
-                      file {picked === 'profiles' ? '01' : '02'}
-                    </span>
-                    <span className="font-serif text-2xl md:text-3xl leading-none text-ink">€{PRICE_SINGLE}</span>
-                  </div>
-                  <div className="font-serif text-3xl md:text-4xl leading-[0.95] tracking-[-0.01em] text-ink mt-1">
-                    {pickedName}
-                  </div>
-                  <p className="serif-body text-sm md:text-base mt-2 text-ink/90">{pickedLede}</p>
-                  <ul className="mt-3 space-y-1 border-t-2 border-ink border-dashed pt-3">
-                    {pickedBullets.map((b, i) => (
-                      <li key={i} className="font-mono text-[11px] md:text-xs uppercase tracking-[0.04em] text-ink/80 flex gap-1.5 leading-snug">
-                        <span className="shrink-0">—</span>
-                        <span>{b}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Toggleable add-on — cart-pattern yes/no. Magazine cut-out vibe:
-                    outlined white when off, yellow-filled + "LOCKED IN" stamp
-                    when on, details expand beneath the fold. */}
-                <button
-                  type="button"
-                  onClick={() => setAddOther((v) => !v)}
-                  aria-pressed={addOther}
-                  className={`relative w-full text-left border-2 border-ink overflow-hidden transition-all duration-200 ${addOther ? 'bg-pop-yellow' : 'bg-white hover:bg-pop-yellow/20'}`}
-                  style={{
-                    boxShadow: addOther ? '6px 6px 0 #0A0A0A' : '4px 4px 0 #0A0A0A',
-                    transform: addOther ? 'translate(-2px, -2px) rotate(-0.3deg)' : 'rotate(0deg)',
-                  }}
-                >
-                  {/* Corner sticker that only pops in once added. */}
-                  {addOther && (
-                    <div
-                      className="absolute -top-3 -right-3 z-10 px-3 py-1 bg-ink text-pop-yellow border-2 border-ink pointer-events-none"
-                      style={{
-                        transform: 'rotate(6deg)',
-                        boxShadow: '3px 3px 0 #0A0A0A',
-                        fontFamily: "'Bebas Neue', sans-serif",
-                        fontSize: '15px',
-                        letterSpacing: '0.06em',
-                        animation: 'stampIn 180ms cubic-bezier(.2, 1.3, .4, 1)',
-                      }}
-                    >
-                      ✦ LOCKED IN
-                    </div>
-                  )}
-                  <style>{`@keyframes stampIn { 0% { transform: rotate(-20deg) scale(.5); opacity: 0 } 100% { transform: rotate(6deg) scale(1); opacity: 1 } }`}</style>
-
-                  {/* Savings ribbon along the top edge — always visible, draws the eye. */}
-                  <div className="flex items-stretch border-b-2 border-ink">
-                    <div className={`px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] ${addOther ? 'bg-ink text-pop-yellow' : 'bg-ink text-pop-yellow'}`}>
-                      {addOther ? 'added' : '+ add'}
-                    </div>
-                    <div className="flex-1 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-ink flex items-center justify-between gap-3">
-                      <span>bundle discount</span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="line-through text-ink/40">€{PRICE_SINGLE * 2}</span>
-                        <span className="font-bold">€{PRICE_BUNDLE}</span>
-                        <span
-                          className="px-1 py-0.5 bg-pop-yellow text-ink border border-ink"
-                          style={{
-                            fontFamily: "'Bebas Neue', sans-serif",
-                            fontSize: '12px',
-                            letterSpacing: '0.05em',
-                            lineHeight: '1',
-                          }}
-                        >
-                          − €{PRICE_SINGLE * 2 - PRICE_BUNDLE}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-4 md:p-5 flex items-start gap-3">
-                    <div
-                      className={`shrink-0 w-7 h-7 border-2 border-ink flex items-center justify-center mt-0.5 transition-colors ${addOther ? 'bg-ink text-pop-yellow' : 'bg-white'}`}
-                      aria-hidden
-                    >
-                      {addOther ? '✓' : '+'}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                        <span className="font-serif text-lg md:text-xl leading-tight text-ink">
-                          {otherName}
-                        </span>
-                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/70">
-                          +€{PRICE_BUNDLE - PRICE_SINGLE}
-                        </span>
-                      </div>
-                      <p className="serif-body text-sm text-ink/80 mt-1 leading-snug">{otherLede}</p>
-
-                      {/* Progressive reveal of bullets once added — the user sees
-                          exactly what they're adding, but it doesn't clutter the
-                          default view. */}
-                      <div
-                        className="grid transition-all duration-300 ease-out"
-                        style={{
-                          gridTemplateRows: addOther ? '1fr' : '0fr',
-                          opacity: addOther ? 1 : 0,
-                          marginTop: addOther ? '0.75rem' : 0,
-                        }}
-                      >
-                        <ul className="overflow-hidden space-y-1 border-t-2 border-ink border-dashed pt-3">
-                          {otherBullets.map((b, i) => (
-                            <li key={i} className="font-mono text-[11px] md:text-xs uppercase tracking-[0.04em] text-ink/80 flex gap-1.5 leading-snug">
-                              <span className="shrink-0">—</span>
-                              <span>{b}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Single dynamic CTA — shows current total. Zero ambiguity.
-                    We close the overlay immediately so the checkout modal (also
-                    at body level via portal ordering) isn't painted behind. */}
-                <button
-                  onClick={() => {
-                    if (!onBuy) return onStart(picked)
-                    onBuy(moduleToBuy)
-                    setPicked(null)
-                  }}
-                  disabled={Boolean(pendingBuy)}
-                  className="w-full bg-ink text-pop-yellow border-2 border-ink px-5 py-5 md:py-6 flex items-center justify-between hover:bg-pop-yellow hover:text-ink transition-colors disabled:opacity-60 disabled:cursor-wait"
-                  style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
-                >
-                  <span className="font-mono text-[11px] md:text-xs uppercase tracking-[0.16em]">
-                    {buttonLoading ? 'loading…' : 'continue to checkout'}
-                  </span>
-                  <span className="font-serif text-3xl md:text-4xl leading-none">
-                    €{total} →
-                  </span>
-                </button>
-
-                <div className="text-center font-mono text-[10px] uppercase tracking-[0.16em] text-ink/50">
-                  no subscription · one-time · secure via stripe
-                </div>
-              </div>
-            </div>
-          )
-        })()
-      : null
-
-  // Portal the overlay into document.body so it escapes the parent stacking
-  // context created by the exhibit room's `transform`. Without this the
-  // FINAL TAKE / NEXT navigation button above z-30 can paint over the overlay.
-  const portaledUpsellOverlay = upsellOverlay
-    ? createPortal(upsellOverlay, document.body)
-    : null
-
-  // Initial choice — THE DEEP TEA. hero + two cards + share on one final slide.
-  // The upsell (when the user has picked a file) is rendered as an overlay on
-  // top, not a same-place swap, so the paywall layout stays stable.
   return (
-    <>
-    {portaledUpsellOverlay}
     <section className="space-y-6 md:space-y-8 relative">
       {/* Final-slide marker */}
       <div
@@ -1618,6 +1361,38 @@ function PaywallRoom({
         </p>
       </header>
 
+      {/* Balance callout — what the user has right now. If 0: buy-nudge. */}
+      <div
+        className={`border-2 border-ink p-4 md:p-5 flex items-center justify-between gap-4 ${hasCredit ? 'bg-pop-yellow' : 'bg-white'}`}
+        style={{
+          boxShadow: '4px 4px 0 #0A0A0A',
+          transform: 'rotate(-0.3deg)',
+        }}
+      >
+        <div className="flex items-baseline gap-3">
+          <div
+            className="text-4xl md:text-5xl leading-none text-ink tabular-nums"
+            style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+          >
+            {creditsBalance}
+          </div>
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/70 leading-snug">
+            {locale === 'de'
+              ? creditsBalance === 1 ? 'credit · 1 analyse' : 'credits · je 1 analyse'
+              : creditsBalance === 1 ? 'credit · 1 analysis' : 'credits · 1 analysis each'}
+          </div>
+        </div>
+        {!hasCredit && onBuyCredits && (
+          <button
+            onClick={onBuyCredits}
+            className="bg-ink text-pop-yellow border-2 border-ink px-3 py-2 font-mono text-[10px] uppercase tracking-[0.16em] hover:bg-pop-yellow hover:text-ink transition-colors"
+            style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+          >
+            {locale === 'de' ? 'credits kaufen →' : 'buy credits →'}
+          </button>
+        )}
+      </div>
+
       <div className={`grid gap-3 md:gap-5 ${canAnalyzeRelationship ? 'md:grid-cols-2' : ''}`}>
         <FileCard
           num="01"
@@ -1625,15 +1400,10 @@ function PaywallRoom({
           tag={`${t('paywall.file.about', locale)} ${personA.toLowerCase()}`}
           lede={t('paywall.file01.lede', locale, { name: personA.toLowerCase() })}
           bullets={youBullets}
-          price={PRICE_SINGLE}
           tilt={-0.4}
           done={profilesDone}
-          loading={pendingBuy === 'profiles'}
-          onPick={() => {
-            if (profilesDone) return onStart('profiles')
-            if (!canAnalyzeRelationship) return onBuy ? onBuy('profiles') : onStart('profiles')
-            setPicked('profiles')
-          }}
+          onPick={() => onStart('profiles')}
+          locale={locale}
         />
         {canAnalyzeRelationship && (
           <FileCard
@@ -1642,73 +1412,25 @@ function PaywallRoom({
             tag={`${personA.toLowerCase()} × ${personB.toLowerCase()}`}
             lede={t('paywall.file02.lede', locale, { a: personA.toLowerCase(), b: personB.toLowerCase() })}
             bullets={usBullets}
-            price={PRICE_SINGLE}
             tilt={0.5}
             done={relationshipDone}
-            loading={pendingBuy === 'relationship'}
-            onPick={() => (relationshipDone ? onStart('relationship') : setPicked('relationship'))}
+            onPick={() => onStart('relationship')}
+            locale={locale}
           />
         )}
       </div>
 
-      {/* Bundle shortcut — only when Relationship is available AND at least one
-          of the two modules is still unpaid. If both are already bought there's
-          nothing to bundle. Sits under the two cards as a third path so users
-          can skip the single-pick → upsell flow. */}
-      {canAnalyzeRelationship && !(profilesDone && relationshipDone) && (
-        <button
-          type="button"
-          onClick={() => (onBuy ? onBuy('bundle') : onStart('profiles'))}
-          disabled={Boolean(pendingBuy)}
-          className="w-full bg-ink text-pop-yellow border-2 border-ink p-5 md:p-6 flex items-center justify-between gap-4 hover:bg-pop-yellow hover:text-ink transition-colors disabled:opacity-60 disabled:cursor-wait relative"
-          style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.3deg)' }}
-        >
-          <div
-            className="absolute -top-3 -right-3 px-3 py-1 bg-pop-yellow text-ink border-2 border-ink pointer-events-none"
-            style={{
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: '15px',
-              letterSpacing: '0.06em',
-              transform: 'rotate(6deg)',
-              boxShadow: '3px 3px 0 #0A0A0A',
-            }}
-          >
-            SAVE €{PRICE_SINGLE * 2 - PRICE_BUNDLE}
-          </div>
-          <div className="flex-1 min-w-0 text-left">
-            <div className="font-mono text-[10px] uppercase tracking-[0.2em] opacity-80 mb-1">
-              {t('paywall.bundle.kicker', locale)}
-            </div>
-            <div className="font-serif text-2xl md:text-3xl leading-tight tracking-tight">
-              {t('paywall.file01.title', locale).replace(/\.$/, '')} + {t('paywall.file02.title', locale).replace(/\.$/, '')}
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            <div className="font-mono text-[10px] uppercase tracking-[0.14em] opacity-70 line-through">
-              €{PRICE_SINGLE * 2}
-            </div>
-            <div className="font-serif text-4xl md:text-5xl leading-none">
-              €{PRICE_BUNDLE}
-              <span className="font-mono text-[11px] tracking-[0.14em] ml-2 opacity-80">
-                {pendingBuy === 'bundle' ? '…' : '→'}
-              </span>
-            </div>
-          </div>
-        </button>
-      )}
-
       <MiniShare chatId={chatId} personA={personA} personB={personB} isGroup={!canAnalyzeRelationship} />
 
-      {/* End marker */}
       <div className="pt-6 text-center">
         <div className="inline-block font-mono text-[10px] uppercase tracking-[0.24em] text-ink/40 border-t-2 border-dotted border-ink/30 pt-3 px-6">
           {t('paywall.endOfTape', locale)}
         </div>
       </div>
     </section>
-    </>
   )
 }
+
 
 function FileCard({
   num,
@@ -1716,7 +1438,6 @@ function FileCard({
   tag,
   lede,
   bullets,
-  price,
   tilt,
   done,
   loading,
@@ -1727,11 +1448,11 @@ function FileCard({
   tag: string
   lede: string
   bullets: string[]
-  price: number
   tilt: number
   done?: boolean
   loading?: boolean
   onPick: () => void
+  locale: 'en' | 'de'
 }) {
   const locale = useLocale()
   return (
@@ -1791,7 +1512,11 @@ function FileCard({
             >
               {t('paywall.unlock', locale)}
             </span>
-            <span className="font-serif text-3xl md:text-4xl leading-none">€{price}</span>
+            <span
+              className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink/70"
+            >
+              {locale === 'de' ? '1 credit ✦' : '1 credit ✦'}
+            </span>
           </>
         )}
       </div>

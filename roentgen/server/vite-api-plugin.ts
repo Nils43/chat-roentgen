@@ -87,12 +87,11 @@ export function apiPlugin(): Plugin {
     name: 'roentgen-api-dev',
     async configureServer(server) {
       // Dynamic imports so we don't slow down Vite boot if api/ changes.
-      const [{ default: analyze }, { default: checkout }, { default: webhook }, { default: unlock }] =
+      const [{ default: analyze }, { default: checkout }, { default: webhook }] =
         await Promise.all([
           import('../api/analyze'),
           import('../api/checkout'),
           import('../api/stripe-webhook'),
-          import('../api/unlock/[token]'),
         ])
 
       const analyzeHandler = wrap(analyze as Handler, { parseBody: true })
@@ -125,24 +124,6 @@ export function apiPlugin(): Plugin {
       server.middlewares.use('/api/analyze', methodGuard('POST', (req, res) => void analyzeHandler(req, res)))
       server.middlewares.use('/api/checkout', methodGuard('POST', (req, res) => void checkoutHandler(req, res)))
       server.middlewares.use('/api/stripe-webhook', methodGuard('POST', (req, res) => void webhookHandler(req, res)))
-
-      // Dynamic route — Vite doesn't do Next-style file-system matching.
-      server.middlewares.use((req, res, next) => {
-        if (!req.url?.startsWith('/api/unlock/')) return next()
-        if (req.method === 'OPTIONS') {
-          res.statusCode = 204
-          res.end()
-          return
-        }
-        if (req.method !== 'GET') {
-          res.statusCode = 405
-          res.setHeader('content-type', 'application/json')
-          res.end(JSON.stringify({ error: 'method_not_allowed' }))
-          return
-        }
-        const token = req.url.slice('/api/unlock/'.length).split('?')[0]
-        void wrap(unlock as Handler, { parseBody: false, extraQuery: { token } })(req, res)
-      })
     },
   }
 }

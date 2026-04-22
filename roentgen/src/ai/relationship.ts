@@ -53,8 +53,6 @@ export interface RunRelationshipOptions {
   prepared: PrepareResult
   signal?: AbortSignal
   onStart?: () => void
-  // Unlock token from a completed Stripe checkout. Required in 'api' mode.
-  unlockToken?: string
 }
 
 // Single API call that analyzes the relationship dynamic (not the individuals).
@@ -64,7 +62,6 @@ export async function runRelationshipAnalysis({
   prepared,
   signal,
   onStart,
-  unlockToken,
 }: RunRelationshipOptions): Promise<RelationshipResult> {
   const { pseudonymMap } = prepared
   const facts = analyzeHardFacts(chat)
@@ -109,7 +106,7 @@ export async function runRelationshipAnalysis({
   // payload. Empirically the second try rarely also truncates — it's cheaper
   // than asking the user to click retry and matches their expectation that
   // "a paid analysis either works or we eat the cost".
-  let response = await analyzer.analyze(request, signal, unlockToken)
+  let response = await analyzer.analyze(request, signal)
   let toolUse = response.content.find((b) => b.type === 'tool_use')
   let raw: RelationshipPayload | null =
     toolUse && toolUse.type === 'tool_use' ? (toolUse.input as RelationshipPayload) : null
@@ -118,7 +115,7 @@ export async function runRelationshipAnalysis({
     if (import.meta.env.DEV) {
       console.warn('[relationship] first pass incomplete, retrying once')
     }
-    response = await analyzer.analyze(request, signal, unlockToken)
+    response = await analyzer.analyze(request, signal)
     toolUse = response.content.find((b) => b.type === 'tool_use')
     raw = toolUse && toolUse.type === 'tool_use' ? (toolUse.input as RelationshipPayload) : raw
   }

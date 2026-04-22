@@ -23,17 +23,14 @@ import { PrivacyBanner } from './components/PrivacyBanner'
 import { t, useLocale } from './i18n'
 import type { ModuleId } from './store/chatLibrary'
 import type { ProfileResult, RelationshipResult } from './ai/types'
-import {
-  findUsableReceipt,
-  getReceipt,
-  markLocalSpent,
-  pollUnlock,
-  saveReceipt,
-  startCheckout,
-  type UnlockModule,
-} from './payments/client'
 import { CheckoutModal, getStripe } from './components/CheckoutModal'
-import { AiBundleProgress, type BundleStepState } from './components/AiBundleProgress'
+import { PhoneAuth } from './components/PhoneAuth'
+import { CreditsBadge } from './components/CreditsBadge'
+import { CreditsPage } from './components/CreditsPage'
+import { useSession } from './auth/useSession'
+import { useCredits } from './credits/useCredits'
+import { startPackCheckout } from './credits/client'
+import type { Pack } from './credits/packs'
 
 type Stage =
   | 'intro'
@@ -46,7 +43,7 @@ type Stage =
   | 'profiles'
   | 'relationship_loading'
   | 'relationship'
-  | 'ai_bundle'
+  | 'credits'
   | 'privacy'
   | 'imprint'
   | 'settings'
@@ -54,6 +51,8 @@ type Stage =
 function App() {
   const library = useChatLibrary()
   const locale = useLocale()
+  const { session } = useSession()
+  const { balance, refresh: refreshCredits } = useCredits()
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [stage, setStage] = useState<Stage>(library.length > 0 ? 'library' : 'upload')
   const finishIntro = () => setStage(library.length > 0 ? 'library' : 'upload')
@@ -72,6 +71,16 @@ function App() {
   const [relationship, setRelationship] = useState<RelationshipResult | null>(null)
   const [relationshipError, setRelationshipError] = useState<string | null>(null)
 
+  // Auth modal — shown when the user clicks unlock without a session.
+  const [showAuth, setShowAuth] = useState(false)
+  // Active Stripe embedded-checkout session for a credit pack.
+  const [checkout, setCheckout] = useState<{ clientSecret: string } | null>(null)
+  // UI-level "opening checkout…" / "confirming…" overlays.
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
+  // Soft error banner for payment hiccups.
+  const [payError, setPayError] = useState<string | null>(null)
+  const [pendingModule, setPendingModule] = useState<ModuleId>('profiles')
+
   useEffect(() => {
     if (!currentChatId || !chat) return
     const snap = {
@@ -86,43 +95,20 @@ function App() {
   }, [currentChatId, fileName, chat, prepared, profiles, relationship])
 
   // Deep-link: `?scroll=<chatId>` opens that chat straight into scroll view.
-  // Data is local to each device, so this only resolves for chats the user
-  // has previously stored on this browser — shared links across devices would
-  // need a backend.
   useEffect(() => {
     const url = new URL(window.location.href)
     const sharedId = url.searchParams.get('scroll')
     if (!sharedId) return
     const meta = chatLibrary.getMeta(sharedId)
     if (!meta) return
-    chatLibrary.markExhibitSeen(sharedId) // friend skips the click-through
+    chatLibrary.markExhibitSeen(sharedId)
     void openChat(sharedId)
     url.searchParams.delete('scroll')
     window.history.replaceState({}, '', url.toString())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Active Stripe checkout session — when non-null, the CheckoutModal is open.
-  // clientSecret comes from /api/checkout; Stripe mounts its embedded form with
-  // it and fires onComplete when payment is done.
-  const [checkout, setCheckout] = useState<null | { clientSecret: string; token: string; module: UnlockModule }>(null)
-  // Which button is currently fetching a checkout session. Prevents double
-  // clicks and gives the paywall a loading state while we wait on the server.
-  const [pendingBuy, setPendingBuy] = useState<UnlockModule | null>(null)
-  const [unlockInFlight, setUnlockInFlight] = useState(false)
-  const [pendingModule, setPendingModule] = useState<ModuleId>('profiles')
-
-  // Bundle flow: when user paid for both, we run Personal + Relationship in
-  // parallel. The `pendingBundle` flag routes the consent-accept to runBundle
-  // instead of a single-module dispatch. `bundleProgress` drives the loader.
-  const [pendingBundle, setPendingBundle] = useState(false)
-  const [bundleProgress, setBundleProgress] = useState<{
-    profile: BundleStepState
-    relationship: BundleStepState
-  }>({ profile: 'pending', relationship: 'pending' })
-
-  // Pre-warm Stripe.js at app start so the modal opens instantly on first click
-  // instead of flashing empty while Stripe's script downloads.
+  // Pre-warm Stripe.js at app start.
   useEffect(() => {
     void getStripe()
   }, [])
@@ -137,8 +123,6 @@ function App() {
     }
   }, [chat])
 
-  // Relationship analysis is inherently pairwise. Group chats only get the
-  // personal file.
   const canAnalyzeRelationship = (chat?.participants.length ?? 0) === 2
 
   const networkMode: NetworkMode =
@@ -159,10 +143,6 @@ function App() {
       return
     }
     const meta = chatLibrary.create(parsed, name)
-    // Filename-based self-detection: `WhatsApp Chat mit Lena.txt` means the
-    // user is the *other* participant. If that can't be inferred we default to
-    // the first participant — it skips the self-pick step entirely. The user
-    // never sees a "which one is you?" screen.
     const self = inferSelfPerson(name, parsed) ?? parsed.participants[0] ?? null
     if (self) chatLibrary.setSelf(meta.id, self)
     const ok = await saveSession(meta.id, {
@@ -241,9 +221,6 @@ function App() {
   const startAiAnalysis = () => {
     if (!chat) return
     setPendingModule('profiles')
-    // `selfPerson` is set during upload (filename inference, or first
-    // participant as default). It's always truthy by the time we reach here —
-    // no prompt-for-self step.
     const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
     if (!meta?.selfPerson && currentChatId) {
       chatLibrary.setSelf(currentChatId, chat.participants[0] ?? '')
@@ -253,8 +230,6 @@ function App() {
     setStage('consent')
   }
 
-  // Re-run a module even when we already have a result (e.g. user switched
-  // language and wants the analysis regenerated in the new language).
   const rerunModule = (moduleId: ModuleId) => {
     if (!chat) return
     if (moduleId === 'profiles') setProfiles(null)
@@ -269,13 +244,11 @@ function App() {
     dispatchModule(moduleId)
   }
 
-  // Direct module click from HardFactsView. If we haven't shown consent yet,
-  // show it with the chosen module as pending target. If prepared exists,
-  // skip the consent and dispatch to the specific runner.
+  // Direct module click from HardFactsView. Gates: sign in → credits → consent.
   const startModule = (moduleId: ModuleId) => {
     if (!chat) return
     if (moduleId === 'relationship' && !canAnalyzeRelationship) return
-    // If a result for this module already exists, navigate there
+    // Already have a result → just navigate there, no credit spent.
     const existingStage: Record<ModuleId, Stage> = {
       profiles: 'profiles',
       relationship: 'relationship',
@@ -289,6 +262,21 @@ function App() {
       return
     }
 
+    // Paywall gate — skipped in dev, otherwise needs sign-in AND credits.
+    const disabled = import.meta.env.VITE_PAYWALL_DISABLED === 'true'
+    if (!disabled) {
+      if (!session) {
+        setPendingModule(moduleId)
+        setShowAuth(true)
+        return
+      }
+      if ((balance ?? 0) <= 0) {
+        setPendingModule(moduleId)
+        setStage('credits')
+        return
+      }
+    }
+
     setPendingModule(moduleId)
     if (!prepared) {
       const p = prepareAnalysis(chat)
@@ -299,7 +287,6 @@ function App() {
     dispatchModule(moduleId)
   }
 
-  // Runs the specific module runner. Callers must have `prepared` set.
   const dispatchModule = (moduleId: ModuleId) => {
     switch (moduleId) {
       case 'profiles':
@@ -309,97 +296,13 @@ function App() {
     }
   }
 
-  // Consent screen's accept handler. If the user paid for the bundle, run both
-  // modules in parallel; otherwise dispatch the single pending one.
-  const onConsentAccept = () => {
-    if (pendingBundle) return runBundle()
-    return dispatchModule(pendingModule)
-  }
-
-  // Bundle entry point — same gates as startAiAnalysis (selfPerson picked →
-  // consent) but sets `pendingBundle` so the consent accept fires runBundle.
-  const startBundle = () => {
-    if (!chat) return
-    setPendingBundle(true)
-    setPendingModule('profiles')
-    // Self-person is set at upload time — no picker step.
-    const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
-    if (!meta?.selfPerson && currentChatId) {
-      chatLibrary.setSelf(currentChatId, chat.participants[0] ?? '')
-    }
-    const p = prepareAnalysis(chat)
-    setPrepared(p)
-    setStage('consent')
-  }
-
-  const runBundle = async () => {
-    if (!chat) return
-    const p = prepared ?? prepareAnalysis(chat)
-    if (!prepared) setPrepared(p)
-    const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
-    const selfPerson = meta?.selfPerson ?? chat.participants[0]
-    if (!selfPerson) return
-    // The bundle token covers both halves; pull the shared receipt once.
-    const receipt = findUsableReceipt('profiles') ?? findUsableReceipt('relationship')
-    setAiError(null)
-    setRelationshipError(null)
-    setBundleProgress({ profile: 'running', relationship: 'running' })
-    setStage('ai_bundle')
-
-    const profilePromise = runProfileAnalyses({
-      chat,
-      prepared: p,
-      targetPersons: [selfPerson],
-      unlockToken: receipt?.token,
-      onProgress: () => {},
-    })
-      .then((results) => {
-        if (receipt) markLocalSpent(receipt.token, 'profiles')
-        setProfiles(results)
-        setBundleProgress((s) => ({ ...s, profile: 'done' }))
-        return true
-      })
-      .catch((e: Error) => {
-        setAiError(e.message ?? t('app.analysis.failed', locale))
-        setBundleProgress((s) => ({ ...s, profile: 'error' }))
-        return false
-      })
-
-    const relPromise = runRelationshipAnalysis({
-      chat,
-      prepared: p,
-      unlockToken: receipt?.token,
-    })
-      .then((result) => {
-        if (receipt) markLocalSpent(receipt.token, 'relationship')
-        setRelationship(result)
-        setBundleProgress((s) => ({ ...s, relationship: 'done' }))
-        return true
-      })
-      .catch((e: Error) => {
-        setRelationshipError(e.message ?? 'vibe read failed.')
-        setBundleProgress((s) => ({ ...s, relationship: 'error' }))
-        return false
-      })
-
-    const [profileOk, relOk] = await Promise.all([profilePromise, relPromise])
-    // Land on whichever succeeded. Prefer profile if both are ready — user
-    // picked the bundle, we start them in the personal file.
-    setPendingBundle(false)
-    if (profileOk) setStage('profiles')
-    else if (relOk) setStage('relationship')
-    // If neither succeeded, stay on ai_bundle so the user sees both errors +
-    // retry buttons.
-  }
+  const onConsentAccept = () => dispatchModule(pendingModule)
 
   const runAi = async () => {
     if (!chat || !prepared) return
-    // Only the user themselves is profiled — the other person has not
-    // consented to be psychologically analyzed.
     const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
     const selfPerson = meta?.selfPerson ?? chat.participants[0]
     if (!selfPerson) return
-    const receipt = findUsableReceipt('profiles')
     setAiError(null)
     setAiProgress({ done: 0, total: 1, current: selfPerson })
     setStage('ai')
@@ -408,12 +311,11 @@ function App() {
         chat,
         prepared,
         targetPersons: [selfPerson],
-        unlockToken: receipt?.token,
         onProgress: (done, total, current) => setAiProgress({ done, total, current }),
       })
-      if (receipt) markLocalSpent(receipt.token, 'profiles')
       setProfiles(results)
       setStage('profiles')
+      void refreshCredits()
     } catch (e) {
       const err = e as Error
       setAiError(err.message ?? t('app.analysis.failed', locale))
@@ -427,97 +329,45 @@ function App() {
       setStage('relationship')
       return
     }
-    const receipt = findUsableReceipt('relationship')
     setRelationshipError(null)
     setStage('relationship_loading')
     try {
-      const result = await runRelationshipAnalysis({
-        chat,
-        prepared,
-        unlockToken: receipt?.token,
-      })
-      if (receipt) markLocalSpent(receipt.token, 'relationship')
+      const result = await runRelationshipAnalysis({ chat, prepared })
       setRelationship(result)
       setStage('relationship')
+      void refreshCredits()
     } catch (e) {
       const err = e as Error
       setRelationshipError(err.message ?? t('app.relationship.failed', locale))
     }
   }
 
-  // Entry point from the paywall. If the user already has a paid receipt for
-  // this module we skip Stripe and dispatch straight to the module. Otherwise
-  // we open the embedded-checkout modal with a fresh session client_secret.
-  const handleUnlock = async (requested: UnlockModule) => {
-    if (!chat) return
-    if (pendingBuy) return // guard against double-clicks while /api/checkout flies
-    const first: 'profiles' | 'relationship' = requested === 'relationship' ? 'relationship' : 'profiles'
-    // Dev/preview toggle: skip the paywall entirely so the team can click
-    // through the product without charging themselves.
-    if (import.meta.env.VITE_PAYWALL_DISABLED === 'true') {
-      if (requested === 'bundle') return startBundle()
-      startModule(first)
+  // Buy a credit pack — opens Stripe's embedded checkout. On completion, the
+  // webhook credits the account server-side and the realtime subscription in
+  // useCredits refreshes the badge + balance automatically.
+  const handleBuyPack = async (pack: Pack) => {
+    if (!session) {
+      setShowAuth(true)
       return
     }
-    const existing = findUsableReceipt(first)
-    if (existing) {
-      // Fresh bundle (nothing spent yet) → run both halves in parallel.
-      // Bundle with one half already spent, or a single-module receipt →
-      // dispatch that one module only.
-      if (existing.module === 'bundle' && (existing.spent ?? []).length === 0) {
-        return startBundle()
-      }
-      startModule(first)
-      return
-    }
-    setPendingBuy(requested)
+    setPayError(null)
+    setCheckoutLoading(true)
     try {
-      const session = await startCheckout({ module: requested })
-      setCheckout(session)
+      const { clientSecret } = await startPackCheckout(pack)
+      setCheckout({ clientSecret })
     } catch (e) {
-      const err = e as Error
-      setPayError(err.message)
+      setPayError((e as Error).message)
     } finally {
-      setPendingBuy(null)
+      setCheckoutLoading(false)
     }
   }
-  const [payError, setPayError] = useState<string | null>(null)
 
-  // Stripe's embedded checkout fires onComplete right after the customer
-  // finishes payment. The webhook may race us, so we poll KV briefly until we
-  // see `paid`, then stash the receipt locally and dispatch the analysis.
-  const handleCheckoutComplete = async () => {
-    const session = checkout
-    if (!session) return
+  const handleCheckoutComplete = () => {
     setCheckout(null)
-    setUnlockInFlight(true)
-    try {
-      const pending = getReceipt(session.token)
-      const remote = await pollUnlock(session.token, { timeoutMs: 30_000 })
-      if (remote.paid && remote.module) {
-        saveReceipt({
-          token: session.token,
-          module: remote.module,
-          paid: true,
-          createdAt: pending?.createdAt ?? new Date().toISOString(),
-          spent: remote.spent,
-        })
-        if (remote.module === 'bundle') {
-          startBundle()
-        } else {
-          const first: 'profiles' | 'relationship' =
-            remote.module === 'relationship' ? 'relationship' : 'profiles'
-          startModule(first)
-        }
-      } else {
-        setPayError(t('app.pay.unconfirmed', locale))
-      }
-    } finally {
-      setUnlockInFlight(false)
-    }
+    void refreshCredits()
   }
 
-  // Tab mapping for the bottom-nav (LEAKS / INTEL / FILES)
+  // Tab mapping for the bottom-nav
   const currentTab: 'leaks' | 'intel' | 'files' =
     stage === 'library' || stage === 'upload' || stage === 'parsing'
       ? 'leaks'
@@ -530,6 +380,18 @@ function App() {
 
   return (
     <div className="min-h-screen bg-bg text-ink pb-20">
+      {showAuth && (
+        <PhoneAuth
+          onSuccess={() => {
+            setShowAuth(false)
+            // After sign-in, re-evaluate the gated action: if the user still
+            // has zero credits, send them to buy; else let them proceed.
+            if ((balance ?? 0) <= 0) setStage('credits')
+            else if (chat) startModule(pendingModule)
+          }}
+          onClose={() => setShowAuth(false)}
+        />
+      )}
       {checkout && (
         <CheckoutModal
           clientSecret={checkout.clientSecret}
@@ -537,17 +399,13 @@ function App() {
           onClose={() => setCheckout(null)}
         />
       )}
-      {(pendingBuy && !checkout) && (
+      {checkoutLoading && !checkout && (
         <div className="fixed inset-0 z-[75] bg-ink/80 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-pop-yellow border-2 border-ink px-6 py-4 font-mono text-xs uppercase tracking-[0.18em]" style={{ boxShadow: '4px 4px 0 #0A0A0A' }}>
+          <div
+            className="bg-pop-yellow border-2 border-ink px-6 py-4 font-mono text-xs uppercase tracking-[0.18em]"
+            style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+          >
             {t('app.pay.opening', locale)}
-          </div>
-        </div>
-      )}
-      {unlockInFlight && (
-        <div className="fixed inset-0 z-[75] bg-ink/80 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-pop-yellow border-2 border-ink px-6 py-4 font-mono text-xs uppercase tracking-[0.18em]" style={{ boxShadow: '4px 4px 0 #0A0A0A' }}>
-            {t('app.pay.confirming', locale)}
           </div>
         </div>
       )}
@@ -556,7 +414,9 @@ function App() {
           className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] max-w-md bg-pop-yellow border-2 border-ink px-4 py-3 flex items-start gap-3"
           style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
         >
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 mt-0.5">{t('app.pay.errorLabel', locale)}</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 mt-0.5">
+            {t('app.pay.errorLabel', locale)}
+          </span>
           <p className="font-serif text-sm text-ink flex-1 leading-snug">{payError}</p>
           <button
             onClick={() => setPayError(null)}
@@ -620,6 +480,10 @@ function App() {
                   : undefined
               }
             />
+            <CreditsBadge
+              onOpen={() => setStage('credits')}
+              onSignIn={() => setShowAuth(true)}
+            />
           </div>
         </div>
       </header>
@@ -668,8 +532,8 @@ function App() {
               chatId={currentChatId}
               onStartAi={startAiAnalysis}
               onStartModule={startModule}
-              onBuy={handleUnlock}
-              pendingBuy={pendingBuy}
+              creditsBalance={balance ?? 0}
+              onBuyCredits={() => setStage('credits')}
               canAnalyzeRelationship={canAnalyzeRelationship}
               mode={hfMode}
               completedModules={[
@@ -703,67 +567,6 @@ function App() {
           />
         )}
 
-        {stage === 'ai_bundle' && (
-          <AiBundleProgress
-            personal={bundleProgress.profile}
-            relationship={bundleProgress.relationship}
-            personalError={aiError}
-            relationshipError={relationshipError}
-            onBack={() => setStage('analysis')}
-            onRetry={(which) => {
-              // Kick the failed half alone. Bundle token is still half-unspent
-              // server-side, so a retry hits the same token and goes through.
-              if (which === 'personal') {
-                setBundleProgress((s) => ({ ...s, profile: 'running' }))
-                setAiError(null)
-                void (async () => {
-                  if (!chat || !prepared) return
-                  const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
-                  const selfPerson = meta?.selfPerson ?? chat.participants[0]
-                  const receipt = findUsableReceipt('profiles')
-                  try {
-                    const results = await runProfileAnalyses({
-                      chat,
-                      prepared,
-                      targetPersons: [selfPerson],
-                      unlockToken: receipt?.token,
-                      onProgress: () => {},
-                    })
-                    if (receipt) markLocalSpent(receipt.token, 'profiles')
-                    setProfiles(results)
-                    setBundleProgress((s) => ({ ...s, profile: 'done' }))
-                    if (bundleProgress.relationship === 'done') setStage('profiles')
-                  } catch (e) {
-                    setAiError((e as Error).message)
-                    setBundleProgress((s) => ({ ...s, profile: 'error' }))
-                  }
-                })()
-              } else {
-                setBundleProgress((s) => ({ ...s, relationship: 'running' }))
-                setRelationshipError(null)
-                void (async () => {
-                  if (!chat || !prepared) return
-                  const receipt = findUsableReceipt('relationship')
-                  try {
-                    const result = await runRelationshipAnalysis({
-                      chat,
-                      prepared,
-                      unlockToken: receipt?.token,
-                    })
-                    if (receipt) markLocalSpent(receipt.token, 'relationship')
-                    setRelationship(result)
-                    setBundleProgress((s) => ({ ...s, relationship: 'done' }))
-                    if (bundleProgress.profile === 'done') setStage('profiles')
-                  } catch (e) {
-                    setRelationshipError((e as Error).message)
-                    setBundleProgress((s) => ({ ...s, relationship: 'error' }))
-                  }
-                })()
-              }
-            }}
-          />
-        )}
-
         {stage === 'profiles' && profiles && (
           <ProfileView
             profiles={profiles}
@@ -792,6 +595,14 @@ function App() {
           />
         )}
 
+        {stage === 'credits' && (
+          <CreditsPage
+            onBuy={handleBuyPack}
+            onBack={() => setStage(chat ? 'analysis' : library.length > 0 ? 'library' : 'upload')}
+            onSignIn={() => setShowAuth(true)}
+          />
+        )}
+
         {stage === 'analysis' && !facts && (
           <div className="max-w-2xl mx-auto p-12 text-center">
             <p className="serif-body text-xl">{t('app.error.noFacts', locale)}</p>
@@ -816,7 +627,6 @@ function App() {
         )}
       </main>
 
-      {/* First-visit privacy banner */}
       {stage !== 'privacy' && stage !== 'imprint' && stage !== 'settings' && (
         <PrivacyBanner onReadPolicy={() => setStage('privacy')} />
       )}
@@ -849,6 +659,12 @@ function App() {
             </button>
           </div>
           <div className="flex items-center gap-3 md:gap-5 font-mono text-[10px] tracking-[0.14em] uppercase">
+            <button
+              onClick={() => setStage('credits')}
+              className="text-white/50 hover:text-pop-yellow transition-colors"
+            >
+              {locale === 'de' ? 'credits' : 'credits'}
+            </button>
             <button
               onClick={() => setStage('settings')}
               className="text-white/50 hover:text-pop-yellow transition-colors"
