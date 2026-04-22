@@ -1,5 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { adminClient, userFromAuthHeader } from './_supabase'
+
+// Imports are intentionally dynamic below. If the @supabase SDK or the
+// ./_supabase module throw at load time (e.g. bundling issue, missing env
+// that's checked eagerly), a static import at the top of the file would kill
+// the function before our try/catch can catch it — Vercel then shows an HTML
+// "Serverless Function has crashed" page instead of our JSON error.
 
 // Zone-2 analyzer proxy. Single entry between the browser and Anthropic.
 //
@@ -38,9 +43,8 @@ function noteForTool(name: string | null): string {
 }
 
 async function refundCredit(accountId: string, note: string): Promise<void> {
+  const { adminClient } = await import('./_supabase')
   const sb = adminClient()
-  // Insert a refund transaction and bump the balance. Done as a pair — not a
-  // single RPC because refunds are rare and can tolerate a second of drift.
   await sb.from('transactions').insert({
     account_id: accountId,
     delta: 1,
@@ -78,6 +82,7 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
       return sendJsonError(res, 500, 'missing_env', 'SUPABASE_SERVICE_ROLE_KEY not set on server')
     }
+    const { userFromAuthHeader } = await import('./_supabase')
     userId = await userFromAuthHeader(req.headers.authorization)
     if (!userId) return sendJsonError(res, 401, 'not_signed_in')
   }
@@ -95,6 +100,7 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
   const note = noteForTool(toolName(body))
 
   if (!paywallDisabled && userId) {
+    const { adminClient } = await import('./_supabase')
     const sb = adminClient()
     const { data: spent, error: spendErr } = await sb.rpc('spend_credit', {
       p_account: userId,
