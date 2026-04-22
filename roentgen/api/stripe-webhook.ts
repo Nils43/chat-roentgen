@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
-import { adminClient } from './_supabase'
+import { adminClient } from './_supabase.js'
 
 // Stripe webhook receiver. Two subtleties:
 //   1. Signature verification requires the *raw* request bytes. Vercel parses

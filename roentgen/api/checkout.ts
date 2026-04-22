@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import Stripe from 'stripe'
-import { userFromAuthHeader } from './_supabase'
+import { userFromAuthHeader } from './_supabase.js'
 
 // Create a Stripe Checkout session for a credit pack. The browser has already
 // signed the user in via Supabase phone auth and sends the access token in the

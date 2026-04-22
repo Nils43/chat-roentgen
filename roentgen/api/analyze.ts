@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { adminClient, userFromAuthHeader } from './_supabase'
+import { adminClient, userFromAuthHeader } from './_supabase.js'
 
 // _supabase imports are static — Vercel's bundler only pulls in relative files
 // that are statically imported; dynamic import() skips them and the function
