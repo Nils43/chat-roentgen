@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { getSupabase } from './supabase'
 
-// React hook exposing the current Supabase auth session. Re-renders on sign-in,
-// sign-out, and token refresh via Supabase's `onAuthStateChange` subscription.
-//
-// `null` = signed out, `undefined` = still loading (first render before the
-// client has had a chance to hydrate from storage).
+// Auth model: every visitor gets an **anonymous** Supabase session on first
+// load so they can buy credits before "signing up". When they finally click
+// "sign in with Google", we call linkIdentity on the anonymous user — the
+// Supabase user id stays the same, so any credits already bought stick to
+// the account. If linkIdentity fails (e.g. the Google account is already
+// bound to another profile), we fall back to plain signInWithOAuth.
 
 export function useSession(): { session: Session | null | undefined; loading: boolean } {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -15,15 +16,24 @@ export function useSession(): { session: Session | null | undefined; loading: bo
     const sb = getSupabase()
     let mounted = true
 
-    sb.auth.getSession().then(({ data }) => {
-      if (mounted) setSession(data.session ?? null)
+    sb.auth.getSession().then(async ({ data }) => {
+      if (!mounted) return
+      if (data.session) {
+        setSession(data.session)
+        return
+      }
+      // No session — sign in anonymously so the user can transact immediately.
+      try {
+        const { data: anonData, error } = await sb.auth.signInAnonymously()
+        if (mounted) setSession(!error ? (anonData.session ?? null) : null)
+      } catch {
+        if (mounted) setSession(null)
+      }
     })
 
     const { data } = sb.auth.onAuthStateChange((event, nextSession) => {
       if (mounted) setSession(nextSession ?? null)
-      // The DB trigger on auth.users is unreliable across auth providers
-      // (especially OAuth), so we force the account row ourselves every time
-      // a session lands. Idempotent: `on conflict do nothing`.
+      // Ensure the accounts row exists after every sign-in (anonymous or real).
       if (event === 'SIGNED_IN' && nextSession) {
         void sb.rpc('ensure_account')
       }
@@ -38,14 +48,28 @@ export function useSession(): { session: Session | null | undefined; loading: bo
   return { session, loading: session === undefined }
 }
 
-// Kick off the Google OAuth redirect. The browser navigates to Google, the
-// user authorizes, Supabase bounces back to the same origin with the session
-// in the URL hash — picked up automatically by the SDK on the next load.
+// "Sign in with Google" — anonymous users get linkIdentity (upgrade in place,
+// credits stay). Signed-out / already-permanent users get plain OAuth.
 export async function signInWithGoogle(): Promise<void> {
   const sb = getSupabase()
+  const { data: { session } } = await sb.auth.getSession()
+  const redirectTo = window.location.origin
+
+  if (session?.user?.is_anonymous) {
+    const { error } = await sb.auth.linkIdentity({
+      provider: 'google',
+      options: { redirectTo },
+    })
+    if (!error) return
+    // linkIdentity failed (most likely: that Google account is already
+    // linked elsewhere). Fall through to plain OAuth — credits bought on
+    // this anon session will orphan, but the user can at least proceed.
+    console.warn('[auth] linkIdentity failed, falling back to OAuth:', error.message)
+  }
+
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.origin },
+    options: { redirectTo },
   })
   if (error) throw new Error(error.message)
 }

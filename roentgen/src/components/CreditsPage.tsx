@@ -70,18 +70,18 @@ export function CreditsPage({ onBuy, onBack, onSignIn }: Props) {
         </p>
       </header>
 
-      {!session ? (
+      {session?.user?.is_anonymous ? (
         <div
           className="bg-pop-yellow border-2 border-ink p-5 md:p-6"
           style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
         >
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink/70 mb-2">
-            {r('sign in first', 'erst einloggen')}
+            {r('browser-only for now', 'nur in diesem browser')}
           </div>
           <p className="serif-body text-base text-ink mb-4">
             {r(
-              'Credits belong to your Google account so they stick around.',
-              'Credits hängen an deinem Google-Account — damit sie dir bleiben.',
+              'You can buy credits without signing up — they just stay on this browser. Link Google so they survive a cleared cookie or a new device.',
+              'Du kannst auch ohne Account Credits kaufen — sie liegen dann nur in diesem Browser. Google verknüpfen = Credits bleiben, auch nach Cookies löschen oder Gerätewechsel.',
             )}
           </p>
           <button
@@ -92,7 +92,7 @@ export function CreditsPage({ onBuy, onBack, onSignIn }: Props) {
             {r('continue with google →', 'mit google weiter →')}
           </button>
         </div>
-      ) : (
+      ) : session ? (
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink/60">
             {r('signed in as', 'eingeloggt als')} · {session.user.email}
@@ -104,7 +104,7 @@ export function CreditsPage({ onBuy, onBack, onSignIn }: Props) {
             {r('sign out', 'ausloggen')}
           </button>
         </div>
-      )}
+      ) : null}
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         {PACKS.map((p) => (
@@ -112,7 +112,7 @@ export function CreditsPage({ onBuy, onBack, onSignIn }: Props) {
             key={p.id}
             pack={p}
             pending={pending === p.id}
-            disabled={!session || pending !== null}
+            disabled={pending !== null}
             onBuy={() => handleBuy(p)}
           />
         ))}

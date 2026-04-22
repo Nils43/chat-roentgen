@@ -26,6 +26,7 @@ import type { ProfileResult, RelationshipResult } from './ai/types'
 import { CheckoutModal, getStripe } from './components/CheckoutModal'
 import { CreditsBadge } from './components/CreditsBadge'
 import { CreditsPage } from './components/CreditsPage'
+import { KeepCreditsModal } from './components/KeepCreditsModal'
 import { useSession, signInWithGoogle } from './auth/useSession'
 import { useCredits } from './credits/useCredits'
 import { startPackCheckout } from './credits/client'
@@ -72,6 +73,8 @@ function App() {
 
   // Active Stripe embedded-checkout session for a credit pack.
   const [checkout, setCheckout] = useState<{ clientSecret: string } | null>(null)
+  // Post-purchase "save your credits" prompt — only for anonymous buyers.
+  const [showKeepPrompt, setShowKeepPrompt] = useState(false)
   // UI-level "opening checkout…" / "confirming…" overlays.
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   // Soft error banner for payment hiccups.
@@ -304,13 +307,11 @@ function App() {
       return
     }
 
-    // Paywall gate — skipped in dev, otherwise needs sign-in AND credits.
+    // Paywall gate. Every visitor has an anonymous session by now, so the
+    // only check that actually gates the flow is "has credits" — users can
+    // transact before they've signed up, we nudge them to Google after.
     const disabled = import.meta.env.VITE_PAYWALL_DISABLED === 'true'
     if (!disabled) {
-      if (!session) {
-        void signInWithGoogle()
-        return
-      }
       if ((balance ?? 0) <= 0) {
         setPendingModule(moduleId)
         setStage('credits')
@@ -387,10 +388,6 @@ function App() {
   // webhook credits the account server-side and the realtime subscription in
   // useCredits refreshes the badge + balance automatically.
   const handleBuyPack = async (pack: Pack) => {
-    if (!session) {
-      void signInWithGoogle()
-      return
-    }
     setPayError(null)
     setCheckoutLoading(true)
     try {
@@ -406,6 +403,11 @@ function App() {
   const handleCheckoutComplete = () => {
     setCheckout(null)
     void refreshCredits()
+    // First-time buyers are on anonymous sessions — nudge them to link
+    // Google so the credits survive a cleared browser.
+    if (session?.user?.is_anonymous) {
+      setShowKeepPrompt(true)
+    }
   }
 
   // Tab mapping for the bottom-nav
@@ -426,6 +428,15 @@ function App() {
           clientSecret={checkout.clientSecret}
           onComplete={handleCheckoutComplete}
           onClose={() => setCheckout(null)}
+        />
+      )}
+      {showKeepPrompt && (
+        <KeepCreditsModal
+          onSignIn={() => {
+            setShowKeepPrompt(false)
+            void signInWithGoogle()
+          }}
+          onDismiss={() => setShowKeepPrompt(false)}
         />
       )}
       {checkoutLoading && !checkout && (
