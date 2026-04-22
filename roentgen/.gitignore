@@ -27,3 +27,4 @@ sample-big.txt
 *.njsproj
 *.sln
 *.sw?
+.vercel

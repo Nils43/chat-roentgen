@@ -110,6 +110,51 @@ function App() {
     void getStripe()
   }, [])
 
+  // --- URL routing for the static stages (credits / legal / settings) ---
+  // Internal wizard stages (parsing → ai → profiles …) stay state-only because
+  // they carry too much transient state to survive a refresh, and each one
+  // has no sensible URL. Only the stages a user might bookmark or share
+  // get a route.
+  useEffect(() => {
+    const stageFromPath = (p: string): Stage | null => {
+      if (p === '/credits') return 'credits'
+      if (p === '/privacy') return 'privacy'
+      if (p === '/imprint') return 'imprint'
+      if (p === '/settings') return 'settings'
+      return null
+    }
+    // Initial read — if user opens /credits directly, land there.
+    const initial = stageFromPath(window.location.pathname)
+    if (initial) setStage(initial)
+    // Browser back/forward.
+    const onPop = () => {
+      const s = stageFromPath(window.location.pathname)
+      if (s) setStage(s)
+      else setStage(chatLibrary.get().length > 0 ? 'library' : 'upload')
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Push URL when we enter (or leave) a routable stage.
+  useEffect(() => {
+    const pathFromStage = (s: Stage): string | null => {
+      if (s === 'credits') return '/credits'
+      if (s === 'privacy') return '/privacy'
+      if (s === 'imprint') return '/imprint'
+      if (s === 'settings') return '/settings'
+      return null
+    }
+    const stagePath = pathFromStage(stage)
+    const current = window.location.pathname
+    if (stagePath && current !== stagePath) {
+      window.history.pushState(null, '', stagePath)
+    } else if (!stagePath && current !== '/' && ['/credits', '/privacy', '/imprint', '/settings'].includes(current)) {
+      window.history.pushState(null, '', '/')
+    }
+  }, [stage])
+
   const facts = useMemo(() => {
     if (!chat || chat.messages.length === 0) return null
     try {
