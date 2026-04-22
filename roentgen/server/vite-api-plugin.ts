@@ -87,11 +87,12 @@ export function apiPlugin(): Plugin {
     name: 'roentgen-api-dev',
     async configureServer(server) {
       // Dynamic imports so we don't slow down Vite boot if api/ changes.
-      const [{ default: analyze }, { default: checkout }, { default: webhook }] =
+      const [{ default: analyze }, { default: checkout }, { default: webhook }, { default: ping }] =
         await Promise.all([
           import('../api/analyze'),
           import('../api/checkout'),
           import('../api/stripe-webhook'),
+          import('../api/ping'),
         ])
 
       const analyzeHandler = wrap(analyze as Handler, { parseBody: true })
@@ -99,6 +100,7 @@ export function apiPlugin(): Plugin {
       // Webhook reads the raw body stream itself — do NOT parse it here or the
       // signature check will fail.
       const webhookHandler = wrap(webhook as Handler, { parseBody: false })
+      const pingHandler = wrap(ping as Handler, { parseBody: false })
 
       // Helper: 405 with a proper JSON body instead of falling through to
       // Vite's default handler, which would otherwise serve the transpiled
@@ -124,6 +126,7 @@ export function apiPlugin(): Plugin {
       server.middlewares.use('/api/analyze', methodGuard('POST', (req, res) => void analyzeHandler(req, res)))
       server.middlewares.use('/api/checkout', methodGuard('POST', (req, res) => void checkoutHandler(req, res)))
       server.middlewares.use('/api/stripe-webhook', methodGuard('POST', (req, res) => void webhookHandler(req, res)))
+      server.middlewares.use('/api/ping', methodGuard('GET', (req, res) => void pingHandler(req, res)))
     },
   }
 }
