@@ -1,23 +1,27 @@
+import { useLocale } from '../i18n'
+
 interface Props {
   onBack: () => void
 }
 
 // §5 TMG / §18 MStV Imprint. Placeholders before go-live.
 export function Imprint({ onBack }: Props) {
+  const locale = useLocale()
+  const de = locale === 'de'
   return (
     <div className="max-w-2xl mx-auto px-5 md:px-8 pt-10 pb-24">
       <button
         onClick={onBack}
         className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink/60 hover:text-ink mb-8"
       >
-        ← back
+        {de ? '← zurück' : '← back'}
       </button>
 
       <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-2">
-        exhibit b · impressum
+        exhibit b · {de ? 'impressum' : 'imprint'}
       </div>
       <h1 className="font-serif text-[18vw] md:text-[160px] leading-[0.82] tracking-[-0.02em] text-ink overflow-hidden mb-10">
-        IMPRINT.
+        {de ? 'IMPRESSUM.' : 'IMPRINT.'}
       </h1>
 
       <article className="space-y-8 serif-body text-base md:text-lg leading-relaxed text-ink">
@@ -59,8 +63,9 @@ export function Imprint({ onBack }: Props) {
             .
           </p>
           <p>
-            We are not obligated and not willing to participate in dispute resolution proceedings
-            before a consumer arbitration board.
+            {de
+              ? 'Wir sind nicht bereit und nicht verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.'
+              : 'We are not obligated and not willing to participate in dispute resolution proceedings before a consumer arbitration board.'}
           </p>
         </Section>
 
@@ -73,9 +78,13 @@ export function Imprint({ onBack }: Props) {
           </p>
         </Section>
 
-        <Section title="Notice">
+        <Section title={de ? 'Hinweis' : 'Notice'}>
           <p className="text-sm text-ink-muted">
-            <em>Placeholders above. Replace with your actual contact info before go-live. This imprint must be reachable from every page (we link it in the footer).</em>
+            <em>
+              {de
+                ? 'Platzhalter oben. Vor dem Go-Live durch echte Kontaktdaten ersetzen. Das Impressum muss von jeder Seite erreichbar sein (im Footer verlinkt).'
+                : 'Placeholders above. Replace with your actual contact info before go-live. This imprint must be reachable from every page (we link it in the footer).'}
+            </em>
           </p>
         </Section>
       </article>
@@ -85,7 +94,7 @@ export function Imprint({ onBack }: Props) {
           onClick={onBack}
           className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink hover:text-ink/60"
         >
-          ← back
+          {de ? '← zurück' : '← back'}
         </button>
       </div>
     </div>

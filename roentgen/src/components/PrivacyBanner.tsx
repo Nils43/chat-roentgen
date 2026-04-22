@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t, useLocale } from '../i18n'
 
 const STORAGE_KEY = 'tea.privacy.ack.v1'
 
@@ -9,6 +10,7 @@ interface Props {
 // Shown once per browser, first time the app loads. Not a consent gate — just
 // makes the data flow transparent on entry. Art. 13 GDPR information duty.
 export function PrivacyBanner({ onReadPolicy }: Props) {
+  const locale = useLocale()
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -36,20 +38,19 @@ export function PrivacyBanner({ onReadPolicy }: Props) {
         className="bg-white border-2 border-ink p-4 md:p-5 relative"
         style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.4deg)' }}
       >
-        <span className="exhibit-label">FIRST TIME HERE · READ THIS</span>
+        <span className="exhibit-label">{t('banner.label', locale)}</span>
         <div className="font-serif text-xl md:text-2xl leading-[1.05] tracking-tight mt-3 mb-2">
-          Your chat stays on your device.
+          {t('banner.title', locale)}
         </div>
         <p className="serif-body text-sm md:text-base text-ink/80 leading-snug mb-4">
-          Hard Facts run locally. Deep analyses send a pseudonymized slice to an AI in the USA
-          (Anthropic, 30-day retention, no training). No tracking. No cookies.
+          {t('banner.body', locale)}
         </p>
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={dismiss}
             className="btn-pop px-4 py-2 text-sm"
           >
-            GOT IT
+            {t('banner.got', locale)}
           </button>
           <button
             onClick={() => {
@@ -58,7 +59,7 @@ export function PrivacyBanner({ onReadPolicy }: Props) {
             }}
             className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink/70 hover:text-ink underline underline-offset-4 decoration-dotted"
           >
-            read the policy
+            {t('banner.read', locale)}
           </button>
         </div>
       </div>

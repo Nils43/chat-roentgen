@@ -1,18 +1,28 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { t, useLocale } from '../i18n'
 import type { HardFacts } from '../analysis/hardFacts'
 import { formatDuration } from '../analysis/hardFacts'
-import { interpretHardFacts } from '../analysis/interpretation'
 import { CountUp } from './CountUp'
 import { SplitBar } from './charts/SplitBar'
-import { Heatmap } from './charts/Heatmap'
 import { EngagementCurve } from './charts/EngagementCurve'
 import { ReplyDistribution } from './charts/ReplyDistribution'
+import { ChatClock } from './charts/ChatClock'
 import type { ModuleId } from '../store/chatLibrary'
+
+type UnlockModule = 'profiles' | 'relationship' | 'bundle'
 
 interface Props {
   facts: HardFacts
   onStartAi?: () => void
   onStartModule?: (moduleId: ModuleId) => void
+  /**
+   * Paywall entry point. Called when the user picks a file they haven't paid
+   * for yet. App handles: "has receipt? → open" vs "no receipt? → Stripe".
+   */
+  onBuy?: (target: UnlockModule) => void
+  /** Which unlock is currently loading — used to disable/indicate on buttons. */
+  pendingBuy?: UnlockModule | null
   /** 'exhibit' — page-by-page navigation. 'scroll' — single long page. */
   mode?: 'exhibit' | 'scroll'
   /** Called once when the user finishes the exhibit (reaches final room). */
@@ -26,9 +36,8 @@ interface Props {
 
 const PERSON_COLORS = ['text-a', 'text-b', 'text-blue-400', 'text-orange-400', 'text-violet-400']
 
-export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit', onExhibitComplete, chatId, completedModules = [], canAnalyzeRelationship = true }: Props) {
-  const interpretations = interpretHardFacts(facts)
-  const shareInterp = interpretations.find((i) => i.metric === 'share')
+export function HardFactsView({ facts, onStartAi, onStartModule, onBuy, pendingBuy = null, mode = 'exhibit', onExhibitComplete, chatId, completedModules = [], canAnalyzeRelationship = true }: Props) {
+  const locale = useLocale()
   const personA = facts.perPerson[0]?.author ?? 'Person A'
   const personB = facts.perPerson[1]?.author ?? 'Person B'
 
@@ -67,40 +76,24 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
   // Late-night leader
   const lateLeaderIdx = facts.perPerson.length > 0 ? argmax('lateNightCount') : 0
   const lateLeader = facts.perPerson[lateLeaderIdx]?.author ?? personA
-  const lateLeaderCount = facts.perPerson[lateLeaderIdx]?.lateNightCount ?? 0
   const lateLeaderPct = Math.round((facts.perPerson[lateLeaderIdx]?.lateNightRatio ?? 0) * 100)
+  const lateLeaderCount = facts.perPerson[lateLeaderIdx]?.lateNightCount ?? 0
 
   // Burst leader (most consecutive un-answered messages)
   const burstLeaderIdx = facts.perPerson.length > 0 ? argmax('longestBurst') : 0
   const burstLeader = facts.perPerson[burstLeaderIdx]?.author ?? personA
   const burstLongest = facts.perPerson[burstLeaderIdx]?.longestBurst ?? 0
-  const burstCount = facts.perPerson[burstLeaderIdx]?.burstCount ?? 0
 
-  // Initiation drift
+  // Initiation leader (who is first back in after a silence)
+  const initLeaderIdx = facts.perPerson.length > 0 ? argmax('initiationShare') : 0
+  const initLeader = facts.perPerson[initLeaderIdx]?.author ?? personA
+
+  // Initiation drift (first half vs second half)
   const drift = facts.initiationDrift
-  const driftDeltaPct = Math.round((drift.firstHalfShare - drift.secondHalfShare) * 100)
-  const driftDirection = drift.swap
-    ? 'flipped'
-    : driftDeltaPct > 10
-      ? 'dropped'
-      : driftDeltaPct < -10
-        ? 'rose'
-        : 'stayed steady'
 
   type RoomDef =
     | { kind: 'content'; id: string; render: () => ReactNode }
     | { kind: 'gimmick'; stamp: string; sub?: string }
-
-  // Initiation leader
-  const initLeaderIdx = facts.perPerson[0] && facts.perPerson[1]
-    ? facts.perPerson[0].initiationShare >= facts.perPerson[1].initiationShare ? 0 : 1
-    : 0
-  const initLeader = facts.perPerson[initLeaderIdx]?.author ?? personA
-  const initLeaderPct = Math.round((facts.perPerson[initLeaderIdx]?.initiationShare ?? 0) * 100)
-
-  // Top emojis comparison
-  const aEmojis = facts.perPerson[0]?.topEmojis ?? []
-  const bEmojis = facts.perPerson[1]?.topEmojis ?? []
 
   // Group-awareness — header adapts when >2 people
   const isGroup = facts.perPerson.length > 2
@@ -114,289 +107,974 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
       kind: 'content',
       id: 'opener',
       render: () => (
-        <>
-          <header>
-            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-2">
-              intel · {peopleLabel} · filed
+        <section className="space-y-8 md:space-y-10">
+          <header className="space-y-4">
+            <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
+              {t('hf.opener.intel', locale, { people: peopleLabel })}
             </div>
-            <h2 className="font-serif text-[20vw] md:text-[180px] leading-[0.85] tracking-[-0.01em] text-ink overflow-hidden whitespace-nowrap">
-              RECEIPTS
+            <h2 className="font-serif text-[22vw] md:text-[200px] leading-[0.82] tracking-[-0.02em] text-ink overflow-hidden">
+              {t('hf.opener.hero', locale)}
             </h2>
           </header>
 
-          {/* The punch — biggest asymmetry front and center */}
-          <div className="quote-box mt-6 max-w-2xl" style={{ transform: 'rotate(-0.3deg)' }}>
-            <span className="exhibit-label">EXHIBIT 0</span>
-            <p className="serif-body text-lg md:text-xl mt-2">
-              <strong className="not-italic font-bold">{facts.totalMessages.toLocaleString('en-US')} messages</strong> in <strong className="not-italic font-bold">{facts.durationDays} days</strong>.{' '}
+          {/* Hero premise — bigger, more personalized lede */}
+          <div
+            className="bg-pop-yellow border-2 border-ink p-5 md:p-7 max-w-2xl"
+            style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.3deg)' }}
+          >
+            <div
+              className="text-xs uppercase tracking-[0.2em] text-ink mb-3"
+              style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.16em' }}
+            >
+              {locale === 'de' ? '✦ EXHIBIT 0 · DIE PREMISSE' : '✦ EXHIBIT 0 · THE PREMISE'}
+            </div>
+            <p className="serif-body text-xl md:text-2xl text-ink leading-snug">
+              <strong className="not-italic font-bold">
+                {facts.totalMessages.toLocaleString(locale === 'de' ? 'de-DE' : 'en-US')}
+              </strong>{' '}
+              {locale === 'de' ? 'nachrichten' : 'messages'} ·{' '}
+              <strong className="not-italic font-bold">{facts.durationDays}</strong>{' '}
+              {locale === 'de' ? 'tage' : 'days'}.{' '}
               {isGroup ? (
                 <>
-                  <span className="circled">{facts.perPerson.length} voices</span>.{' '}
-                  <span className="circled">{shareLeader}</span> does <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong> of the talking.
+                  <span className="circled">{facts.perPerson.length}</span>{' '}
+                  {locale === 'de' ? 'stimmen. ' : 'voices. '}
+                  <span className="circled">{shareLeader}</span>{' '}
+                  {locale === 'de' ? (
+                    <>hat die bühne — <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong> der convo.</>
+                  ) : (
+                    <>runs the show — <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong> of the talking.</>
+                  )}
                 </>
               ) : (
                 <>
-                  <span className="circled">{shareLeader}</span> writes <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong> of them.
+                  <span className="circled">{shareLeader}</span>{' '}
+                  {locale === 'de' ? (
+                    <>
+                      macht <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong>. {personB && <><span className="circled">{personB}</span> den rest.</>}
+                    </>
+                  ) : (
+                    <>
+                      writes <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong>. {personB && <><span className="circled">{personB}</span> takes the rest.</>}
+                    </>
+                  )}
                 </>
               )}
             </p>
           </div>
 
-          {/* Three mini context tiles — not the main event, just orientation */}
-          <section className="grid grid-cols-3 gap-3 mt-6">
-            <Tile label="Messages" value={<CountUp value={facts.totalMessages} format={(n) => Math.round(n).toLocaleString('en-US')} />} />
-            <Tile label="Active days" value={<CountUp value={facts.activeDays} format={(n) => Math.round(n).toLocaleString('en-US')} />} />
-            <Tile label="Longest silence" value={`${facts.longestSilenceDays}d`} />
+          {/* Four stat tiles — messages, words, active days, longest silence.
+              Each with big Bebas display, uniform ink-sticker styling. */}
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <OpenerStat
+              value={<CountUp value={facts.totalMessages} format={(n) => Math.round(n).toLocaleString(locale === 'de' ? 'de-DE' : 'en-US')} />}
+              label={locale === 'de' ? 'messages' : 'messages'}
+            />
+            <OpenerStat
+              value={<CountUp value={facts.totalWords} format={(n) => Math.round(n).toLocaleString(locale === 'de' ? 'de-DE' : 'en-US')} />}
+              label={locale === 'de' ? 'wörter' : 'words'}
+            />
+            <OpenerStat
+              value={<CountUp value={facts.activeDays} format={(n) => Math.round(n).toLocaleString(locale === 'de' ? 'de-DE' : 'en-US')} />}
+              label={locale === 'de' ? 'aktive tage' : 'active days'}
+            />
+            <OpenerStat
+              value={`${facts.longestSilenceDays} ${t('hf.tile.days', locale)}`}
+              label={locale === 'de' ? 'längste stille' : 'longest silence'}
+              accent={facts.longestSilenceDays >= 7}
+            />
           </section>
-        </>
+        </section>
       ),
     },
 
-    // ── ROOM 2: WHO WRITES MORE — distribution + words ──
+    // ── ROOM 2: THE SPLIT — who talks more. The hero IS the winner's name ──
     {
       kind: 'content',
-      id: 'distribution',
-      render: () => (
-        <Section kicker="01 · Distribution" title="Who writes more?" body={shareInterp?.body}>
-          <SplitBar perPerson={facts.perPerson} metric="share" label="Share of messages" />
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            {facts.perPerson.map((p, i) => (
-              <div key={p.author} className="bg-bg-surface rounded-xl p-5">
-                <div className={`label-mono mb-1 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
-                <div className="metric-num text-2xl">{p.avgWords.toFixed(0)} words/msg</div>
-                {p.topEmojis.length > 0 && (
-                  <div className="flex gap-2 text-xl mt-2">
-                    {p.topEmojis.slice(0, 3).map((e) => (
-                      <span key={e.emoji} title={`${e.count}x`}>{e.emoji}</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Section>
-      ),
-    },
-
-    // ── ROOM 3: SPEED — reply times side by side ──
-    {
-      kind: 'content',
-      id: 'speed',
-      render: () => (
-        <Section kicker="02 · Speed" title="Who replies how fast?" body={interpretations.find((i) => i.metric.startsWith('reply:'))?.body}>
-          <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8">
-            {facts.perPerson.map((p, i) => (
-              <Tile
-                key={p.author}
-                label={p.author}
-                accent={PERSON_COLORS[i % PERSON_COLORS.length]}
-                value={formatDuration(p.medianReplyMs)}
-              />
-            ))}
-          </div>
-          <ReplyDistribution perPerson={facts.perPerson} />
-        </Section>
-      ),
-    },
-
-    // ── ROOM 4: INITIATIVE + SILENCE — who holds the contact ──
-    {
-      kind: 'content',
-      id: 'initiative',
-      render: () => (
-        <Section kicker="03 · Initiative" title="Who starts the conversation?" body={interpretations.find((i) => i.metric.startsWith('init:'))?.body}>
-          <SplitBar
-            perPerson={facts.perPerson}
-            metric="initiation"
-            label={`After a pause of 4h+ · ${facts.perPerson.reduce((s, p) => s + p.initiations, 0)} times total`}
-          />
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <Tile label="Peak day" value={`${fmtDayKey(facts.peakDay.date)} · ${facts.peakDay.count} msgs`} />
-            <Tile label="Longest silence" value={`${facts.longestSilenceDays} days`} />
-          </div>
-        </Section>
-      ),
-    },
-
-    // ── ROOM 5: LATE NIGHT + BURSTS — the raw stuff ──
-    {
-      kind: 'content',
-      id: 'latenight',
-      render: () => (
-        <Section kicker="04 · After hours" title="Who writes when nobody is watching?" body="Late night messages (11pm–5am) and burst sequences (3+ messages without reply). When masks slip.">
-          <div className="grid grid-cols-2 gap-3 md:gap-4">
-            {facts.perPerson.map((p, i) => (
-              <div key={p.author} className="bg-bg-surface rounded-xl p-5">
-                <div className={`label-mono mb-2 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
-                <div className="metric-num text-2xl mb-1">{p.lateNightCount} late</div>
-                <div className="text-sm text-ink-muted mb-3">
-                  {Math.round(p.lateNightRatio * 100)}% of their messages
-                </div>
-                <div className="border-t border-line/40 pt-3">
-                  <div className="metric-num text-xl">{p.burstCount} bursts</div>
-                  <div className="text-sm text-ink-muted">
-                    longest: {p.longestBurst} in a row
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Section>
-      ),
-    },
-
-    // ── ROOM 6: YOUR HOUR — peak texting hour per person ──
-    {
-      kind: 'content',
-      id: 'yourhour',
-      render: () => (
-        <Section kicker="05 · Your hour" title="When do you think of each other?" body={
-          facts.perPerson.length >= 2
-            ? `${personA} texts most at ${fmtHour(facts.perPerson[0].peakHour)}. ${personB} at ${fmtHour(facts.perPerson[1].peakHour)}.${facts.perPerson[0].peakHour !== facts.perPerson[1].peakHour ? ' Different rhythms.' : ' Same rhythm.'}`
-            : undefined
-        }>
-          <div className="grid grid-cols-2 gap-3">
-            {facts.perPerson.map((p, i) => (
-              <div key={p.author} className="bg-bg-surface rounded-xl p-5 text-center">
-                <div className={`label-mono mb-2 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
-                <div className="metric-num text-4xl md:text-5xl">{fmtHour(p.peakHour)}</div>
-                <div className="text-sm text-ink-muted mt-1">most active hour</div>
-              </div>
-            ))}
-          </div>
-        </Section>
-      ),
-    },
-
-    // ── ROOM 7: SHORT REPLIES — who puts in effort ──
-    {
-      kind: 'content',
-      id: 'effort',
+      id: 'split',
       render: () => {
-        const moreShortIdx = facts.perPerson[0] && facts.perPerson[1]
-          ? facts.perPerson[0].shortReplyRatio >= facts.perPerson[1].shortReplyRatio ? 0 : 1
-          : 0
-        const shortLeader = facts.perPerson[moreShortIdx]?.author ?? personA
-        const shortPct = Math.round((facts.perPerson[moreShortIdx]?.shortReplyRatio ?? 0) * 100)
+        const leader = facts.perPerson[moreShareIdx]
+        // For group chats, "the other" isn't a single person — take the
+        // runner-up by share so the dual-block hero still reads as a duel.
+        const other = facts.perPerson
+          .slice()
+          .filter((_, i) => i !== moreShareIdx)
+          .sort((a, b) => b.sharePct - a.sharePct)[0]
+        const leaderShare = Math.round(leader?.sharePct ?? 50)
+        const otherShare = other
+          ? Math.round(other.sharePct)
+          : Math.max(0, 100 - leaderShare)
         return (
-          <Section kicker="06 · Effort" title="Who gives one-word answers?" body={`${shortPct}% of ${shortLeader}'s messages are 3 words or less. Short replies aren't always bad — but they add up.`}>
+          <WrappedSlide
+            track={locale === 'de' ? "02 · DIE SHOW" : '02 · THE SHOW'}
+            titlePre={
+              <span className="block text-ink/40 text-[12vw] md:text-[72px]" style={{ letterSpacing: '-0.01em' }}>
+                {locale === 'de' ? 'es ist ' : "it's "}
+              </span>
+            }
+            titleHighlight={`${leader?.author ?? personA}'S`}
+            titlePost={locale === 'de' ? ' SHOW.' : ' SHOW.'}
+            lede={
+              locale === 'de' ? (
+                <>
+                  <span className="font-bold not-italic">{leader?.author}</span> schreibt{' '}
+                  <span className="font-bold not-italic">{leaderShare}%</span> der messages —{' '}
+                  mit <span className="font-bold not-italic">{leader?.avgWords.toFixed(0)} wörtern</span> pro
+                  zeile.{' '}
+                  {other && (
+                    <>
+                      <span className="font-bold not-italic">{other.author}</span> kriegt{' '}
+                      <span className="font-bold not-italic">{otherShare}%</span>, bei{' '}
+                      {other.avgWords.toFixed(0)} wörtern.
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className="font-bold not-italic">{leader?.author}</span> writes{' '}
+                  <span className="font-bold not-italic">{leaderShare}%</span> of the messages —{' '}
+                  at <span className="font-bold not-italic">{leader?.avgWords.toFixed(0)} words</span> a pop.{' '}
+                  {other && (
+                    <>
+                      <span className="font-bold not-italic">{other.author}</span> gets{' '}
+                      <span className="font-bold not-italic">{otherShare}%</span>, averaging{' '}
+                      {other.avgWords.toFixed(0)}.
+                    </>
+                  )}
+                </>
+              )
+            }
+          >
+            {/* Giant dual-block: each person's share as a proportionally-shaded
+                ink-yellow split. The winning side is filled, the other outlined. */}
+            <div
+              className="border-2 border-ink overflow-hidden"
+              style={{ boxShadow: '6px 6px 0 #0A0A0A' }}
+            >
+              <div className="grid grid-cols-[auto_auto]" style={{ gridTemplateColumns: `${leaderShare}fr ${otherShare}fr` }}>
+                <div className="bg-pop-yellow border-r-2 border-ink p-6 md:p-8 flex flex-col justify-between gap-4 min-h-[200px]">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink/80">
+                    {locale === 'de' ? 'der/die lauter' : 'the louder one'}
+                  </div>
+                  <div>
+                    <div
+                      className="text-6xl md:text-8xl leading-[0.85] text-ink tabular-nums"
+                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                    >
+                      {leaderShare}%
+                    </div>
+                    <div
+                      className="text-2xl md:text-3xl mt-2 text-ink leading-tight"
+                      style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.02em' }}
+                    >
+                      {leader?.author.toUpperCase()}
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-bg p-4 md:p-6 flex flex-col justify-between gap-2 min-h-[200px]">
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink/60">
+                    {locale === 'de' ? 'rest' : 'rest'}
+                  </div>
+                  <div>
+                    <div
+                      className="text-3xl md:text-5xl leading-[0.85] text-ink tabular-nums"
+                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                    >
+                      {otherShare}%
+                    </div>
+                    <div
+                      className="text-lg md:text-2xl mt-2 text-ink leading-tight"
+                      style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.02em' }}
+                    >
+                      {other?.author.toUpperCase()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Words + emojis per person — supporting detail */}
             <div className="grid grid-cols-2 gap-3">
               {facts.perPerson.map((p, i) => (
-                <div key={p.author} className="bg-bg-surface rounded-xl p-5">
-                  <div className={`label-mono mb-2 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.author}</div>
-                  <div className="metric-num text-3xl mb-1">{Math.round(p.shortReplyRatio * 100)}%</div>
-                  <div className="text-sm text-ink-muted">messages with 1-3 words</div>
-                  <div className="mt-3 border-t border-line/40 pt-3">
-                    <div className="metric-num text-xl">{p.avgWords.toFixed(0)}</div>
-                    <div className="text-sm text-ink-muted">avg words per message</div>
+                <div
+                  key={p.author}
+                  className="bg-bg border-2 border-ink p-5"
+                  style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+                >
+                  <div className={`label-mono mb-3 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>
+                    {p.author.toUpperCase()}
+                  </div>
+                  <div className="flex items-baseline gap-3">
+                    <div
+                      className="text-4xl leading-none text-ink tabular-nums"
+                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                    >
+                      {p.avgWords.toFixed(0)}
+                    </div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/60 leading-snug">
+                      {locale === 'de' ? 'Ø Wörter pro Message' : 'average words per message'}
+                    </div>
+                  </div>
+                  {p.topEmojis.length > 0 && (
+                    <div className="border-t-2 border-ink border-dashed mt-3 pt-3">
+                      <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink/50 mb-2">
+                        {locale === 'de' ? 'top 3' : 'top 3'}
+                      </div>
+                      <div className="flex gap-2 text-2xl">
+                        {p.topEmojis.slice(0, 3).map((e) => (
+                          <span key={e.emoji} title={`${e.count}×`}>
+                            {e.emoji}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </WrappedSlide>
+        )
+      },
+    },
+
+    // ── ROOM 3: THE PACE — reply speed as the HERO number itself ──
+    {
+      kind: 'content',
+      id: 'pace',
+      render: () => {
+        const moreShortIdx =
+          facts.perPerson[0] && facts.perPerson[1]
+            ? facts.perPerson[0].shortReplyRatio >= facts.perPerson[1].shortReplyRatio
+              ? 0
+              : 1
+            : 0
+        const shortLeader = facts.perPerson[moreShortIdx]?.author ?? personA
+        const shortPct = Math.round((facts.perPerson[moreShortIdx]?.shortReplyRatio ?? 0) * 100)
+        const fasterDur = formatDuration(facts.perPerson[fasterIdx]?.medianReplyMs ?? null, locale)
+        const slowerDur = formatDuration(facts.perPerson[slowerIdx]?.medianReplyMs ?? null, locale)
+        return (
+          <WrappedSlide
+            track={locale === 'de' ? '03 · DAS TEMPO' : '03 · THE PACE'}
+            titlePre={locale === 'de' ? 'WIE ' : 'HOW '}
+            titleHighlight={locale === 'de' ? 'SCHNELL?' : 'FAST?'}
+            lede={
+              locale === 'de' ? (
+                <>
+                  <span className="font-bold not-italic">{fasterPerson}</span> ist der:die blitz.{' '}
+                  <span className="font-bold not-italic">{slowerPerson}</span> lässt es reifen.{' '}
+                  <span className="font-bold not-italic">{shortLeader}</span> antwortet zu{' '}
+                  <span className="font-bold not-italic">{shortPct}%</span> in 1–3 wörtern — die kunst des
+                  one-liners.
+                </>
+              ) : (
+                <>
+                  <span className="font-bold not-italic">{fasterPerson}</span> is the lightning.{' '}
+                  <span className="font-bold not-italic">{slowerPerson}</span> lets it cook.{' '}
+                  <span className="font-bold not-italic">{shortLeader}</span> replies in 1–3 words{' '}
+                  <span className="font-bold not-italic">{shortPct}%</span> of the time — fine art of the
+                  one-liner.
+                </>
+              )
+            }
+          >
+            {/* Fast/slow hero: two halves, one yellow one white, names + durations */}
+            <div
+              className="border-2 border-ink grid grid-cols-1 md:grid-cols-2"
+              style={{ boxShadow: '6px 6px 0 #0A0A0A' }}
+            >
+              <div className="bg-pop-yellow border-b-2 md:border-b-0 md:border-r-2 border-ink p-5 md:p-7">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink/80 mb-2">
+                  {locale === 'de' ? '⚡ der:die blitz' : '⚡ the lightning'}
+                </div>
+                <div
+                  className="text-6xl md:text-8xl leading-[0.85] text-ink tabular-nums"
+                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                >
+                  {fasterDur}
+                </div>
+                <div
+                  className="text-2xl md:text-3xl mt-2 text-ink"
+                  style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.02em' }}
+                >
+                  {fasterPerson?.toUpperCase()}
+                </div>
+              </div>
+              <div className="bg-white p-5 md:p-7">
+                <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink/60 mb-2">
+                  {locale === 'de' ? '⏳ lässt es reifen' : '⏳ lets it cook'}
+                </div>
+                <div
+                  className="text-6xl md:text-8xl leading-[0.85] text-ink tabular-nums"
+                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                >
+                  {slowerDur}
+                </div>
+                <div
+                  className="text-2xl md:text-3xl mt-2 text-ink"
+                  style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.02em' }}
+                >
+                  {slowerPerson?.toUpperCase()}
+                </div>
+              </div>
+            </div>
+
+            {/* Short-reply tiles */}
+            <div className="grid grid-cols-2 gap-3">
+              {facts.perPerson.map((p, i) => {
+                const isKing = i === moreShortIdx
+                return (
+                  <div
+                    key={p.author}
+                    className={`border-2 border-ink p-5 ${isKing ? 'bg-ink text-pop-yellow' : 'bg-bg'}`}
+                    style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+                  >
+                    <div
+                      className={`font-mono text-[10px] uppercase tracking-[0.18em] mb-2 ${isKing ? 'opacity-80' : PERSON_COLORS[i % PERSON_COLORS.length]}`}
+                    >
+                      {p.author.toUpperCase()} {isKing && (locale === 'de' ? '· one-liner-king' : '· one-liner king')}
+                    </div>
+                    <div className="flex items-baseline gap-3">
+                      <div
+                        className="text-4xl md:text-5xl leading-none tabular-nums"
+                        style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                      >
+                        {Math.round(p.shortReplyRatio * 100)}%
+                      </div>
+                      <div className={`font-mono text-[10px] uppercase tracking-[0.14em] leading-snug ${isKing ? 'opacity-70' : 'text-ink/60'}`}>
+                        {locale === 'de' ? '1–3 wörter' : '1–3 words'}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div
+              className="bg-white border-2 border-ink p-5 md:p-7"
+              style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(0.2deg)' }}
+            >
+              <ReplyDistribution perPerson={facts.perPerson} />
+            </div>
+          </WrappedSlide>
+        )
+      },
+    },
+
+    // ── ROOM 4: WHO STARTS IT — initiation + first/last of day ──
+    {
+      kind: 'content',
+      id: 'opens',
+      render: () => {
+        const totalDays = facts.activeDays || 1
+        const initLeaderPct = Math.round((facts.perPerson[initLeaderIdx]?.initiationShare ?? 0) * 100)
+        const totalInits = facts.perPerson.reduce((s, p) => s + p.initiations, 0)
+        return (
+          <WrappedSlide
+            track={locale === 'de' ? '04 · WER FÄNGT AN' : '04 · WHO STARTS'}
+            titlePre={locale === 'de' ? 'WER BRICHT DIE ' : 'WHO BREAKS THE '}
+            titleHighlight={locale === 'de' ? 'STILLE?' : 'SILENCE?'}
+            lede={
+              locale === 'de' ? (
+                <>
+                  Nach einer Pause schreibt <span className="font-bold not-italic">{initLeader}</span>{' '}
+                  als erste:r zurück —{' '}
+                  <span className="font-bold not-italic">{initLeaderPct}%</span> von{' '}
+                  <span className="font-bold not-italic">{totalInits}</span> mal.
+                </>
+              ) : (
+                <>
+                  After a pause, <span className="font-bold not-italic">{initLeader}</span> is first back
+                  in —{' '}
+                  <span className="font-bold not-italic">{initLeaderPct}%</span> of{' '}
+                  <span className="font-bold not-italic">{totalInits}</span> times.
+                </>
+              )
+            }
+          >
+            <div
+              className="bg-white border-2 border-ink p-5 md:p-7"
+              style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.3deg)' }}
+            >
+              <SplitBar
+                perPerson={facts.perPerson}
+                metric="initiation"
+                label={t('hf.firstPause', locale, { n: totalInits })}
+              />
+            </div>
+
+            {/* First-of-day + last-of-day in one compact grid per person */}
+            <div className="grid grid-cols-2 gap-3">
+              {facts.perPerson.map((p, i) => (
+                <div
+                  key={p.author}
+                  className="bg-bg border-2 border-ink p-5"
+                  style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+                >
+                  <div className={`label-mono mb-3 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>
+                    {p.author.toUpperCase()}
+                  </div>
+                  <div className="flex gap-6">
+                    <div>
+                      <div
+                        className="text-3xl md:text-4xl leading-none text-ink tabular-nums"
+                        style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                      >
+                        {p.firstOfDayCount}
+                      </div>
+                      <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink/60 mt-1">
+                        {locale === 'de' ? 'erste message' : 'first message'}
+                      </div>
+                      <div className="font-mono text-[9px] text-ink/50 mt-0.5">
+                        {Math.round((p.firstOfDayCount / totalDays) * 100)}%
+                      </div>
+                    </div>
+                    <div>
+                      <div
+                        className="text-3xl md:text-4xl leading-none text-ink tabular-nums"
+                        style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                      >
+                        {p.lastOfDayCount}
+                      </div>
+                      <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink/60 mt-1">
+                        {locale === 'de' ? 'letzte message' : 'last message'}
+                      </div>
+                      <div className="font-mono text-[9px] text-ink/50 mt-0.5">
+                        {Math.round((p.lastOfDayCount / totalDays) * 100)}%
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-          </Section>
+          </WrappedSlide>
         )
       },
     },
 
-    // ── ROOM 8: FIRST & LAST — who starts and ends the day ──
+    // ── ROOM 5: THE NIGHTS — after dark + witching hour + bursts ──
     {
       kind: 'content',
-      id: 'firstlast',
+      id: 'nights',
       render: () => {
-        const totalDays = facts.activeDays || 1
+        const lateLeaderRatio = Math.round(
+          (facts.perPerson[lateLeaderIdx]?.lateNightRatio ?? 0) * 100,
+        )
+        // Witching hour: 00:00–03:59 across the whole chat. The spicy slice of
+        // "late" — after-midnight rather than just after-22:00.
+        let witching = 0
+        for (let d = 0; d < 7; d++) {
+          for (let h = 0; h <= 3; h++) witching += facts.heatmap[d]?.[h] ?? 0
+        }
+        const witchingPct = Math.round((witching / (facts.totalMessages || 1)) * 100)
         return (
-          <Section kicker="07 · First & last" title="Who starts the day — who ends it?" body={`Out of ${totalDays} active days. The person who texts first in the morning is thinking of you before anything else.`}>
-            <div className="space-y-4">
-              <div className="card" style={{ transform: 'rotate(-0.2deg)' }}>
-                <div className="label-mono mb-3">First message of the day</div>
-                <div className="grid grid-cols-2 gap-4">
-                  {facts.perPerson.map((p, i) => (
-                    <div key={p.author}>
-                      <div className={`metric-num text-3xl ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.firstOfDayCount}x</div>
-                      <div className="text-sm text-ink-muted">{p.author} · {Math.round((p.firstOfDayCount / totalDays) * 100)}%</div>
-                    </div>
-                  ))}
+          <WrappedSlide
+            track={locale === 'de' ? '05 · DIE NÄCHTE' : '05 · THE NIGHTS'}
+            titlePre={locale === 'de' ? 'NACH ' : 'AFTER '}
+            titleHighlight={locale === 'de' ? 'MITTERNACHT' : 'DARK'}
+            titlePost="."
+            lede={
+              locale === 'de' ? (
+                <>
+                  <span className="font-bold not-italic">{lateLeader}</span> textet{' '}
+                  <span className="font-bold not-italic">{lateLeaderPct}%</span> nach 22 uhr —{' '}
+                  <span className="font-bold not-italic">{lateLeaderCount}</span> späte messages.
+                  {witching > 0 && (
+                    <>
+                      {' '}<span className="font-bold not-italic">{witching}</span> davon landeten in der
+                      witching hour (00–04).
+                    </>
+                  )}{' '}
+                  Wenn's dann richtig flutet, feuert{' '}
+                  <span className="font-bold not-italic">{burstLeader}</span>{' '}
+                  <span className="font-bold not-italic">{burstLongest}</span> am stück.
+                </>
+              ) : (
+                <>
+                  <span className="font-bold not-italic">{lateLeader}</span> sends{' '}
+                  <span className="font-bold not-italic">{lateLeaderRatio}%</span> after 22:00 —{' '}
+                  <span className="font-bold not-italic">{lateLeaderCount}</span> late texts.
+                  {witching > 0 && (
+                    <>
+                      {' '}<span className="font-bold not-italic">{witching}</span> of them landed in the
+                      witching hour (00–04).
+                    </>
+                  )}{' '}
+                  When the floods hit, <span className="font-bold not-italic">{burstLeader}</span> fires{' '}
+                  <span className="font-bold not-italic">{burstLongest}</span> in a row.
+                </>
+              )
+            }
+          >
+            {/* The witching hour as a dramatic, full-bleed ink panel. */}
+            {witching > 0 && (
+              <div
+                className="bg-ink text-pop-yellow border-2 border-ink p-6 md:p-8 relative"
+                style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.3deg)' }}
+              >
+                <div
+                  className="absolute -top-3 -right-3 px-3 py-1 bg-pop-yellow text-ink border-2 border-ink pointer-events-none"
+                  style={{
+                    fontFamily: "'Bebas Neue', sans-serif",
+                    fontSize: '14px',
+                    letterSpacing: '0.06em',
+                    transform: 'rotate(6deg)',
+                    boxShadow: '2px 2px 0 #0A0A0A',
+                  }}
+                >
+                  🌒 WITCHING HOUR
+                </div>
+                <div className="font-mono text-[10px] uppercase tracking-[0.2em] opacity-70 mb-3">
+                  {locale === 'de' ? '00:00 bis 04:00 · irgendwas war los' : '00:00 — 04:00 · something was up'}
+                </div>
+                <div
+                  className="text-6xl md:text-8xl leading-[0.85] tabular-nums"
+                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                >
+                  {witching}
+                </div>
+                <div className="font-mono text-[11px] uppercase tracking-[0.16em] opacity-70 mt-2">
+                  {locale === 'de' ? `messages im tiefschwarz · ${witchingPct}% aller` : `messages in the dead of night · ${witchingPct}% of all`}
                 </div>
               </div>
-              <div className="card" style={{ transform: 'rotate(0.15deg)' }}>
-                <div className="label-mono mb-3">Last message of the day</div>
-                <div className="grid grid-cols-2 gap-4">
-                  {facts.perPerson.map((p, i) => (
-                    <div key={p.author}>
-                      <div className={`metric-num text-3xl ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>{p.lastOfDayCount}x</div>
-                      <div className="text-sm text-ink-muted">{p.author} · {Math.round((p.lastOfDayCount / totalDays) * 100)}%</div>
+            )}
+
+            {/* Per-person late + burst */}
+            <div className="grid grid-cols-2 gap-3">
+              {facts.perPerson.map((p) => (
+                <div
+                  key={p.author}
+                  className="bg-ink text-pop-yellow border-2 border-ink p-5"
+                  style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+                >
+                  <div className="font-mono text-[10px] uppercase tracking-[0.18em] opacity-80 mb-2">
+                    {p.author.toUpperCase()}
+                  </div>
+                  <div
+                    className="text-5xl md:text-6xl leading-none mb-1"
+                    style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                  >
+                    {p.lateNightCount}
+                  </div>
+                  <div className="font-mono text-[10px] uppercase tracking-[0.14em] opacity-70 mb-3">
+                    {locale === 'de' ? `nach 22:00 · ${Math.round(p.lateNightRatio * 100)}%` : `after 22:00 · ${Math.round(p.lateNightRatio * 100)}%`}
+                  </div>
+                  <div className="border-t-2 border-pop-yellow border-dashed pt-3 flex items-baseline gap-3">
+                    <div
+                      className="text-3xl tabular-nums"
+                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                    >
+                      {p.longestBurst}
                     </div>
-                  ))}
+                    <div className="font-mono text-[10px] uppercase tracking-[0.12em] opacity-70 leading-snug">
+                      {locale === 'de' ? 'längste serie' : 'longest streak'}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          </Section>
+          </WrappedSlide>
         )
       },
     },
 
-    // ── ROOM 9: ARC + SHIFT — how it changed over time ──
+    // ── ROOM 6: THE CLOCK — full-drama wrapped-style 24h dial ──
+    {
+      kind: 'content',
+      id: 'clock',
+      render: () => {
+        // Aggregate per-hour totals so the headline above the clock can point
+        // at the exact peak hour in words, not just visually on the dial.
+        const hourly: number[] = Array(24).fill(0)
+        for (let d = 0; d < 7; d++) {
+          for (let h = 0; h < 24; h++) hourly[h] += facts.heatmap[d]?.[h] ?? 0
+        }
+        const peakHour = hourly.reduce((b, c, i, a) => (c > a[b] ? i : b), 0)
+        // Who owns that peak hour?
+        let peakPerson = ''
+        let peakPersonCount = 0
+        for (const p of facts.perPerson) {
+          const c = p.peakHour === peakHour ? p.peakHourCount : 0
+          if (c > peakPersonCount) {
+            peakPerson = p.author
+            peakPersonCount = c
+          }
+        }
+        return (
+          <WrappedSlide
+            track={locale === 'de' ? '06 · DIE UHR' : '06 · THE CLOCK'}
+            titlePre={locale === 'de' ? 'WANN TEXTET ' : 'WHEN DO YOU '}
+            titleHighlight={locale === 'de' ? 'IHR?' : 'TEXT?'}
+            lede={
+              locale === 'de' ? (
+                <>
+                  24 stunden, übereinandergelegt. die hot hour ist{' '}
+                  <span className="font-bold not-italic">
+                    {String(peakHour).padStart(2, '0')}:00
+                  </span>
+                  {peakPerson && (
+                    <>
+                      {' '}— da gehört die bühne{' '}
+                      <span className="font-bold not-italic">{peakPerson}</span>.
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  24 hours, stacked. the hot hour is{' '}
+                  <span className="font-bold not-italic">
+                    {String(peakHour).padStart(2, '0')}:00
+                  </span>
+                  {peakPerson && (
+                    <>
+                      {' '}— that's <span className="font-bold not-italic">{peakPerson}</span>'s stage.
+                    </>
+                  )}
+                </>
+              )
+            }
+          >
+            <div
+              className="bg-white border-2 border-ink p-6 md:p-10"
+              style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.3deg)' }}
+            >
+              <ChatClock heatmap={facts.heatmap} perPerson={facts.perPerson} locale={locale} />
+            </div>
+          </WrappedSlide>
+        )
+      },
+    },
+
+    // ── ROOM 7: THE ARC — time trajectory, peak week, drift ──
     {
       kind: 'content',
       id: 'arc',
       render: () => {
-        // Compute trend: compare first third vs last third of weekly data
         const w = facts.weekly
+        // Guard against zero-week chats (single-day exports): reduce with an
+        // empty initial value crashes, and averages divide by zero.
+        if (w.length === 0) {
+          return (
+            <WrappedSlide
+              track={locale === 'de' ? '07 · DER BOGEN' : '07 · THE ARC'}
+              titlePre={locale === 'de' ? 'ZU ' : 'TOO '}
+              titleHighlight={locale === 'de' ? 'KURZ.' : 'SHORT.'}
+              lede={
+                locale === 'de'
+                  ? 'Der chat hat noch keine woche voll — keine kurve zum lesen.'
+                  : "The chat hasn't run a full week yet — no curve to draw."
+              }
+            >
+              <div className="text-center font-mono text-[10px] uppercase tracking-[0.18em] text-ink/50 py-10">
+                ···
+              </div>
+            </WrappedSlide>
+          )
+        }
         const thirdLen = Math.max(1, Math.floor(w.length / 3))
         const firstThird = w.slice(0, thirdLen)
         const lastThird = w.slice(-thirdLen)
-        const avgFirst = firstThird.reduce((s, b) => s + b.count, 0) / firstThird.length
-        const avgLast = lastThird.reduce((s, b) => s + b.count, 0) / lastThird.length
+        const avgFirst = firstThird.length > 0
+          ? firstThird.reduce((s, b) => s + b.count, 0) / firstThird.length
+          : 0
+        const avgLast = lastThird.length > 0
+          ? lastThird.reduce((s, b) => s + b.count, 0) / lastThird.length
+          : 0
         const changePct = avgFirst > 0 ? Math.round(((avgLast - avgFirst) / avgFirst) * 100) : 0
-        const peakWeek = w.reduce((best, b) => b.count > best.count ? b : best, w[0])
+        const peakWeek = w.reduce((best, b) => (b.count > best.count ? b : best), w[0])
+        const peakWeekLabel = fmtDayKey2(peakWeek.weekStart, locale)
 
-        let trendBody: string
-        if (changePct > 30) {
-          trendBody = `This chat is heating up. The last weeks had ${Math.abs(changePct)}% more messages than the beginning. Peak week: ${fmtDayKey2(peakWeek.weekStart)} with ${peakWeek.count} messages.`
-        } else if (changePct < -30) {
-          trendBody = `This chat is cooling down. The last weeks had ${Math.abs(changePct)}% fewer messages than the beginning. Peak week: ${fmtDayKey2(peakWeek.weekStart)} with ${peakWeek.count} messages.`
-        } else {
-          trendBody = `Message volume stayed roughly stable. Peak week: ${fmtDayKey2(peakWeek.weekStart)} with ${peakWeek.count} messages.`
-        }
+        const trendWord =
+          locale === 'de'
+            ? changePct > 30
+              ? 'HOCH'
+              : changePct < -30
+                ? 'RUNTER'
+                : 'FLACH'
+            : changePct > 30
+              ? 'UP'
+              : changePct < -30
+                ? 'DOWN'
+                : 'FLAT'
 
         return (
-          <Section kicker="05 · Over time" title="How this chat changed" body={trendBody}>
-            <EngagementCurve facts={facts} />
-
-            {/* Concrete before/after comparison */}
-            <div className="mt-6 grid grid-cols-3 gap-3">
-              <Tile label="Start" value={`${Math.round(avgFirst)}/wk`} />
-              <Tile label="Peak" value={`${peakWeek.count}/wk`} accent="text-a" />
-              <Tile label="Now" value={`${Math.round(avgLast)}/wk`} accent={changePct < -20 ? 'text-b' : undefined} />
+          <WrappedSlide
+            track={locale === 'de' ? '07 · DER BOGEN' : '07 · THE ARC'}
+            titlePre={locale === 'de' ? 'ES GING ' : 'IT WENT '}
+            titleHighlight={trendWord}
+            titlePost={locale === 'de' ? '.' : '.'}
+            lede={
+              locale === 'de' ? (
+                <>
+                  Peak-woche: <span className="font-bold not-italic">{peakWeekLabel}</span> mit{' '}
+                  <span className="font-bold not-italic">{peakWeek.count}</span> messages.{' '}
+                  {changePct !== 0 && (
+                    <>
+                      Zwischen anfang und jetzt:{' '}
+                      <span className="font-bold not-italic">
+                        {changePct > 0 ? '+' : ''}
+                        {changePct}%
+                      </span>
+                      .
+                    </>
+                  )}
+                  {facts.longestSilenceDays > 0 && (
+                    <>
+                      {' '}Längste stille:{' '}
+                      <span className="font-bold not-italic">{facts.longestSilenceDays}</span>{' '}
+                      {facts.longestSilenceDays === 1 ? 'tag' : 'tage'}.
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  Peak week: <span className="font-bold not-italic">{peakWeekLabel}</span> with{' '}
+                  <span className="font-bold not-italic">{peakWeek.count}</span> messages.{' '}
+                  {changePct !== 0 && (
+                    <>
+                      Start to now:{' '}
+                      <span className="font-bold not-italic">
+                        {changePct > 0 ? '+' : ''}
+                        {changePct}%
+                      </span>
+                      .
+                    </>
+                  )}
+                  {facts.longestSilenceDays > 0 && (
+                    <>
+                      {' '}Longest silence:{' '}
+                      <span className="font-bold not-italic">{facts.longestSilenceDays}</span>{' '}
+                      {facts.longestSilenceDays === 1 ? 'day' : 'days'}.
+                    </>
+                  )}
+                </>
+              )
+            }
+          >
+            <div
+              className="bg-white border-2 border-ink p-5 md:p-7"
+              style={{ boxShadow: '6px 6px 0 #0A0A0A' }}
+            >
+              <EngagementCurve facts={facts} />
             </div>
 
+            {/* Start / Peak / Now tiles — arc snapshot */}
+            <div className="grid grid-cols-3 gap-3">
+              <div
+                className="bg-bg border-2 border-ink p-4 text-center"
+                style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+              >
+                <div
+                  className="text-3xl md:text-4xl leading-none text-ink tabular-nums"
+                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                >
+                  {Math.round(avgFirst)}
+                </div>
+                <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink/60 mt-1.5">
+                  {locale === 'de' ? 'start · /woche' : 'start · /week'}
+                </div>
+              </div>
+              <div
+                className="bg-pop-yellow border-2 border-ink p-4 text-center"
+                style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+              >
+                <div
+                  className="text-3xl md:text-4xl leading-none text-ink tabular-nums"
+                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                >
+                  {peakWeek.count}
+                </div>
+                <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink/60 mt-1.5">
+                  {locale === 'de' ? 'peak · /woche' : 'peak · /week'}
+                </div>
+              </div>
+              <div
+                className={`border-2 border-ink p-4 text-center ${changePct < -20 ? 'bg-ink text-pop-yellow' : 'bg-bg'}`}
+                style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+              >
+                <div
+                  className="text-3xl md:text-4xl leading-none tabular-nums"
+                  style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                >
+                  {Math.round(avgLast)}
+                </div>
+                <div className="font-mono text-[9px] uppercase tracking-[0.16em] opacity-70 mt-1.5">
+                  {locale === 'de' ? 'jetzt · /woche' : 'now · /week'}
+                </div>
+              </div>
+            </div>
+
+            {/* Power-shift callout — only render if we have both halves + a real change */}
             {drift.firstHalfLeader && drift.secondHalfLeader && (
-              <div className="mt-6 card" style={{ transform: 'rotate(-0.2deg)' }}>
-                <div className="label-mono mb-2">Who holds the contact</div>
+              <div
+                className="bg-white border-2 border-ink p-5 md:p-6"
+                style={{ boxShadow: '4px 4px 0 #0A0A0A', transform: 'rotate(-0.2deg)' }}
+              >
+                <div className="label-mono mb-3">
+                  {locale === 'de' ? 'Die Machtverschiebung' : 'The power shift'}
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/50 mb-1">First half</div>
-                    <div className="metric-num text-2xl">{drift.firstHalfLeader} · {Math.round(drift.firstHalfShare * 100)}%</div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/50 mb-1">
+                      {locale === 'de' ? 'erste hälfte' : 'first half'}
+                    </div>
+                    <div
+                      className="text-2xl md:text-3xl leading-none text-ink tabular-nums"
+                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                    >
+                      {drift.firstHalfLeader} · {Math.round(drift.firstHalfShare * 100)}%
+                    </div>
                   </div>
                   <div>
-                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/50 mb-1">Second half</div>
-                    <div className={`metric-num text-2xl ${drift.swap ? 'text-b' : ''}`}>{drift.secondHalfLeader} · {Math.round(drift.secondHalfShare * 100)}%</div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/50 mb-1">
+                      {locale === 'de' ? 'zweite hälfte' : 'second half'}
+                    </div>
+                    <div
+                      className={`text-2xl md:text-3xl leading-none tabular-nums ${drift.swap ? 'text-b' : 'text-ink'}`}
+                      style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                    >
+                      {drift.secondHalfLeader} · {Math.round(drift.secondHalfShare * 100)}%
+                    </div>
                   </div>
                 </div>
-                <p className="serif-body text-sm text-ink-muted mt-3">
-                  {drift.swap
-                    ? `Initiative flipped. First ${drift.firstHalfLeader} started most conversations. Now it's ${drift.secondHalfLeader}.`
-                    : `${drift.firstHalfLeader} kept the initiative throughout — ${driftDirection} by ${Math.abs(driftDeltaPct)} points.`}
-                </p>
+                {drift.swap && (
+                  <p className="serif-body text-sm text-ink-muted mt-4">
+                    {locale === 'de' ? (
+                      <>Das Zepter ist gekippt — von {drift.firstHalfLeader} zu {drift.secondHalfLeader}.</>
+                    ) : (
+                      <>The lead flipped — from {drift.firstHalfLeader} to {drift.secondHalfLeader}.</>
+                    )}
+                  </p>
+                )}
               </div>
             )}
-          </Section>
+          </WrappedSlide>
         )
       },
     },
 
-    // ── ROOM 7: SPILL IT + PAYWALL ──
-    { kind: 'gimmick', stamp: "SPILL IT.", sub: 'the numbers were the what. the analysis is the why.' },
+    // ── ROOM 8: THE EMOJI CHAMPIONS — top emoji per person, giant ──
+    {
+      kind: 'content',
+      id: 'emojis',
+      render: () => {
+        // The person with the most emoji usage per message "wins" the crown.
+        const emojiIdx =
+          facts.perPerson.length > 0
+            ? facts.perPerson.reduce(
+                (best, p, i, arr) =>
+                  (p.topEmojis[0]?.count ?? 0) > (arr[best].topEmojis[0]?.count ?? 0) ? i : best,
+                0,
+              )
+            : 0
+        const champ = facts.perPerson[emojiIdx]
+        const topEmoji = champ?.topEmojis[0]
+        const totalEmojis = facts.perPerson.reduce(
+          (s, p) => s + (p.topEmojis.reduce((t, e) => t + e.count, 0) ?? 0),
+          0,
+        )
+        // If nobody actually used emoji, skip the drama, show a placeholder.
+        const hasEmoji = (topEmoji?.count ?? 0) > 0
+        return (
+          <WrappedSlide
+            track={locale === 'de' ? '08 · DIE EMOJI-CHAMPIONS' : '08 · THE EMOJI CHAMPS'}
+            titlePre={locale === 'de' ? 'IN ' : 'IN '}
+            titleHighlight={locale === 'de' ? 'EMOJI.' : 'EMOJI.'}
+            lede={
+              !hasEmoji ? (
+                locale === 'de' ? (
+                  <>Kein:e von euch nutzt emojis ernsthaft. Minimalisten, respekt.</>
+                ) : (
+                  <>Neither of you reaches for emoji. minimalists. respect.</>
+                )
+              ) : locale === 'de' ? (
+                <>
+                  <span className="font-bold not-italic">{champ?.author}</span> hält{' '}
+                  <span className="text-3xl md:text-4xl align-middle">{topEmoji?.emoji}</span>{' '}
+                  <span className="font-bold not-italic">{topEmoji?.count}</span>× in der hand. Insgesamt sind{' '}
+                  <span className="font-bold not-italic">{totalEmojis}</span> emojis geflogen.
+                </>
+              ) : (
+                <>
+                  <span className="font-bold not-italic">{champ?.author}</span> holds{' '}
+                  <span className="text-3xl md:text-4xl align-middle">{topEmoji?.emoji}</span>{' '}
+                  <span className="font-bold not-italic">{topEmoji?.count}</span>× in hand. Across the chat,{' '}
+                  <span className="font-bold not-italic">{totalEmojis}</span> emojis flew.
+                </>
+              )
+            }
+          >
+            {hasEmoji && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {facts.perPerson.map((p, i) => {
+                  const e = p.topEmojis[0]
+                  const isChamp = i === emojiIdx
+                  return (
+                    <div
+                      key={p.author}
+                      className={`border-2 border-ink p-6 md:p-8 relative ${isChamp ? 'bg-pop-yellow' : 'bg-white'}`}
+                      style={{
+                        boxShadow: isChamp ? '6px 6px 0 #0A0A0A' : '4px 4px 0 #0A0A0A',
+                        transform: isChamp ? 'rotate(-0.5deg)' : 'rotate(0.3deg)',
+                      }}
+                    >
+                      {isChamp && (
+                        <div
+                          className="absolute -top-3 -right-3 px-3 py-1 bg-ink text-pop-yellow border-2 border-ink pointer-events-none"
+                          style={{
+                            fontFamily: "'Bebas Neue', sans-serif",
+                            fontSize: '14px',
+                            letterSpacing: '0.06em',
+                            transform: 'rotate(6deg)',
+                            boxShadow: '2px 2px 0 #0A0A0A',
+                          }}
+                        >
+                          👑 CHAMP
+                        </div>
+                      )}
+                      <div className={`font-mono text-[10px] uppercase tracking-[0.18em] mb-3 ${PERSON_COLORS[i % PERSON_COLORS.length]}`}>
+                        {p.author.toUpperCase()}
+                      </div>
+                      <div className="text-[80px] md:text-[120px] leading-none">
+                        {e?.emoji ?? '—'}
+                      </div>
+                      <div className="mt-3 flex items-baseline gap-3">
+                        <div
+                          className="text-3xl md:text-4xl leading-none text-ink tabular-nums"
+                          style={{ fontFamily: "'Bebas Neue', sans-serif" }}
+                        >
+                          {e?.count ?? 0}×
+                        </div>
+                        <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/60 leading-snug">
+                          {locale === 'de' ? 'meistgenutzt' : 'most-used'}
+                        </div>
+                      </div>
+
+                      {/* Runner-ups */}
+                      {p.topEmojis.slice(1, 4).length > 0 && (
+                        <div className="border-t-2 border-ink border-dashed mt-4 pt-3">
+                          <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink/50 mb-2">
+                            {locale === 'de' ? 'runners-up' : 'runners-up'}
+                          </div>
+                          <div className="flex gap-3 text-2xl">
+                            {p.topEmojis.slice(1, 4).map((r) => (
+                              <span key={r.emoji} title={`${r.count}×`}>
+                                {r.emoji}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </WrappedSlide>
+        )
+      },
+    },
+
+    // ── ROOM 9: THE OFFER — hero + buyable cards + share ──
     {
       kind: 'content',
       id: 'paywall',
@@ -417,9 +1095,20 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
           burstLongest={burstLongest}
           chatId={chatId ?? null}
           onStart={handleModule}
+          onBuy={onBuy}
+          pendingBuy={pendingBuy}
           completedModules={completedModules}
           canAnalyzeRelationship={canAnalyzeRelationship}
         />
+      ),
+    },
+
+    // ── ROOM 9: CLOSING — end of the exhibit, after the sell ──
+    {
+      kind: 'content',
+      id: 'closing',
+      render: () => (
+        <ClosingRoom total={facts.totalMessages} />
       ),
     },
   ]
@@ -584,16 +1273,39 @@ export function HardFactsView({ facts, onStartAi, onStartModule, mode = 'exhibit
 const PRICE_SINGLE = 3
 const PRICE_BUNDLE = 5
 
+function ClosingRoom({ total }: { total: number }) {
+  const locale = useLocale()
+  return (
+    <section className="min-h-[60vh] flex flex-col justify-center space-y-6">
+      <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
+        {t('closing.kicker', locale, { n: total.toLocaleString(locale === 'de' ? 'de-DE' : 'en-US') })}
+      </div>
+      <h3 className="font-serif text-[20vw] md:text-[180px] leading-[0.82] tracking-[-0.02em] text-ink">
+        {t('closing.hero.prefix', locale)}
+        <span className="bg-pop-yellow px-1">{t('closing.hero.highlight', locale)}</span>
+      </h3>
+      <p className="serif-body text-lg md:text-2xl text-ink max-w-3xl leading-snug">
+        {t('closing.body.top', locale)}
+        <br />
+        <span className="text-ink-muted">{t('closing.body.bottom', locale)}</span>
+      </p>
+      <div className="pt-3 font-mono text-[10px] uppercase tracking-[0.24em] text-ink/40">
+        · {t('paywall.endOfTape', locale).replace(/·/g, '').trim()} ·
+      </div>
+    </section>
+  )
+}
+
 function PaywallRoom({
   personA,
   personB,
   shareLeader,
   shareLeaderPct,
-  hedgeLeader,
   hedgePct,
-  lateLeader,
   chatId,
   onStart,
+  onBuy,
+  pendingBuy,
   completedModules,
   canAnalyzeRelationship,
 }: {
@@ -612,20 +1324,43 @@ function PaywallRoom({
   burstLongest: number
   chatId: string | null
   onStart: (m: ModuleId) => void
+  onBuy?: (target: UnlockModule) => void
+  pendingBuy?: UnlockModule | null
   completedModules: ModuleId[]
   canAnalyzeRelationship: boolean
 }) {
+  const locale = useLocale()
   const [picked, setPicked] = useState<ModuleId | null>(null)
   const profilesDone = completedModules.includes('profiles')
   const relationshipDone = completedModules.includes('relationship')
 
+  // Lock the body scroll while the upsell overlay is open — same idea as the
+  // checkout modal. Without this the paywall underneath can scroll behind the
+  // overlay which feels broken.
+  useEffect(() => {
+    if (!picked) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [picked])
+
   // Personalized bullet copy — 3 concrete deliverables per file
-  const youBullets = [
+  const youBullets = locale === 'de' ? [
+    `wie du schreibst, wenn ${personB.toLowerCase()} ghostet`,
+    `die softeren Wörter, die du in ${hedgePct}% deiner Messages nutzt — was sie verbergen`,
+    `der Move den du nach jedem Streit wiederholst`,
+  ] : [
     `how you write when ${personB.toLowerCase()} goes quiet`,
     `the soft words you use ${hedgePct}% of the time — what they cover`,
     `the move you keep making after every fight`,
   ]
-  const usBullets = [
+  const usBullets = locale === 'de' ? [
+    `warum ${shareLeader.toLowerCase()} ${Math.round(shareLeaderPct)}% der Convo übernimmt`,
+    `die Regel die ihr beide nie ausgesprochen habt`,
+    `wer führt, wer folgt, und wann es gekippt ist`,
+  ] : [
     `why ${shareLeader.toLowerCase()} does ${Math.round(shareLeaderPct)}% of the talking`,
     `the rule neither of you said out loud`,
     `who leads, who follows, and when it flipped`,
@@ -634,115 +1369,251 @@ function PaywallRoom({
   // After a pick: upsell — now with clear WHAT-YOU-GET on the "other" file.
   // In group chats there is no "other" file, so the upsell is skipped and the
   // FileCard dispatches straight to onStart.
-  if (picked && canAnalyzeRelationship) {
-    const otherId: ModuleId = picked === 'profiles' ? 'relationship' : 'profiles'
-    const pickedName = picked === 'profiles' ? 'PERSONAL ANALYSIS' : 'RELATIONSHIP ANALYSIS'
-    const otherName = otherId === 'profiles' ? 'PERSONAL ANALYSIS' : 'RELATIONSHIP ANALYSIS'
-    const otherBullets = otherId === 'profiles' ? youBullets : usBullets
+  // Whether the upsell toggle is checked. Lives on the PaywallRoom so it resets
+  // every time the user re-enters the overlay.
+  const [addOther, setAddOther] = useState(false)
+  // Reset the toggle whenever the pick changes.
+  useEffect(() => {
+    setAddOther(false)
+  }, [picked])
 
-    return (
-      <section className="space-y-6 md:space-y-8">
-        <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
-          → picked: {pickedName.toLowerCase()}
-        </div>
+  // Upsell overlay — full-screen layer, not a same-page swap, so there's no
+  // jumpy height change in the underlying paywall room. Cart-pattern UI: the
+  // picked file is locked in, the other is a single toggle, the CTA shows the
+  // live total.
+  const upsellOverlay =
+    picked && canAnalyzeRelationship
+      ? (() => {
+          const otherId: ModuleId = picked === 'profiles' ? 'relationship' : 'profiles'
+          const pickedName = picked === 'profiles' ? 'PERSONAL ANALYSIS' : 'RELATIONSHIP ANALYSIS'
+          const otherName = otherId === 'profiles' ? 'PERSONAL ANALYSIS' : 'RELATIONSHIP ANALYSIS'
+          const pickedBullets = picked === 'profiles' ? youBullets : usBullets
+          const otherBullets = otherId === 'profiles' ? youBullets : usBullets
+          const pickedLede =
+            picked === 'profiles'
+              ? `a psychological read of how ${personA.toLowerCase()} writes — patterns, tells, the moves you keep making.`
+              : `what's actually going on between ${personA.toLowerCase()} and ${personB.toLowerCase()} — who gives more, unwritten rules, who leads when.`
+          const otherLede =
+            otherId === 'profiles'
+              ? `how ${personA.toLowerCase()} actually writes — when stakes rise, when the room goes quiet.`
+              : `what's actually happening between ${personA.toLowerCase()} and ${personB.toLowerCase()}.`
+          const total = addOther ? PRICE_BUNDLE : PRICE_SINGLE
+          const moduleToBuy: UnlockModule = addOther ? 'bundle' : picked
+          const buttonLoading = pendingBuy === moduleToBuy
+          return (
+            <div
+              className="fixed inset-0 z-[60] bg-bg overflow-y-auto"
+              style={{ animation: 'slideUpPage 220ms ease-out' }}
+            >
+              <style>{`@keyframes slideUpPage { from { transform: translateY(18px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }`}</style>
+              <div className="max-w-xl mx-auto px-5 md:px-8 py-10 space-y-6">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setPicked(null)}
+                    className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 hover:text-ink"
+                  >
+                    ← change pick
+                  </button>
+                  <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
+                    your order
+                  </div>
+                </div>
 
-        <div
-          className="bg-pop-yellow border-2 border-ink relative p-5 md:p-8"
-          style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.4deg)' }}
-        >
-          <span className="exhibit-label">WAIT.</span>
-          <div
-            className="absolute -top-3 -right-3 inline-flex items-center gap-2 px-3 py-1 bg-ink text-pop-yellow border-2 border-ink"
-            style={{
-              transform: 'rotate(8deg)',
-              boxShadow: '2px 2px 0 #0A0A0A',
-              fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: '14px',
-              letterSpacing: '0.04em',
-            }}
-          >
-            SAVE €{PRICE_SINGLE * 2 - PRICE_BUNDLE}
-          </div>
+                {/* Line item: the file the user actually picked. Locked in. */}
+                <div
+                  className="bg-pop-yellow border-2 border-ink relative p-5 md:p-6"
+                  style={{ boxShadow: '6px 6px 0 #0A0A0A' }}
+                >
+                  <div className="flex items-baseline justify-between gap-3 mb-2">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink">
+                      file {picked === 'profiles' ? '01' : '02'}
+                    </span>
+                    <span className="font-serif text-2xl md:text-3xl leading-none text-ink">€{PRICE_SINGLE}</span>
+                  </div>
+                  <div className="font-serif text-3xl md:text-4xl leading-[0.95] tracking-[-0.01em] text-ink mt-1">
+                    {pickedName}
+                  </div>
+                  <p className="serif-body text-sm md:text-base mt-2 text-ink/90">{pickedLede}</p>
+                  <ul className="mt-3 space-y-1 border-t-2 border-ink border-dashed pt-3">
+                    {pickedBullets.map((b, i) => (
+                      <li key={i} className="font-mono text-[11px] md:text-xs uppercase tracking-[0.04em] text-ink/80 flex gap-1.5 leading-snug">
+                        <span className="shrink-0">—</span>
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-          <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink">
-            add file {otherId === 'profiles' ? '01' : '02'} · {otherName.toLowerCase()}
-          </div>
-          <div className="font-serif text-5xl md:text-7xl leading-[0.9] tracking-[-0.02em] text-ink mt-1">
-            {otherName}
-          </div>
-          <p className="serif-body text-base md:text-lg mt-3 text-ink">
-            {otherId === 'profiles'
-              ? 'how you actually write — when stakes rise, when the room goes quiet.'
-              : `what's actually happening between ${personA.toLowerCase()} and ${personB.toLowerCase()}.`}
-          </p>
+                {/* Toggleable add-on — cart-pattern yes/no. Magazine cut-out vibe:
+                    outlined white when off, yellow-filled + "LOCKED IN" stamp
+                    when on, details expand beneath the fold. */}
+                <button
+                  type="button"
+                  onClick={() => setAddOther((v) => !v)}
+                  aria-pressed={addOther}
+                  className={`relative w-full text-left border-2 border-ink overflow-hidden transition-all duration-200 ${addOther ? 'bg-pop-yellow' : 'bg-white hover:bg-pop-yellow/20'}`}
+                  style={{
+                    boxShadow: addOther ? '6px 6px 0 #0A0A0A' : '4px 4px 0 #0A0A0A',
+                    transform: addOther ? 'translate(-2px, -2px) rotate(-0.3deg)' : 'rotate(0deg)',
+                  }}
+                >
+                  {/* Corner sticker that only pops in once added. */}
+                  {addOther && (
+                    <div
+                      className="absolute -top-3 -right-3 z-10 px-3 py-1 bg-ink text-pop-yellow border-2 border-ink pointer-events-none"
+                      style={{
+                        transform: 'rotate(6deg)',
+                        boxShadow: '3px 3px 0 #0A0A0A',
+                        fontFamily: "'Bebas Neue', sans-serif",
+                        fontSize: '15px',
+                        letterSpacing: '0.06em',
+                        animation: 'stampIn 180ms cubic-bezier(.2, 1.3, .4, 1)',
+                      }}
+                    >
+                      ✦ LOCKED IN
+                    </div>
+                  )}
+                  <style>{`@keyframes stampIn { 0% { transform: rotate(-20deg) scale(.5); opacity: 0 } 100% { transform: rotate(6deg) scale(1); opacity: 1 } }`}</style>
 
-          <ul className="mt-4 space-y-1.5 border-t-2 border-ink border-dashed pt-4">
-            {otherBullets.map((b, i) => (
-              <li key={i} className="serif-body text-base md:text-lg text-ink flex gap-2">
-                <span className="text-ink shrink-0">—</span>
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
+                  {/* Savings ribbon along the top edge — always visible, draws the eye. */}
+                  <div className="flex items-stretch border-b-2 border-ink">
+                    <div className={`px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.16em] ${addOther ? 'bg-ink text-pop-yellow' : 'bg-ink text-pop-yellow'}`}>
+                      {addOther ? 'added' : '+ add'}
+                    </div>
+                    <div className="flex-1 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-ink flex items-center justify-between gap-3">
+                      <span>bundle discount</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="line-through text-ink/40">€{PRICE_SINGLE * 2}</span>
+                        <span className="font-bold">€{PRICE_BUNDLE}</span>
+                        <span
+                          className="px-1 py-0.5 bg-pop-yellow text-ink border border-ink"
+                          style={{
+                            fontFamily: "'Bebas Neue', sans-serif",
+                            fontSize: '12px',
+                            letterSpacing: '0.05em',
+                            lineHeight: '1',
+                          }}
+                        >
+                          − €{PRICE_SINGLE * 2 - PRICE_BUNDLE}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
 
-          <p className="serif-body text-base md:text-lg mt-4 text-ink">
-            <span className="font-bold not-italic">+€{PRICE_BUNDLE - PRICE_SINGLE}</span> on top of the €{PRICE_SINGLE} you picked. <span className="italic">(normally €{PRICE_SINGLE}.)</span>
-          </p>
-        </div>
+                  <div className="p-4 md:p-5 flex items-start gap-3">
+                    <div
+                      className={`shrink-0 w-7 h-7 border-2 border-ink flex items-center justify-center mt-0.5 transition-colors ${addOther ? 'bg-ink text-pop-yellow' : 'bg-white'}`}
+                      aria-hidden
+                    >
+                      {addOther ? '✓' : '+'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                        <span className="font-serif text-lg md:text-xl leading-tight text-ink">
+                          {otherName}
+                        </span>
+                        <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink/70">
+                          +€{PRICE_BUNDLE - PRICE_SINGLE}
+                        </span>
+                      </div>
+                      <p className="serif-body text-sm text-ink/80 mt-1 leading-snug">{otherLede}</p>
 
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => onStart(picked)}
-            className="border-2 border-ink bg-pop-yellow px-4 md:px-6 py-4 md:py-5 flex flex-col items-start gap-1 hover:bg-white transition-colors"
-            style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
-          >
-            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink">just {pickedName.toLowerCase()}</span>
-            <span className="font-serif text-3xl md:text-5xl leading-[0.9] text-ink">€{PRICE_SINGLE}</span>
-          </button>
-          <button
-            onClick={() => onStart(picked)}
-            className="bg-ink text-pop-yellow border-2 border-ink px-4 md:px-6 py-4 md:py-5 flex flex-col items-start gap-1 hover:bg-pop-yellow hover:text-ink transition-colors relative"
-            style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
-          >
-            <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-pop-yellow">
-              both · save €{PRICE_SINGLE * 2 - PRICE_BUNDLE}
-            </span>
-            <span className="font-serif text-3xl md:text-5xl leading-[0.9]">€{PRICE_BUNDLE}</span>
-          </button>
-        </div>
+                      {/* Progressive reveal of bullets once added — the user sees
+                          exactly what they're adding, but it doesn't clutter the
+                          default view. */}
+                      <div
+                        className="grid transition-all duration-300 ease-out"
+                        style={{
+                          gridTemplateRows: addOther ? '1fr' : '0fr',
+                          opacity: addOther ? 1 : 0,
+                          marginTop: addOther ? '0.75rem' : 0,
+                        }}
+                      >
+                        <ul className="overflow-hidden space-y-1 border-t-2 border-ink border-dashed pt-3">
+                          {otherBullets.map((b, i) => (
+                            <li key={i} className="font-mono text-[11px] md:text-xs uppercase tracking-[0.04em] text-ink/80 flex gap-1.5 leading-snug">
+                              <span className="shrink-0">—</span>
+                              <span>{b}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </button>
 
-        <button
-          onClick={() => setPicked(null)}
-          className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 hover:text-ink"
-        >
-          ← change pick
-        </button>
+                {/* Single dynamic CTA — shows current total. Zero ambiguity.
+                    We close the overlay immediately so the checkout modal (also
+                    at body level via portal ordering) isn't painted behind. */}
+                <button
+                  onClick={() => {
+                    if (!onBuy) return onStart(picked)
+                    onBuy(moduleToBuy)
+                    setPicked(null)
+                  }}
+                  disabled={Boolean(pendingBuy)}
+                  className="w-full bg-ink text-pop-yellow border-2 border-ink px-5 py-5 md:py-6 flex items-center justify-between hover:bg-pop-yellow hover:text-ink transition-colors disabled:opacity-60 disabled:cursor-wait"
+                  style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+                >
+                  <span className="font-mono text-[11px] md:text-xs uppercase tracking-[0.16em]">
+                    {buttonLoading ? 'loading…' : 'continue to checkout'}
+                  </span>
+                  <span className="font-serif text-3xl md:text-4xl leading-none">
+                    €{total} →
+                  </span>
+                </button>
 
-        <div className="pt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-ink/50">
-          95% take the bundle · no subscription · one-time
-        </div>
-      </section>
-    )
-  }
+                <div className="text-center font-mono text-[10px] uppercase tracking-[0.16em] text-ink/50">
+                  no subscription · one-time · secure via stripe
+                </div>
+              </div>
+            </div>
+          )
+        })()
+      : null
 
-  // Initial choice — two cards, each with what-you-get. In group chats only
-  // the personal file is offered since "relationship" is inherently pairwise.
+  // Portal the overlay into document.body so it escapes the parent stacking
+  // context created by the exhibit room's `transform`. Without this the
+  // FINAL TAKE / NEXT navigation button above z-30 can paint over the overlay.
+  const portaledUpsellOverlay = upsellOverlay
+    ? createPortal(upsellOverlay, document.body)
+    : null
+
+  // Initial choice — THE DEEP TEA. hero + two cards + share on one final slide.
+  // The upsell (when the user has picked a file) is rendered as an overlay on
+  // top, not a same-place swap, so the paywall layout stays stable.
   return (
-    <section className="space-y-6 md:space-y-8">
+    <>
+    {portaledUpsellOverlay}
+    <section className="space-y-6 md:space-y-8 relative">
+      {/* Final-slide marker */}
+      <div
+        className="inline-flex items-center gap-2 px-3 py-1 bg-ink text-pop-yellow"
+        style={{
+          fontFamily: "'Bebas Neue', sans-serif",
+          fontSize: '14px',
+          letterSpacing: '0.06em',
+          transform: 'rotate(-1.5deg)',
+          boxShadow: '3px 3px 0 #0A0A0A',
+        }}
+      >
+        {t('paywall.marker', locale)}
+      </div>
+
       <header>
         <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60 mb-1">
-          {canAnalyzeRelationship ? '→ two analyses · €3 each' : '→ personal file · €3'}
+          {canAnalyzeRelationship ? t('paywall.kicker.two', locale) : t('paywall.kicker.one', locale)}
         </div>
         <h3 className="font-serif text-[20vw] md:text-[180px] leading-[0.82] tracking-[-0.02em] text-ink">
-          THE DEEP <span className="bg-pop-yellow px-1">TEA.</span>
+          {t('paywall.hero.prefix', locale)}<span className="bg-pop-yellow px-1">{t('paywall.hero.highlight', locale)}</span>
         </h3>
         <p className="serif-body text-lg md:text-xl text-ink mt-2 max-w-2xl">
-          the numbers were the <span className="italic">what</span>.
+          {t('paywall.sub.prefix', locale)}<span className="italic">{t('paywall.sub.what', locale)}</span>.
           <br />
           {canAnalyzeRelationship ? (
-            <>two analyses are the <span className="italic">why</span>.</>
+            <>{t('paywall.sub.two', locale)}<span className="italic">{t('paywall.sub.why', locale)}</span>.</>
           ) : (
-            <>the personal file is the <span className="italic">why</span>.</>
+            <>{t('paywall.sub.one', locale)}<span className="italic">{t('paywall.sub.why', locale)}</span>.</>
           )}
         </p>
       </header>
@@ -750,36 +1621,92 @@ function PaywallRoom({
       <div className={`grid gap-3 md:gap-5 ${canAnalyzeRelationship ? 'md:grid-cols-2' : ''}`}>
         <FileCard
           num="01"
-          title="PERSONAL ANALYSIS."
-          tag={`about ${personA.toLowerCase()}`}
-          lede={`a psychological read of how ${personA.toLowerCase()} writes in this chat — patterns, tells, the moves you keep making.`}
+          title={t('paywall.file01.title', locale)}
+          tag={`${t('paywall.file.about', locale)} ${personA.toLowerCase()}`}
+          lede={t('paywall.file01.lede', locale, { name: personA.toLowerCase() })}
           bullets={youBullets}
           price={PRICE_SINGLE}
           tilt={-0.4}
           done={profilesDone}
+          loading={pendingBuy === 'profiles'}
           onPick={() => {
             if (profilesDone) return onStart('profiles')
-            if (!canAnalyzeRelationship) return onStart('profiles')
+            if (!canAnalyzeRelationship) return onBuy ? onBuy('profiles') : onStart('profiles')
             setPicked('profiles')
           }}
         />
         {canAnalyzeRelationship && (
           <FileCard
             num="02"
-            title="RELATIONSHIP ANALYSIS."
+            title={t('paywall.file02.title', locale)}
             tag={`${personA.toLowerCase()} × ${personB.toLowerCase()}`}
-            lede={`what's actually going on between ${personA.toLowerCase()} and ${personB.toLowerCase()} — who gives more, unwritten rules, who leads when.`}
+            lede={t('paywall.file02.lede', locale, { a: personA.toLowerCase(), b: personB.toLowerCase() })}
             bullets={usBullets}
             price={PRICE_SINGLE}
             tilt={0.5}
             done={relationshipDone}
+            loading={pendingBuy === 'relationship'}
             onPick={() => (relationshipDone ? onStart('relationship') : setPicked('relationship'))}
           />
         )}
       </div>
 
+      {/* Bundle shortcut — only when Relationship is available AND at least one
+          of the two modules is still unpaid. If both are already bought there's
+          nothing to bundle. Sits under the two cards as a third path so users
+          can skip the single-pick → upsell flow. */}
+      {canAnalyzeRelationship && !(profilesDone && relationshipDone) && (
+        <button
+          type="button"
+          onClick={() => (onBuy ? onBuy('bundle') : onStart('profiles'))}
+          disabled={Boolean(pendingBuy)}
+          className="w-full bg-ink text-pop-yellow border-2 border-ink p-5 md:p-6 flex items-center justify-between gap-4 hover:bg-pop-yellow hover:text-ink transition-colors disabled:opacity-60 disabled:cursor-wait relative"
+          style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.3deg)' }}
+        >
+          <div
+            className="absolute -top-3 -right-3 px-3 py-1 bg-pop-yellow text-ink border-2 border-ink pointer-events-none"
+            style={{
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: '15px',
+              letterSpacing: '0.06em',
+              transform: 'rotate(6deg)',
+              boxShadow: '3px 3px 0 #0A0A0A',
+            }}
+          >
+            SAVE €{PRICE_SINGLE * 2 - PRICE_BUNDLE}
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <div className="font-mono text-[10px] uppercase tracking-[0.2em] opacity-80 mb-1">
+              {t('paywall.bundle.kicker', locale)}
+            </div>
+            <div className="font-serif text-2xl md:text-3xl leading-tight tracking-tight">
+              {t('paywall.file01.title', locale).replace(/\.$/, '')} + {t('paywall.file02.title', locale).replace(/\.$/, '')}
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <div className="font-mono text-[10px] uppercase tracking-[0.14em] opacity-70 line-through">
+              €{PRICE_SINGLE * 2}
+            </div>
+            <div className="font-serif text-4xl md:text-5xl leading-none">
+              €{PRICE_BUNDLE}
+              <span className="font-mono text-[11px] tracking-[0.14em] ml-2 opacity-80">
+                {pendingBuy === 'bundle' ? '…' : '→'}
+              </span>
+            </div>
+          </div>
+        </button>
+      )}
+
       <MiniShare chatId={chatId} personA={personA} personB={personB} isGroup={!canAnalyzeRelationship} />
+
+      {/* End marker */}
+      <div className="pt-6 text-center">
+        <div className="inline-block font-mono text-[10px] uppercase tracking-[0.24em] text-ink/40 border-t-2 border-dotted border-ink/30 pt-3 px-6">
+          {t('paywall.endOfTape', locale)}
+        </div>
+      </div>
     </section>
+    </>
   )
 }
 
@@ -792,6 +1719,7 @@ function FileCard({
   price,
   tilt,
   done,
+  loading,
   onPick,
 }: {
   num: string
@@ -802,13 +1730,16 @@ function FileCard({
   price: number
   tilt: number
   done?: boolean
+  loading?: boolean
   onPick: () => void
 }) {
+  const locale = useLocale()
   return (
     <button
       onClick={onPick}
-      className={`relative p-5 md:p-6 text-left flex flex-col border-2 border-ink transition-colors ${done ? 'bg-pop-yellow hover:bg-white' : 'bg-white hover:bg-pop-yellow'}`}
-      style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: `rotate(${tilt}deg)` }}
+      disabled={loading}
+      className={`relative p-5 md:p-6 text-left flex flex-col border-2 border-ink transition-colors disabled:cursor-wait ${done ? 'bg-pop-yellow hover:bg-white' : 'bg-white hover:bg-pop-yellow'}`}
+      style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: `rotate(${tilt}deg)`, opacity: loading ? 0.6 : 1 }}
     >
       <span className="exhibit-label">FILE {num}</span>
       {done && (
@@ -822,7 +1753,7 @@ function FileCard({
             letterSpacing: '0.04em',
           }}
         >
-          ✓ YOURS
+          {t('paywall.yours', locale)}
         </span>
       )}
       <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
@@ -850,7 +1781,7 @@ function FileCard({
             className="font-serif text-xl md:text-2xl tracking-[0.04em] bg-ink text-pop-yellow border-2 border-ink px-3 py-1.5 leading-none"
             style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
           >
-            OPEN →
+            {t('paywall.open', locale)}
           </span>
         ) : (
           <>
@@ -858,7 +1789,7 @@ function FileCard({
               className="font-serif text-xl md:text-2xl tracking-[0.04em] bg-pop-yellow text-ink border-2 border-ink px-3 py-1.5 leading-none"
               style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
             >
-              UNLOCK
+              {t('paywall.unlock', locale)}
             </span>
             <span className="font-serif text-3xl md:text-4xl leading-none">€{price}</span>
           </>
@@ -869,6 +1800,7 @@ function FileCard({
 }
 
 function MiniShare({ chatId, personA, personB, isGroup = false }: { chatId: string | null; personA: string; personB: string; isGroup?: boolean }) {
+  const locale = useLocale()
   const [copied, setCopied] = useState(false)
   const canShare = Boolean(chatId)
   const copyLink = async () => {
@@ -883,14 +1815,16 @@ function MiniShare({ chatId, personA, personB, isGroup = false }: { chatId: stri
     }
   }
   void personA
-  const sendLabel = isGroup ? 'SEND TO THE GROUP.' : `SEND TO ${personB.toUpperCase()}.`
+  const sendLabel = isGroup
+    ? (locale === 'de' ? 'AN DIE GRUPPE.' : 'SEND TO THE GROUP.')
+    : `${t('share.sendTo', locale)} ${personB.toUpperCase()}.`
   return (
     <div
       className="w-full bg-white border-2 border-ink p-4 md:p-5 flex items-center justify-between gap-4"
       style={{ boxShadow: '4px 4px 0 #0A0A0A', transform: 'rotate(-0.2deg)' }}
     >
       <div className="min-w-0 flex flex-col gap-0.5">
-        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">share this read</span>
+        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">{t('share.label', locale)}</span>
         <span className="font-serif text-2xl md:text-3xl leading-[0.95] text-ink truncate">
           {sendLabel}
         </span>
@@ -901,10 +1835,10 @@ function MiniShare({ chatId, personA, personB, isGroup = false }: { chatId: stri
         className="btn-pop shrink-0 disabled:opacity-40"
       >
         {copied ? (
-          <>✓ COPIED</>
+          <>{t('share.copied', locale)}</>
         ) : (
           <>
-            COPY
+            {t('share.copy', locale)}
             <span aria-hidden className="ml-1">→</span>
           </>
         )}
@@ -913,150 +1847,94 @@ function MiniShare({ chatId, personA, personB, isGroup = false }: { chatId: stri
   )
 }
 
-function ShareBlock({ chatId, personA, personB }: { chatId: string | null; personA: string; personB: string }) {
-  const [state, setState] = useState<'idle' | 'copied' | 'error'>('idle')
-  const canShare = Boolean(chatId)
-
-  const copyLink = async () => {
-    if (!chatId) return
-    const url = `${window.location.origin}/?scroll=${encodeURIComponent(chatId)}`
-    try {
-      await navigator.clipboard.writeText(url)
-      setState('copied')
-      setTimeout(() => setState('idle'), 2400)
-    } catch {
-      setState('error')
-      setTimeout(() => setState('idle'), 2400)
-    }
-  }
-
-  return (
-    <aside className="relative" style={{ transform: 'rotate(-0.4deg)' }}>
-      <div className="quote-box">
-        <span className="exhibit-label">EXHIBIT · SHARE THE TAPE</span>
-        <div className="flex flex-col md:flex-row gap-5 md:items-center mt-3">
-          <div className="flex-1 min-w-0">
-            <h4 className="font-serif text-2xl md:text-4xl leading-tight tracking-tight mb-2 not-italic">
-              Send the scroll to {personB}.
-            </h4>
-            <p className="serif-body text-base leading-snug">
-              One link. They see the same numbers {personA} just saw — no signup, no app. Just the receipts.
-            </p>
-          </div>
-          <button
-            onClick={copyLink}
-            disabled={!canShare || state === 'copied'}
-            className="btn-pop shrink-0 self-start md:self-center disabled:opacity-40"
-          >
-            {state === 'copied' ? (
-              <>
-                <span aria-hidden>✓</span>
-                COPIED
-                <span className="text-[10px] font-mono opacity-70 ml-2">· paste it</span>
-              </>
-            ) : state === 'error' ? (
-              <>
-                <span aria-hidden>×</span>
-                CLIPBOARD BLOCKED
-              </>
-            ) : (
-              <>
-                <span aria-hidden>⎘</span>
-                COPY LINK
-                <span className="text-[10px] font-mono opacity-70 ml-2">· 1 TAP</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </aside>
-  )
-}
-
-function Section({
-  kicker,
-  title,
-  body,
+// Spotify-Wrapped-style slide shell. Used for all Hard Facts content rooms so
+// the flow feels like episodic tracks: rotated ink sticker marks the track,
+// giant Bebas hero, one-line lede with a yellow-highlighted pull-phrase, then
+// the visualization. The ink sticker uses an `✦ TRACK NN` pattern shared with
+// the rest of the app's Wrapped rhythm.
+function WrappedSlide({
+  track,
+  titlePre,
+  titleHighlight,
+  titlePost,
+  lede,
   children,
 }: {
-  kicker: string
-  title: string
-  body?: string
+  track: string
+  titlePre: React.ReactNode
+  titleHighlight?: React.ReactNode
+  titlePost?: React.ReactNode
+  lede?: React.ReactNode
   children: React.ReactNode
 }) {
-  // kicker shape: "01 · Verteilung" → split into number + label
-  const parts = kicker.split('·').map((s) => s.trim())
-  const num = parts[0] ?? ''
-  const label = (parts[1] ?? '').toLowerCase()
-
   return (
-    <section className="space-y-5">
-      <div className="space-y-3">
-        <div className="flex items-baseline gap-2 font-mono text-xs uppercase tracking-[0.18em]">
-          <span className="text-ink-faint">{num}</span>
-          <span className="text-ink-faint">/</span>
-          <span className="text-a">{label}</span>
+    <section className="space-y-8 md:space-y-12">
+      <div className="space-y-5 md:space-y-6">
+        <div
+          className="inline-flex items-center gap-2 px-3 py-1 bg-ink text-pop-yellow"
+          style={{
+            fontFamily: "'Bebas Neue', sans-serif",
+            fontSize: '14px',
+            letterSpacing: '0.06em',
+            transform: 'rotate(-1.5deg)',
+            boxShadow: '3px 3px 0 #0A0A0A',
+          }}
+        >
+          ✦ TRACK {track}
         </div>
-        <h3 className="font-serif text-3xl md:text-5xl leading-[1.05] tracking-tight">{title}</h3>
-        {body && (
-          <p className="serif-body text-base md:text-lg text-ink-muted max-w-2xl leading-snug">{body}</p>
+        <h3 className="font-serif text-[14vw] md:text-[96px] leading-[0.9] tracking-[-0.02em] text-ink max-w-full break-words">
+          {titlePre}
+          {titleHighlight && <span className="bg-pop-yellow px-1">{titleHighlight}</span>}
+          {titlePost}
+        </h3>
+        {lede && (
+          <p className="serif-body text-lg md:text-xl text-ink max-w-2xl leading-relaxed pt-2">
+            {lede}
+          </p>
         )}
       </div>
-      <div className="card">{children}</div>
+      {children}
     </section>
   )
 }
 
-function Whisper({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="my-2 max-w-xl">
-      <p className="font-serif italic text-base md:text-lg text-ink-faint leading-snug pl-4 border-l-2 border-line/40">
-        {children}
-      </p>
-    </div>
-  )
-}
 
-function Tile({
-  label,
+// Opener-specific stat tile — matches the Wrapped-card brutalist vibe
+// (ink border, drop shadow, Bebas display number, mono caption). Used on the
+// first slide so the four headline numbers all rhyme.
+function OpenerStat({
   value,
+  label,
   accent,
 }: {
-  label: string
   value: React.ReactNode
-  accent?: string
+  label: string
+  accent?: boolean
 }) {
   return (
-    <div className="bg-bg-raised border border-line/60 rounded-2xl p-5 hover:border-line transition-colors">
-      <div className="label-mono mb-2">{label}</div>
-      <div className={`text-3xl md:text-4xl metric-num ${accent ?? 'text-ink'}`}>{value}</div>
+    <div
+      className={`border-2 border-ink p-4 ${accent ? 'bg-ink text-pop-yellow' : 'bg-white'}`}
+      style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+    >
+      <div
+        className="text-4xl md:text-5xl leading-none tabular-nums"
+        style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.01em' }}
+      >
+        {value}
+      </div>
+      <div className={`font-mono text-[10px] uppercase tracking-[0.18em] mt-2 ${accent ? 'opacity-80' : 'text-ink/60'}`}>
+        {label}
+      </div>
     </div>
   )
 }
 
-function MiniRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between border-b border-line/40 pb-2">
-      <span className="label-mono">{label}</span>
-      <span className="metric-num text-lg">{value}</span>
-    </div>
-  )
-}
-
-function fmtDayKey(key: string): string {
-  if (!key) return '—'
-  const [y, m, d] = key.split('-')
-  return `${m}/${d}/${y.slice(2)}`
-}
-
-function fmtDayKey2(d: Date): string {
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function fmtHour(h: number): string {
-  if (h === 0) return '12am'
-  if (h < 12) return `${h}am`
-  if (h === 12) return '12pm'
-  return `${h - 12}pm`
+function fmtDayKey2(d: Date, locale: 'en' | 'de'): string {
+  // Long month name feels less clipped in the Wrapped headlines ("March 14"
+  // beats "Mar 14"). Uses the locale's own names so German reads "14. März".
+  return d.toLocaleDateString(locale === 'de' ? 'de-DE' : 'en-US', {
+    month: 'long',
+    day: 'numeric',
+  })
 }
 

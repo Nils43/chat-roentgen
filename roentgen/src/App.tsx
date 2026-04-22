@@ -3,6 +3,7 @@ import { loadSession, saveSession } from './store/sessionStore'
 import { chatLibrary, useChatLibrary } from './store/chatLibrary'
 import { Library } from './components/Library'
 import { parseWhatsApp } from './parser/whatsapp'
+import { inferSelfPerson } from './parser/inferSelf'
 import type { ParsedChat } from './parser/types'
 import { analyzeHardFacts } from './analysis/hardFacts'
 import { Upload } from './components/Upload'
@@ -19,8 +20,20 @@ import { PrivacyPolicy } from './components/PrivacyPolicy'
 import { Imprint } from './components/Imprint'
 import { Settings } from './components/Settings'
 import { PrivacyBanner } from './components/PrivacyBanner'
+import { t, useLocale } from './i18n'
 import type { ModuleId } from './store/chatLibrary'
 import type { ProfileResult, RelationshipResult } from './ai/types'
+import {
+  findUsableReceipt,
+  getReceipt,
+  markLocalSpent,
+  pollUnlock,
+  saveReceipt,
+  startCheckout,
+  type UnlockModule,
+} from './payments/client'
+import { CheckoutModal, getStripe } from './components/CheckoutModal'
+import { AiBundleProgress, type BundleStepState } from './components/AiBundleProgress'
 
 type Stage =
   | 'intro'
@@ -28,18 +41,19 @@ type Stage =
   | 'upload'
   | 'parsing'
   | 'analysis'
-  | 'self_pick'
   | 'consent'
   | 'ai'
   | 'profiles'
   | 'relationship_loading'
   | 'relationship'
+  | 'ai_bundle'
   | 'privacy'
   | 'imprint'
   | 'settings'
 
 function App() {
   const library = useChatLibrary()
+  const locale = useLocale()
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [stage, setStage] = useState<Stage>(library.length > 0 ? 'library' : 'upload')
   const finishIntro = () => setStage(library.length > 0 ? 'library' : 'upload')
@@ -87,7 +101,31 @@ function App() {
     window.history.replaceState({}, '', url.toString())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Active Stripe checkout session — when non-null, the CheckoutModal is open.
+  // clientSecret comes from /api/checkout; Stripe mounts its embedded form with
+  // it and fires onComplete when payment is done.
+  const [checkout, setCheckout] = useState<null | { clientSecret: string; token: string; module: UnlockModule }>(null)
+  // Which button is currently fetching a checkout session. Prevents double
+  // clicks and gives the paywall a loading state while we wait on the server.
+  const [pendingBuy, setPendingBuy] = useState<UnlockModule | null>(null)
+  const [unlockInFlight, setUnlockInFlight] = useState(false)
   const [pendingModule, setPendingModule] = useState<ModuleId>('profiles')
+
+  // Bundle flow: when user paid for both, we run Personal + Relationship in
+  // parallel. The `pendingBundle` flag routes the consent-accept to runBundle
+  // instead of a single-module dispatch. `bundleProgress` drives the loader.
+  const [pendingBundle, setPendingBundle] = useState(false)
+  const [bundleProgress, setBundleProgress] = useState<{
+    profile: BundleStepState
+    relationship: BundleStepState
+  }>({ profile: 'pending', relationship: 'pending' })
+
+  // Pre-warm Stripe.js at app start so the modal opens instantly on first click
+  // instead of flashing empty while Stripe's script downloads.
+  useEffect(() => {
+    void getStripe()
+  }, [])
 
   const facts = useMemo(() => {
     if (!chat || chat.messages.length === 0) return null
@@ -114,10 +152,19 @@ function App() {
     setParseError(null)
     const parsed = parseWhatsApp(text)
     if (parsed.messages.length === 0) {
-      setParseError(parsed.warnings[0] ?? 'no messages found — hmm.')
+      setParseError(
+        parsed.warnings[0] ??
+          (locale === 'de' ? 'keine nachrichten gefunden — hmm.' : 'no messages found — hmm.'),
+      )
       return
     }
     const meta = chatLibrary.create(parsed, name)
+    // Filename-based self-detection: `WhatsApp Chat mit Lena.txt` means the
+    // user is the *other* participant. If that can't be inferred we default to
+    // the first participant — it skips the self-pick step entirely. The user
+    // never sees a "which one is you?" screen.
+    const self = inferSelfPerson(name, parsed) ?? parsed.participants[0] ?? null
+    if (self) chatLibrary.setSelf(meta.id, self)
     const ok = await saveSession(meta.id, {
       fileName: name,
       chat: parsed,
@@ -129,7 +176,9 @@ function App() {
       chatLibrary.remove(meta.id)
       const sizeMb = (text.length / 1024 / 1024).toFixed(1)
       setParseError(
-        `your chat is ~${sizeMb} MB — that's too big to stash on this device. export a shorter slice — like just the last few months.`,
+        locale === 'de'
+          ? `dein chat ist ~${sizeMb} MB — das ist zu groß für dieses gerät. exportier einen kürzeren ausschnitt — z.B. nur die letzten paar monate.`
+          : `your chat is ~${sizeMb} MB — that's too big to stash on this device. export a shorter slice — like just the last few months.`,
       )
       return
     }
@@ -154,7 +203,9 @@ function App() {
     const snap = await loadSession(id)
     if (!snap?.chat) {
       alert(
-        "this chat isn't on your device anymore — probably deleted or too big. kicking the card.",
+        locale === 'de'
+          ? 'dieser chat ist nicht mehr auf deinem gerät — wahrscheinlich gelöscht oder zu groß. karte fliegt.'
+          : "this chat isn't on your device anymore — probably deleted or too big. kicking the card.",
       )
       chatLibrary.remove(id)
       return
@@ -190,22 +241,32 @@ function App() {
   const startAiAnalysis = () => {
     if (!chat) return
     setPendingModule('profiles')
+    // `selfPerson` is set during upload (filename inference, or first
+    // participant as default). It's always truthy by the time we reach here —
+    // no prompt-for-self step.
     const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
-    if (!meta?.selfPerson) {
-      setStage('self_pick')
-      return
+    if (!meta?.selfPerson && currentChatId) {
+      chatLibrary.setSelf(currentChatId, chat.participants[0] ?? '')
     }
     const p = prepareAnalysis(chat)
     setPrepared(p)
     setStage('consent')
   }
 
-  const confirmSelfPerson = (person: string) => {
-    if (!currentChatId || !chat) return
-    chatLibrary.setSelf(currentChatId, person)
-    const p = prepareAnalysis(chat)
-    setPrepared(p)
-    setStage('consent')
+  // Re-run a module even when we already have a result (e.g. user switched
+  // language and wants the analysis regenerated in the new language).
+  const rerunModule = (moduleId: ModuleId) => {
+    if (!chat) return
+    if (moduleId === 'profiles') setProfiles(null)
+    if (moduleId === 'relationship') setRelationship(null)
+    setPendingModule(moduleId)
+    if (!prepared) {
+      const p = prepareAnalysis(chat)
+      setPrepared(p)
+      setStage('consent')
+      return
+    }
+    dispatchModule(moduleId)
   }
 
   // Direct module click from HardFactsView. If we haven't shown consent yet,
@@ -248,8 +309,88 @@ function App() {
     }
   }
 
-  // Consent screen's accept handler: dispatch to whichever module was pending.
-  const onConsentAccept = () => dispatchModule(pendingModule)
+  // Consent screen's accept handler. If the user paid for the bundle, run both
+  // modules in parallel; otherwise dispatch the single pending one.
+  const onConsentAccept = () => {
+    if (pendingBundle) return runBundle()
+    return dispatchModule(pendingModule)
+  }
+
+  // Bundle entry point — same gates as startAiAnalysis (selfPerson picked →
+  // consent) but sets `pendingBundle` so the consent accept fires runBundle.
+  const startBundle = () => {
+    if (!chat) return
+    setPendingBundle(true)
+    setPendingModule('profiles')
+    // Self-person is set at upload time — no picker step.
+    const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
+    if (!meta?.selfPerson && currentChatId) {
+      chatLibrary.setSelf(currentChatId, chat.participants[0] ?? '')
+    }
+    const p = prepareAnalysis(chat)
+    setPrepared(p)
+    setStage('consent')
+  }
+
+  const runBundle = async () => {
+    if (!chat) return
+    const p = prepared ?? prepareAnalysis(chat)
+    if (!prepared) setPrepared(p)
+    const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
+    const selfPerson = meta?.selfPerson ?? chat.participants[0]
+    if (!selfPerson) return
+    // The bundle token covers both halves; pull the shared receipt once.
+    const receipt = findUsableReceipt('profiles') ?? findUsableReceipt('relationship')
+    setAiError(null)
+    setRelationshipError(null)
+    setBundleProgress({ profile: 'running', relationship: 'running' })
+    setStage('ai_bundle')
+
+    const profilePromise = runProfileAnalyses({
+      chat,
+      prepared: p,
+      targetPersons: [selfPerson],
+      unlockToken: receipt?.token,
+      onProgress: () => {},
+    })
+      .then((results) => {
+        if (receipt) markLocalSpent(receipt.token, 'profiles')
+        setProfiles(results)
+        setBundleProgress((s) => ({ ...s, profile: 'done' }))
+        return true
+      })
+      .catch((e: Error) => {
+        setAiError(e.message ?? t('app.analysis.failed', locale))
+        setBundleProgress((s) => ({ ...s, profile: 'error' }))
+        return false
+      })
+
+    const relPromise = runRelationshipAnalysis({
+      chat,
+      prepared: p,
+      unlockToken: receipt?.token,
+    })
+      .then((result) => {
+        if (receipt) markLocalSpent(receipt.token, 'relationship')
+        setRelationship(result)
+        setBundleProgress((s) => ({ ...s, relationship: 'done' }))
+        return true
+      })
+      .catch((e: Error) => {
+        setRelationshipError(e.message ?? 'vibe read failed.')
+        setBundleProgress((s) => ({ ...s, relationship: 'error' }))
+        return false
+      })
+
+    const [profileOk, relOk] = await Promise.all([profilePromise, relPromise])
+    // Land on whichever succeeded. Prefer profile if both are ready — user
+    // picked the bundle, we start them in the personal file.
+    setPendingBundle(false)
+    if (profileOk) setStage('profiles')
+    else if (relOk) setStage('relationship')
+    // If neither succeeded, stay on ai_bundle so the user sees both errors +
+    // retry buttons.
+  }
 
   const runAi = async () => {
     if (!chat || !prepared) return
@@ -258,6 +399,7 @@ function App() {
     const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
     const selfPerson = meta?.selfPerson ?? chat.participants[0]
     if (!selfPerson) return
+    const receipt = findUsableReceipt('profiles')
     setAiError(null)
     setAiProgress({ done: 0, total: 1, current: selfPerson })
     setStage('ai')
@@ -266,13 +408,15 @@ function App() {
         chat,
         prepared,
         targetPersons: [selfPerson],
+        unlockToken: receipt?.token,
         onProgress: (done, total, current) => setAiProgress({ done, total, current }),
       })
+      if (receipt) markLocalSpent(receipt.token, 'profiles')
       setProfiles(results)
       setStage('profiles')
     } catch (e) {
       const err = e as Error
-      setAiError(err.message ?? 'analysis failed.')
+      setAiError(err.message ?? t('app.analysis.failed', locale))
     }
   }
 
@@ -283,15 +427,93 @@ function App() {
       setStage('relationship')
       return
     }
+    const receipt = findUsableReceipt('relationship')
     setRelationshipError(null)
     setStage('relationship_loading')
     try {
-      const result = await runRelationshipAnalysis({ chat, prepared })
+      const result = await runRelationshipAnalysis({
+        chat,
+        prepared,
+        unlockToken: receipt?.token,
+      })
+      if (receipt) markLocalSpent(receipt.token, 'relationship')
       setRelationship(result)
       setStage('relationship')
     } catch (e) {
       const err = e as Error
-      setRelationshipError(err.message ?? 'vibe read failed.')
+      setRelationshipError(err.message ?? t('app.relationship.failed', locale))
+    }
+  }
+
+  // Entry point from the paywall. If the user already has a paid receipt for
+  // this module we skip Stripe and dispatch straight to the module. Otherwise
+  // we open the embedded-checkout modal with a fresh session client_secret.
+  const handleUnlock = async (requested: UnlockModule) => {
+    if (!chat) return
+    if (pendingBuy) return // guard against double-clicks while /api/checkout flies
+    const first: 'profiles' | 'relationship' = requested === 'relationship' ? 'relationship' : 'profiles'
+    // Dev/preview toggle: skip the paywall entirely so the team can click
+    // through the product without charging themselves.
+    if (import.meta.env.VITE_PAYWALL_DISABLED === 'true') {
+      if (requested === 'bundle') return startBundle()
+      startModule(first)
+      return
+    }
+    const existing = findUsableReceipt(first)
+    if (existing) {
+      // Fresh bundle (nothing spent yet) → run both halves in parallel.
+      // Bundle with one half already spent, or a single-module receipt →
+      // dispatch that one module only.
+      if (existing.module === 'bundle' && (existing.spent ?? []).length === 0) {
+        return startBundle()
+      }
+      startModule(first)
+      return
+    }
+    setPendingBuy(requested)
+    try {
+      const session = await startCheckout({ module: requested })
+      setCheckout(session)
+    } catch (e) {
+      const err = e as Error
+      setPayError(err.message)
+    } finally {
+      setPendingBuy(null)
+    }
+  }
+  const [payError, setPayError] = useState<string | null>(null)
+
+  // Stripe's embedded checkout fires onComplete right after the customer
+  // finishes payment. The webhook may race us, so we poll KV briefly until we
+  // see `paid`, then stash the receipt locally and dispatch the analysis.
+  const handleCheckoutComplete = async () => {
+    const session = checkout
+    if (!session) return
+    setCheckout(null)
+    setUnlockInFlight(true)
+    try {
+      const pending = getReceipt(session.token)
+      const remote = await pollUnlock(session.token, { timeoutMs: 30_000 })
+      if (remote.paid && remote.module) {
+        saveReceipt({
+          token: session.token,
+          module: remote.module,
+          paid: true,
+          createdAt: pending?.createdAt ?? new Date().toISOString(),
+          spent: remote.spent,
+        })
+        if (remote.module === 'bundle') {
+          startBundle()
+        } else {
+          const first: 'profiles' | 'relationship' =
+            remote.module === 'relationship' ? 'relationship' : 'profiles'
+          startModule(first)
+        }
+      } else {
+        setPayError(t('app.pay.unconfirmed', locale))
+      }
+    } finally {
+      setUnlockInFlight(false)
     }
   }
 
@@ -299,18 +521,58 @@ function App() {
   const currentTab: 'leaks' | 'intel' | 'files' =
     stage === 'library' || stage === 'upload' || stage === 'parsing'
       ? 'leaks'
-      : stage === 'analysis' || stage === 'consent' || stage === 'ai'
+      : stage === 'analysis' ||
+          stage === 'consent' ||
+          stage === 'ai' ||
+          stage === 'relationship_loading'
         ? 'intel'
         : 'files'
 
   return (
     <div className="min-h-screen bg-bg text-ink pb-20">
+      {checkout && (
+        <CheckoutModal
+          clientSecret={checkout.clientSecret}
+          onComplete={handleCheckoutComplete}
+          onClose={() => setCheckout(null)}
+        />
+      )}
+      {(pendingBuy && !checkout) && (
+        <div className="fixed inset-0 z-[75] bg-ink/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-pop-yellow border-2 border-ink px-6 py-4 font-mono text-xs uppercase tracking-[0.18em]" style={{ boxShadow: '4px 4px 0 #0A0A0A' }}>
+            {t('app.pay.opening', locale)}
+          </div>
+        </div>
+      )}
+      {unlockInFlight && (
+        <div className="fixed inset-0 z-[75] bg-ink/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="bg-pop-yellow border-2 border-ink px-6 py-4 font-mono text-xs uppercase tracking-[0.18em]" style={{ boxShadow: '4px 4px 0 #0A0A0A' }}>
+            {t('app.pay.confirming', locale)}
+          </div>
+        </div>
+      )}
+      {payError && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] max-w-md bg-pop-yellow border-2 border-ink px-4 py-3 flex items-start gap-3"
+          style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+        >
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 mt-0.5">{t('app.pay.errorLabel', locale)}</span>
+          <p className="font-serif text-sm text-ink flex-1 leading-snug">{payError}</p>
+          <button
+            onClick={() => setPayError(null)}
+            aria-label="Dismiss"
+            className="text-ink hover:bg-ink hover:text-pop-yellow w-6 h-6 flex items-center justify-center leading-none shrink-0"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <header className="sticky top-0 z-40 bg-black text-white border-b-2 border-ink">
         <div className="max-w-6xl mx-auto px-4 md:px-6 py-2 flex items-center justify-between gap-4">
           <button onClick={goToLibrary} className="flex items-baseline gap-2 group">
             <span className="font-serif italic text-2xl tracking-tight text-white group-hover:text-yellow-300 transition-colors">tea</span>
             <span className="bg-pop-yellow text-ink px-1.5 leading-none text-2xl font-serif">.</span>
-            <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.16em] text-white/50 ml-3">· local only</span>
+            <span className="hidden md:inline font-mono text-[10px] uppercase tracking-[0.16em] text-white/50 ml-3">{t('nav.localOnly', locale)}</span>
           </button>
           <div className="flex items-center gap-3 text-white">
             {currentChatId && stage !== 'library' && (
@@ -318,7 +580,7 @@ function App() {
                 onClick={goToLibrary}
                 className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
               >
-                ← back to leaks
+                {t('nav.backToLeaks', locale)}
               </button>
             )}
             {stage === 'profiles' && (
@@ -327,14 +589,14 @@ function App() {
                   onClick={() => setStage('analysis')}
                   className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
                 >
-                  ← Hard Facts
+                  {t('app.nav.hardFacts', locale)}
                 </button>
                 {canAnalyzeRelationship && (
                   <button
                     onClick={goToRelationship}
                     className="font-mono text-[10px] uppercase tracking-[0.14em] text-pop-yellow hover:text-white transition-colors hidden md:inline"
                   >
-                    Relationship →
+                    {t('app.nav.relationship', locale)}
                   </button>
                 )}
               </>
@@ -344,7 +606,7 @@ function App() {
                 onClick={() => setStage('profiles')}
                 className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60 hover:text-pop-yellow transition-colors hidden md:inline"
               >
-                ← Personal
+                {t('app.nav.personal', locale)}
               </button>
             )}
             <NetworkIndicator
@@ -353,8 +615,8 @@ function App() {
                 (stage === 'ai' || stage === 'relationship_loading') &&
                 prepared
                   ? prepared.analyzerKind === 'fixture'
-                    ? 'test mode · nothing gets sent'
-                    : `${prepared.messagesSent} messages · names hidden`
+                    ? t('app.net.testDetail', locale)
+                    : t('app.net.liveDetail', locale, { n: prepared.messagesSent })
                   : undefined
               }
             />
@@ -376,16 +638,16 @@ function App() {
                     onClick={() => setStage('library')}
                     className="label-mono text-ink-faint hover:text-ink transition-colors"
                   >
-                    ← back to library
+                    {t('app.nav.backToLibrary', locale)}
                   </button>
                 </div>
               )}
               <Upload onFile={handleFile} />
               {parseError && (
                 <div className="mt-8 max-w-2xl mx-auto card border-b/50">
-                  <div className="label-mono text-b mb-2">something broke</div>
+                  <div className="label-mono text-b mb-2">{t('app.error.parse', locale)}</div>
                   <p className="serif-body text-lg">{parseError}</p>
-                  {fileName && <div className="label-mono mt-3">file: {fileName}</div>}
+                  {fileName && <div className="label-mono mt-3">{t('app.fileLabel', locale, { name: fileName })}</div>}
                 </div>
               )}
               <PrivacyStripe />
@@ -406,6 +668,8 @@ function App() {
               chatId={currentChatId}
               onStartAi={startAiAnalysis}
               onStartModule={startModule}
+              onBuy={handleUnlock}
+              pendingBuy={pendingBuy}
               canAnalyzeRelationship={canAnalyzeRelationship}
               mode={hfMode}
               completedModules={[
@@ -418,14 +682,6 @@ function App() {
             />
           )
         })()}
-
-        {stage === 'self_pick' && chat && (
-          <SelfPick
-            participants={chat.participants}
-            onPick={confirmSelfPerson}
-            onCancel={() => setStage('analysis')}
-          />
-        )}
 
         {stage === 'consent' && chat && prepared && (
           <ConsentScreen
@@ -447,11 +703,73 @@ function App() {
           />
         )}
 
+        {stage === 'ai_bundle' && (
+          <AiBundleProgress
+            personal={bundleProgress.profile}
+            relationship={bundleProgress.relationship}
+            personalError={aiError}
+            relationshipError={relationshipError}
+            onBack={() => setStage('analysis')}
+            onRetry={(which) => {
+              // Kick the failed half alone. Bundle token is still half-unspent
+              // server-side, so a retry hits the same token and goes through.
+              if (which === 'personal') {
+                setBundleProgress((s) => ({ ...s, profile: 'running' }))
+                setAiError(null)
+                void (async () => {
+                  if (!chat || !prepared) return
+                  const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
+                  const selfPerson = meta?.selfPerson ?? chat.participants[0]
+                  const receipt = findUsableReceipt('profiles')
+                  try {
+                    const results = await runProfileAnalyses({
+                      chat,
+                      prepared,
+                      targetPersons: [selfPerson],
+                      unlockToken: receipt?.token,
+                      onProgress: () => {},
+                    })
+                    if (receipt) markLocalSpent(receipt.token, 'profiles')
+                    setProfiles(results)
+                    setBundleProgress((s) => ({ ...s, profile: 'done' }))
+                    if (bundleProgress.relationship === 'done') setStage('profiles')
+                  } catch (e) {
+                    setAiError((e as Error).message)
+                    setBundleProgress((s) => ({ ...s, profile: 'error' }))
+                  }
+                })()
+              } else {
+                setBundleProgress((s) => ({ ...s, relationship: 'running' }))
+                setRelationshipError(null)
+                void (async () => {
+                  if (!chat || !prepared) return
+                  const receipt = findUsableReceipt('relationship')
+                  try {
+                    const result = await runRelationshipAnalysis({
+                      chat,
+                      prepared,
+                      unlockToken: receipt?.token,
+                    })
+                    if (receipt) markLocalSpent(receipt.token, 'relationship')
+                    setRelationship(result)
+                    setBundleProgress((s) => ({ ...s, relationship: 'done' }))
+                    if (bundleProgress.profile === 'done') setStage('profiles')
+                  } catch (e) {
+                    setRelationshipError((e as Error).message)
+                    setBundleProgress((s) => ({ ...s, relationship: 'error' }))
+                  }
+                })()
+              }
+            }}
+          />
+        )}
+
         {stage === 'profiles' && profiles && (
           <ProfileView
             profiles={profiles}
             chatId={currentChatId}
             onGoToRelationship={goToRelationship}
+            onRerun={() => rerunModule('profiles')}
           />
         )}
 
@@ -470,14 +788,15 @@ function App() {
             result={relationship}
             participants={chat.participants}
             onBack={() => setStage('profiles')}
+            onRerun={() => rerunModule('relationship')}
           />
         )}
 
         {stage === 'analysis' && !facts && (
           <div className="max-w-2xl mx-auto p-12 text-center">
-            <p className="serif-body text-xl">analysis crashed. try a different chat.</p>
+            <p className="serif-body text-xl">{t('app.error.noFacts', locale)}</p>
             <button onClick={reset} className="mt-6 px-5 py-3 bg-ink text-bg rounded-full font-sans text-sm">
-              try again
+              {t('app.error.tryAgain', locale)}
             </button>
           </div>
         )}
@@ -510,7 +829,7 @@ function App() {
               className={`flex items-center gap-1.5 transition-colors ${currentTab === 'leaks' ? 'text-pop-yellow' : 'text-white/50 hover:text-white'}`}
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 4 L14 4 L13 13 L3 13 Z M5 4 V2 L11 2 V4"/></svg>
-              leaks
+              {t('nav.leaks', locale)}
             </button>
             <button
               onClick={() => chat && setStage('analysis')}
@@ -518,7 +837,7 @@ function App() {
               className={`flex items-center gap-1.5 transition-colors disabled:opacity-30 ${currentTab === 'intel' ? 'text-pop-yellow' : 'text-white/50 hover:text-white'}`}
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="8" cy="8" r="6"/><circle cx="8" cy="8" r="2"/></svg>
-              intel
+              {t('nav.intel', locale)}
             </button>
             <button
               onClick={() => profiles && setStage('profiles')}
@@ -526,7 +845,7 @@ function App() {
               className={`flex items-center gap-1.5 transition-colors disabled:opacity-30 ${currentTab === 'files' ? 'text-pop-yellow' : 'text-white/50 hover:text-white'}`}
             >
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M2 3 L7 3 L8 5 L14 5 L14 13 L2 13 Z"/></svg>
-              files
+              {t('nav.files', locale)}
             </button>
           </div>
           <div className="flex items-center gap-3 md:gap-5 font-mono text-[10px] tracking-[0.14em] uppercase">
@@ -534,19 +853,19 @@ function App() {
               onClick={() => setStage('settings')}
               className="text-white/50 hover:text-pop-yellow transition-colors"
             >
-              settings
+              {t('nav.settings', locale)}
             </button>
             <button
               onClick={() => setStage('privacy')}
               className="text-white/50 hover:text-pop-yellow transition-colors"
             >
-              privacy
+              {t('nav.privacy', locale)}
             </button>
             <button
               onClick={() => setStage('imprint')}
               className="text-white/50 hover:text-pop-yellow transition-colors hidden md:inline"
             >
-              imprint
+              {t('nav.imprint', locale)}
             </button>
           </div>
         </div>
@@ -556,10 +875,11 @@ function App() {
 }
 
 function PrivacyStripe() {
+  const locale = useLocale()
   const items = [
-    { title: 'EXHIBIT 01: ON-DEVICE', body: 'the first numbers are crunched by your phone or laptop — nothing gets uploaded.' },
-    { title: 'EXHIBIT 02: NO ACCOUNT', body: 'no email, no password. just you and your chat.' },
-    { title: 'EXHIBIT 03: NO READERS', body: 'neither we nor anyone else sees your chat. it stays with you.' },
+    { title: t('app.privacyStripe.01.title', locale), body: t('app.privacyStripe.01.body', locale) },
+    { title: t('app.privacyStripe.02.title', locale), body: t('app.privacyStripe.02.body', locale) },
+    { title: t('app.privacyStripe.03.title', locale), body: t('app.privacyStripe.03.body', locale) },
   ]
   return (
     <div className="mt-16 max-w-3xl mx-auto grid md:grid-cols-3 gap-4">
@@ -600,51 +920,6 @@ function TeaIntro({ onDone }: { onDone: () => void }) {
       >
         Skip →
       </button>
-    </div>
-  )
-}
-
-function SelfPick({
-  participants,
-  onPick,
-  onCancel,
-}: {
-  participants: string[]
-  onPick: (p: string) => void
-  onCancel: () => void
-}) {
-  return (
-    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center px-5 md:px-8 py-12">
-      <div className="w-full max-w-xl space-y-8">
-        <div className="space-y-3">
-          <div className="label-mono text-ink/60">before we read</div>
-          <h2 className="font-serif italic text-4xl md:text-5xl leading-tight text-ink">
-            Which one is you<span className="bg-pop-yellow px-1">?</span>
-          </h2>
-          <p className="serif-body text-lg text-ink">
-            I only profile you. The other person didn't agree to be read.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          {participants.map((p) => (
-            <button
-              key={p}
-              onClick={() => onPick(p)}
-              className="btn-pop w-full justify-start text-left"
-            >
-              I am {p}
-            </button>
-          ))}
-        </div>
-
-        <button
-          onClick={onCancel}
-          className="label-mono text-ink/60 hover:text-ink transition-colors"
-        >
-          ← back
-        </button>
-      </div>
     </div>
   )
 }

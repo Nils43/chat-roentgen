@@ -8,11 +8,14 @@ import type {
   Zitat,
 } from '../ai/types'
 import { SafetyBanner } from './SafetyBanner'
+import { AiDisclosure } from './AiDisclosure'
+import { t, useLocale, type Locale } from '../i18n'
 
 interface Props {
   result: RelationshipResult
   participants: string[]
   onBack?: () => void
+  onRerun?: () => void
 }
 
 type PersonColor = {
@@ -54,7 +57,9 @@ const NEUTRAL: PersonColor = {
   soft: 'bg-line/30',
 }
 
-export function RelationshipView({ result, participants, onBack }: Props) {
+export function RelationshipView({ result, participants, onBack, onRerun }: Props) {
+  const locale = useLocale()
+  const r = (en: string, de: string) => (locale === 'de' ? de : en)
   const { payload } = result
 
   const colorFor = (name: string): PersonColor => {
@@ -70,20 +75,28 @@ export function RelationshipView({ result, participants, onBack }: Props) {
     return (
       <div className="max-w-3xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-6">
         <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
-          → incomplete response
+          → {r('incomplete response', 'unvollständige antwort')}
         </div>
         <h2 className="font-serif text-5xl md:text-7xl leading-[0.92] tracking-tight">
-          ANALYSIS WAS CUT SHORT.
+          {r('ANALYSIS WAS CUT SHORT.', 'ANALYSE WURDE ABGESCHNITTEN.')}
         </h2>
         <p className="serif-body text-lg text-ink-muted max-w-2xl">
-          The model returned an incomplete payload. Missing sections:{' '}
+          {r(
+            'The model returned an incomplete payload. Missing sections: ',
+            'Das Modell hat eine unvollständige Antwort geliefert. Fehlende Abschnitte: ',
+          )}
           <span className="font-mono text-sm">{missingSections.join(', ')}</span>.
           <br />
-          Run it again — usually works on the second try. If it keeps failing, set a bigger model via env (<span className="font-mono text-xs">VITE_ROENTGEN_MODEL=claude-sonnet-4-6</span>).
+          {r(
+            'Run it again — usually works on the second try. If it keeps failing, set a bigger model via env (',
+            'Nochmal starten — klappt meist beim zweiten Versuch. Wenn es weiter fehlschlägt, ein größeres Modell per env setzen (',
+          )}
+          <span className="font-mono text-xs">VITE_ROENTGEN_MODEL=claude-sonnet-4-6</span>
+          ).
         </p>
         {onBack && (
           <button onClick={onBack} className="btn-pop">
-            ← back
+            {r('← back', '← zurück')}
           </button>
         )}
       </div>
@@ -92,12 +105,28 @@ export function RelationshipView({ result, participants, onBack }: Props) {
 
   return (
     <div className="max-w-4xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-14">
-      <header className="space-y-6">
+      <header className="space-y-6 relative">
+        {onRerun && (
+          <button
+            onClick={onRerun}
+            className="absolute top-0 right-0 font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 hover:text-ink underline underline-offset-4 decoration-dotted"
+          >
+            ↻ {t('rerun.cta', locale, { lang: t(`rerun.lang.${locale}`, locale) })}
+          </button>
+        )}
+        <AiDisclosure />
         <h2 className="font-serif text-4xl md:text-6xl leading-[1.05] tracking-tight">
-          What's going on <span className="italic text-ink-muted">between you.</span>
+          {locale === 'de' ? (
+            <>Was läuft da eigentlich <span className="italic text-ink-muted">zwischen euch.</span></>
+          ) : (
+            <>What's actually going on <span className="italic text-ink-muted">between you.</span></>
+          )}
         </h2>
         <p className="serif-body text-lg md:text-xl text-ink-muted max-w-2xl">
-          Not who you are individually — but what you do together. How you sync, fight, get close, pull back.
+          {r(
+            "Not who you are solo — what the two of you do together. Sync, fight, lean in, ghost. All of it.",
+            'Nicht wer ihr einzeln seid — was ihr zu zweit macht. Syncen, streiten, annähern, wegdriften. Alles.',
+          )}
         </p>
       </header>
 
@@ -109,82 +138,82 @@ export function RelationshipView({ result, participants, onBack }: Props) {
         "{payload.kern_insight}"
       </blockquote>
 
-      {/* 01 — Coupling */}
-      <Section kicker="01 · Connection" title="Is anything actually resonating?" framework="">
-        <div className="grid md:grid-cols-3 gap-3 mb-6">
-          <MeterTile label="Feelings meet" value={payload.kopplung.attunement} />
-          <MeterTile label="Matching rhythm" value={payload.kopplung.rhythmus_synchron} />
-          <MeterTile label="Matching words" value={payload.kopplung.lexikon_synchron} />
-        </div>
+      {/* 01 — Coupling. Meter tiles (0-100% sync/rhythm/lexicon) removed — the
+          percentages felt made-up and clinical. Prose + quotes carry the read. */}
+      <Section kicker={r('01 · Connection', '01 · Ankommen')} title={r("Is anything actually landing?", 'Kommt überhaupt was an?')} framework="">
         <Prose>{payload.kopplung.interpretation}</Prose>
-        <Evidence zitate={payload.kopplung.zitate} colorFor={colorFor} />
+        <Evidence zitate={payload.kopplung.zitate} colorFor={colorFor} locale={locale} />
       </Section>
 
       {/* 02 — Power structure 3D */}
       <Section
-        kicker="02 · Who leads"
-        title="Who sets topics, who sets the tone?"
+        kicker={r('02 · Who runs it', '02 · Wer hat den Hut auf')}
+        title={r('Who runs the show — and who sets the mood?', 'Wer macht die Ansage — und wer bestimmt die Stimmung?')}
         framework=""
       >
         <div className="grid md:grid-cols-3 gap-3 mb-6">
           <LeadCard
-            label="Topics"
-            sublabel="Who puts them on the table?"
+            label={r('Topics', 'Themen')}
+            sublabel={r('Who brings stuff up?', 'Wer bringt die Themen rein?')}
             lead={payload.machtstruktur.inhalt_lead}
             colorFor={colorFor}
           />
           <LeadCard
-            label="Pace"
-            sublabel="Who sets the rhythm?"
+            label={r('Pace', 'Tempo')}
+            sublabel={r('Who sets the pace?', 'Wer gibt das Tempo vor?')}
             lead={payload.machtstruktur.prozess_lead}
             colorFor={colorFor}
           />
           <LeadCard
-            label="Mood"
-            sublabel="Whose feeling sets the tone?"
+            label={r('Mood', 'Mood')}
+            sublabel={r("Whose feelings run the room?", 'Wessen Gefühl bestimmt den Raum?')}
             lead={payload.machtstruktur.affekt_lead}
             colorFor={colorFor}
           />
         </div>
-        <AsymmetryBar skala={payload.machtstruktur.asymmetrie_skala} statik={payload.machtstruktur.statik} />
+        {/* Asymmetry bar (0-100 with a draggable-looking marker) dropped —
+            "who leads" is already in the three Lead cards above. */}
         <Prose>{payload.machtstruktur.interpretation}</Prose>
-        <Evidence zitate={payload.machtstruktur.zitate} colorFor={colorFor} />
+        <Evidence zitate={payload.machtstruktur.zitate} colorFor={colorFor} locale={locale} />
       </Section>
 
-      {/* 03 — Attachment dyad */}
+      {/* 03 — Attachment dyad. "How sure" confidence tag removed. */}
       <Section
-        kicker="03 · Closeness & distance"
-        title={dyadLabel(payload.bindungsdyade.konstellation)}
+        kicker={r('03 · Close & far', '03 · Nähe & Distanz')}
+        title={dyadLabel(payload.bindungsdyade.konstellation, locale)}
         framework=""
-        tag={`Confidence: ${levelLabel(payload.bindungsdyade.sicherheit)}`}
       >
         <div className="grid md:grid-cols-2 gap-3 mb-6">
-          <InfoBlock label="What this combo does to you">
+          <InfoBlock label={r('What this combo does to you two', 'Was diese Kombi mit euch macht')}>
             {payload.bindungsdyade.dyaden_beschreibung}
           </InfoBlock>
-          <InfoBlock label="Where it typically gets stuck" tone="warn">
+          <InfoBlock label={r('Where it usually gets stuck', 'Wo es typischerweise hakt')} tone="warn">
             {payload.bindungsdyade.dyaden_risiko}
           </InfoBlock>
         </div>
         <Prose>{payload.bindungsdyade.interpretation}</Prose>
-        <Evidence zitate={payload.bindungsdyade.zitate} colorFor={colorFor} />
+        <Evidence zitate={payload.bindungsdyade.zitate} colorFor={colorFor} locale={locale} />
       </Section>
 
       {/* 04 — Bids */}
       <Section
-        kicker="04 · Small offers"
-        title="How attention is offered — and received"
+        kicker={r('04 · Little throws', '04 · Kleine Signale')}
+        title={r('How attention gets thrown — and how it lands', 'Wie Aufmerksamkeit rübergeht — und wie sie ankommt')}
         framework=""
-        tag={bidResponseLabel(payload.bids.dominante_response)}
+        tag={bidResponseLabel(payload.bids.dominante_response, locale)}
       >
+        {/* Per-person bid stats. Drop the frequency level (selten/mittel/hoch)
+            — it's vague. Keep the response-pattern because it has narrative
+            value (turning_toward/away/against). */}
         <div className="grid md:grid-cols-2 gap-3 mb-6">
           {payload.bids.pro_person.map((p) => {
             const c = colorFor(p.person)
             return (
-              <div key={p.person} className="bg-bg-surface/70 border border-line/50 rounded-xl p-5 space-y-3">
+              <div key={p.person} className="bg-bg-surface/70 border border-line/50 rounded-xl p-5 space-y-2">
                 <div className={`label-mono ${c.text}`}>{p.person}</div>
-                <MiniRow label="How often they offer" value={bidFreqLabel(p.bid_haeufigkeit)} />
-                <MiniRow label="How they usually respond" value={bidResponseLabel(p.antwort_signatur)} />
+                <div className="serif-body text-lg text-ink">
+                  {bidResponseLabel(p.antwort_signatur, locale)}
+                </div>
               </div>
             )
           })}
@@ -192,7 +221,7 @@ export function RelationshipView({ result, participants, onBack }: Props) {
 
         <div className="space-y-3 mb-6">
           {payload.bids.beispiele.map((b, i) => (
-            <BidPair key={i} bid={b.bid} antwort={b.antwort} klasse={b.klasse} colorFor={colorFor} />
+            <BidPair key={i} bid={b.bid} antwort={b.antwort} klasse={b.klasse} colorFor={colorFor} locale={locale} />
           ))}
         </div>
         <Prose>{payload.bids.interpretation}</Prose>
@@ -200,12 +229,16 @@ export function RelationshipView({ result, participants, onBack }: Props) {
 
       {/* 05 — Repair */}
       <Section
-        kicker="05 · Making up"
-        title={payload.repair.hat_repair ? 'Fights get patched up.' : 'Something stays open after fights.'}
+        kicker={r('05 · Patching up', '05 · Wieder glatt ziehen')}
+        title={payload.repair.hat_repair
+          ? r('Fights get patched up.', 'Streit wird wieder glatt gezogen.')
+          : r('Something stays hanging after a fight.', 'Nach dem Streit bleibt was hängen.')}
         framework=""
       >
-        <div className="grid md:grid-cols-3 gap-3 mb-6">
-          <InfoBlock label="Who comes back">
+        {/* "How often it lands" tile (hoch/mittel/niedrig) removed — reads
+            as a grade, which is exactly the clinical vibe we're cutting. */}
+        <div className="grid md:grid-cols-2 gap-3 mb-6">
+          <InfoBlock label={r('Who takes the first step', 'Wer den ersten Schritt macht')}>
             {payload.repair.wer_repariert.length === 0
               ? '—'
               : payload.repair.wer_repariert.map((p) => (
@@ -214,19 +247,16 @@ export function RelationshipView({ result, participants, onBack }: Props) {
                   </span>
                 ))}
           </InfoBlock>
-          <InfoBlock label="How often it's accepted">
-            <span className="metric-num text-2xl">{levelLabel(payload.repair.annahme_quote)}</span>
-          </InfoBlock>
-          <InfoBlock label="How it usually goes">{payload.repair.typische_form}</InfoBlock>
+          <InfoBlock label={r('How it usually goes', 'Wie es meist läuft')}>{payload.repair.typische_form}</InfoBlock>
         </div>
         <Prose>{payload.repair.interpretation}</Prose>
-        <Evidence zitate={payload.repair.zitate} colorFor={colorFor} />
+        <Evidence zitate={payload.repair.zitate} colorFor={colorFor} locale={locale} />
       </Section>
 
       {/* 06 — Conflict signature */}
       <Section
-        kicker="06 · How you fight"
-        title="How tension plays out between you."
+        kicker={r('06 · How you fight', '06 · Wie ihr streitet')}
+        title={r('How tension actually shows up.', 'Wie die Spannung bei euch rauskommt.')}
         framework=""
       >
         <div className="grid md:grid-cols-2 gap-3 mb-6">
@@ -235,20 +265,20 @@ export function RelationshipView({ result, participants, onBack }: Props) {
             return (
               <div key={p.person} className="bg-bg-surface/70 border border-line/50 rounded-xl p-5">
                 <div className={`label-mono mb-3 ${c.text}`}>{p.person}</div>
-                <HorsemenPanel praesenz={p.praesenz} dominierend={p.dominierend} />
+                <HorsemenPanel praesenz={p.praesenz} dominierend={p.dominierend} locale={locale} />
               </div>
             )
           })}
         </div>
 
         <div className="bg-bg-surface/50 border border-line/40 rounded-xl p-5 mb-6">
-          <div className="label-mono mb-2">Who pushes, who pulls back</div>
-          <div className="font-serif text-2xl">{demandWithdrawLabel(payload.konflikt_signatur.demand_withdraw, participants)}</div>
+          <div className="label-mono mb-2">{r('Who pushes, who shuts down', 'Wer drängt, wer macht dicht')}</div>
+          <div className="font-serif text-2xl">{demandWithdrawLabel(payload.konflikt_signatur.demand_withdraw, participants, locale)}</div>
         </div>
 
         {payload.konflikt_signatur.flooding_hinweise.length > 0 && (
           <div className="mb-6 space-y-2">
-            <div className="label-mono">When it gets too much</div>
+            <div className="label-mono">{r("When it's just too much", "Wenn's zu viel wird")}</div>
             {payload.konflikt_signatur.flooding_hinweise.map((f, i) => {
               const c = colorFor(f.person)
               return (
@@ -262,13 +292,13 @@ export function RelationshipView({ result, participants, onBack }: Props) {
         )}
 
         <Prose>{payload.konflikt_signatur.interpretation}</Prose>
-        <Evidence zitate={payload.konflikt_signatur.zitate} colorFor={colorFor} />
+        <Evidence zitate={payload.konflikt_signatur.zitate} colorFor={colorFor} locale={locale} />
       </Section>
 
       {/* 07 — Mentalization */}
       <Section
-        kicker="07 · Reading each other"
-        title="Can they actually think their way into the other?"
+        kicker={r('07 · Reading each other', '07 · Einander lesen')}
+        title={r("Can they actually get what's going on over there?", 'Kriegen die beiden wirklich mit, was auf der anderen Seite los ist?')}
         framework=""
       >
         <div className="grid md:grid-cols-2 gap-3 mb-6">
@@ -277,44 +307,44 @@ export function RelationshipView({ result, participants, onBack }: Props) {
             return (
               <div key={p.person} className="bg-bg-surface/70 border border-line/50 rounded-xl p-5">
                 <div className={`label-mono mb-2 ${c.text}`}>{p.person}</div>
-                <div className="font-serif text-2xl mb-3">{mentalisierungLabel(p.qualitaet)}</div>
+                <div className="font-serif text-2xl mb-3">{mentalisierungLabel(p.qualitaet, locale)}</div>
                 <p className="serif-body text-base text-ink-muted">{p.beschreibung}</p>
               </div>
             )
           })}
         </div>
         <div className="bg-bg-surface/50 border border-line/40 rounded-xl p-5 mb-6">
-          <div className="label-mono mb-2">When you're just imagining the other</div>
+          <div className="label-mono mb-2">{r("When you're just making up what the other one thinks", 'Wenn du dir ausmalst was die andere Seite denkt')}</div>
           <p className="serif-body text-base text-ink">{payload.mentalisierung.projektion_statt_modellierung}</p>
         </div>
         <Prose>{payload.mentalisierung.interpretation}</Prose>
-        <Evidence zitate={payload.mentalisierung.zitate} colorFor={colorFor} />
+        <Evidence zitate={payload.mentalisierung.zitate} colorFor={colorFor} locale={locale} />
       </Section>
 
       {/* 08 — Meta-communication */}
       <Section
-        kicker="08 · Talking about you"
-        title={metaLabel(payload.meta_kommunikation.kapazitaet)}
+        kicker={r('08 · Talking about you two', '08 · Über euch reden')}
+        title={metaLabel(payload.meta_kommunikation.kapazitaet, locale)}
         framework=""
       >
         <div className="grid md:grid-cols-2 gap-3 mb-6">
-          <InfoBlock label="Who brings it up">
+          <InfoBlock label={r('Who brings it up', 'Wer es anspricht')}>
             <span className={`font-serif text-xl ${colorFor(payload.meta_kommunikation.initiator).text}`}>
               {payload.meta_kommunikation.initiator}
             </span>
           </InfoBlock>
-          <InfoBlock label="How it gets deflected" tone="warn">
+          <InfoBlock label={r('How it gets dodged', 'Wie es umschifft wird')} tone="warn">
             {payload.meta_kommunikation.blocker_muster}
           </InfoBlock>
         </div>
         <Prose>{payload.meta_kommunikation.interpretation}</Prose>
-        <Evidence zitate={payload.meta_kommunikation.zitate} colorFor={colorFor} />
+        <Evidence zitate={payload.meta_kommunikation.zitate} colorFor={colorFor} locale={locale} />
       </Section>
 
       {/* 09 — Double-meaning messages */}
       <Section
-        kicker="09 · Between the lines"
-        title={berneModusLabel(payload.berne.dominanter_modus)}
+        kicker={r('09 · Between the lines', '09 · Zwischen den Zeilen')}
+        title={berneModusLabel(payload.berne.dominanter_modus, locale)}
         framework=""
       >
         <div className="space-y-3 mb-6">
@@ -322,11 +352,11 @@ export function RelationshipView({ result, participants, onBack }: Props) {
             <article key={i} className="bg-bg-surface/70 border border-line/50 rounded-xl p-5 space-y-3">
               <div className="grid md:grid-cols-2 gap-3">
                 <div>
-                  <div className="label-mono mb-1">What is said</div>
+                  <div className="label-mono mb-1">{r("What's said", 'Was gesagt wird')}</div>
                   <div className="serif-body text-base text-ink">{t.sozial}</div>
                 </div>
                 <div>
-                  <div className="label-mono mb-1 text-b">What is meant</div>
+                  <div className="label-mono mb-1 text-b">{r("What's actually meant", 'Was eigentlich gemeint ist')}</div>
                   <div className="serif-body text-base text-ink">{t.psychologisch}</div>
                 </div>
               </div>
@@ -337,7 +367,7 @@ export function RelationshipView({ result, participants, onBack }: Props) {
 
         {payload.berne.games.length > 0 && (
           <div className="space-y-3 mb-6">
-            <div className="label-mono">Recurring patterns</div>
+            <div className="label-mono">{r('Stuff that keeps happening', 'Das läuft immer wieder so')}</div>
             {payload.berne.games.map((g, i) => (
               <article key={i} className="bg-bg-surface/70 border border-line/50 rounded-xl p-5">
                 <div className="font-serif text-xl mb-1">"{g.name}"</div>
@@ -351,19 +381,19 @@ export function RelationshipView({ result, participants, onBack }: Props) {
       </Section>
 
       {/* 10 — Unspoken rules */}
-      <Section kicker="10 · Unwritten rules" title="Rules nobody ever said out loud.">
+      <Section kicker={r('10 · Unspoken rules', '10 · Ungesagte Regeln')} title={r('Rules nobody ever said out loud.', 'Regeln die nie jemand laut gesagt hat.')}>
         <div className="space-y-3 mb-6">
-          {payload.unausgesprochene_regeln.regeln.map((r, i) => (
+          {payload.unausgesprochene_regeln.regeln.map((rule, i) => (
             <article key={i} className="bg-bg-surface/70 border border-line/50 rounded-xl p-5">
-              <div className="font-serif text-xl md:text-2xl mb-2">"{r.regel}"</div>
+              <div className="font-serif text-xl md:text-2xl mb-2">"{rule.regel}"</div>
               <div className="grid md:grid-cols-2 gap-3">
                 <div>
-                  <div className="label-mono mb-1">What this rule does</div>
-                  <div className="serif-body text-base text-ink-muted">{r.funktion}</div>
+                  <div className="label-mono mb-1">{r('What the rule does', 'Was die Regel macht')}</div>
+                  <div className="serif-body text-base text-ink-muted">{rule.funktion}</div>
                 </div>
                 <div>
-                  <div className="label-mono mb-1">Where you can see it in the chat</div>
-                  <div className="serif-body text-base text-ink-muted">{r.evidenz}</div>
+                  <div className="label-mono mb-1">{r("Where you catch it in the chat", "Wo's im Chat rauskommt")}</div>
+                  <div className="serif-body text-base text-ink-muted">{rule.evidenz}</div>
                 </div>
               </div>
             </article>
@@ -375,13 +405,13 @@ export function RelationshipView({ result, participants, onBack }: Props) {
       {onBack && (
         <div className="pt-8 border-t border-line/40">
           <button onClick={onBack} className="label-mono text-ink-muted hover:text-ink transition-colors">
-            ← Back to profiles
+            {r('← back to profiles', '← zurück zum profil')}
           </button>
         </div>
       )}
 
       <div className="text-center serif-body text-ink-muted italic pt-6 border-t border-line/40">
-        "This is one reading — not the truth. For real questions, always ask a professional."
+        "{r('One reading, not the truth. For real talk, see a pro.', 'Eine Lesart, nicht die Wahrheit. Für echte Fragen → zu einer Fachperson.')}"
       </div>
     </div>
   )
@@ -428,19 +458,22 @@ function Prose({ children }: { children: React.ReactNode }) {
 function Evidence({
   zitate,
   colorFor,
+  locale,
 }: {
   zitate: Zitat[] | undefined
   colorFor: (name: string) => PersonColor
+  locale?: Locale
 }) {
   const [open, setOpen] = useState(false)
   if (!zitate || zitate.length === 0) return null
+  const label = locale === 'de' ? 'Direkt aus dem Chat' : 'Straight from the chat'
   return (
     <div className="mt-6 pt-4 border-t border-line/30">
       <button
         onClick={() => setOpen((v) => !v)}
         className="label-mono text-ink-muted hover:text-ink transition-colors flex items-center gap-2"
       >
-        <span>Examples straight from the chat ({zitate.length})</span>
+        <span>{label} ({zitate.length})</span>
         <span>{open ? '−' : '+'}</span>
       </button>
       {open && (
@@ -460,19 +493,6 @@ function SingleQuote({ zitat, colorFor }: { zitat: Zitat; colorFor: (name: strin
     <div className={`font-mono text-sm pl-3 border-l ${c.border}`}>
       <span className={`${c.text} mr-2`}>{zitat.person}:</span>
       <span className="text-ink-muted">"{zitat.text}"</span>
-    </div>
-  )
-}
-
-function MeterTile({ label, value }: { label: string; value: number }) {
-  const pct = Math.max(0, Math.min(100, value))
-  return (
-    <div className="bg-bg-surface/70 border border-line/50 rounded-xl p-5">
-      <div className="label-mono mb-2">{label}</div>
-      <div className="metric-num text-3xl md:text-4xl mb-3">{pct}</div>
-      <div className="relative h-[3px] bg-line rounded-full overflow-hidden">
-        <div className="absolute inset-y-0 left-0 bg-a transition-all duration-1000 ease-out" style={{ width: `${pct}%` }} />
-      </div>
     </div>
   )
 }
@@ -498,30 +518,6 @@ function LeadCard({
   )
 }
 
-function AsymmetryBar({ skala, statik }: { skala: number; statik: 'statisch' | 'dynamisch' }) {
-  const pct = Math.max(0, Math.min(100, skala))
-  return (
-    <div className="mb-6">
-      <div className="flex items-baseline justify-between mb-2 flex-wrap gap-2">
-        <div className="label-mono">Overall asymmetry</div>
-        <div className="flex items-baseline gap-3">
-          <span className="metric-num text-3xl md:text-4xl text-ink">{pct}</span>
-          <span className="label-mono text-ink-muted">
-            {statik === 'statisch' ? '· static, no swing' : '· dynamic, swings'}
-          </span>
-        </div>
-      </div>
-      <div className="relative h-[6px] bg-line rounded-full overflow-hidden">
-        <div className="absolute inset-y-0 left-0 bg-a transition-all duration-1000 ease-out" style={{ width: `${pct}%` }} />
-      </div>
-      <div className="flex justify-between font-mono text-[11px] text-ink-faint mt-2 uppercase tracking-widest">
-        <span>symmetric</span>
-        <span>asymmetric</span>
-      </div>
-    </div>
-  )
-}
-
 function InfoBlock({
   label,
   tone,
@@ -540,25 +536,18 @@ function InfoBlock({
   )
 }
 
-function MiniRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between border-b border-line/40 pb-2 last:border-b-0 last:pb-0">
-      <span className="label-mono">{label}</span>
-      <span className="font-serif text-lg">{value}</span>
-    </div>
-  )
-}
-
 function BidPair({
   bid,
   antwort,
   klasse,
   colorFor,
+  locale,
 }: {
   bid: Zitat
   antwort: Zitat
   klasse: BidResponse
   colorFor: (name: string) => PersonColor
+  locale?: Locale
 }) {
   const cb = colorFor(bid.person)
   const ca = colorFor(antwort.person)
@@ -568,12 +557,13 @@ function BidPair({
       : klasse === 'turning_away'
         ? 'border-line/60 bg-bg-surface/70'
         : 'border-b/50 bg-b/5'
+  const headline = locale === 'de' ? 'Angebot → Reaktion' : 'Offer → response'
   return (
     <article className={`border ${toneClass} rounded-xl p-5 space-y-3`}>
       <div className="flex items-center justify-between gap-3">
-        <span className="label-mono">Offer → response</span>
+        <span className="label-mono">{headline}</span>
         <span className="label-mono text-ink-muted border border-line/60 rounded-full px-2 py-0.5">
-          {bidResponseLabel(klasse)}
+          {bidResponseLabel(klasse, locale)}
         </span>
       </div>
       <div className={`font-mono text-sm pl-3 border-l ${cb.border}`}>
@@ -588,10 +578,22 @@ function BidPair({
   )
 }
 
-function HorsemenPanel({ praesenz, dominierend }: { praesenz: Horseman[]; dominierend: Horseman | null }) {
+function HorsemenPanel({
+  praesenz,
+  dominierend,
+  locale,
+}: {
+  praesenz: Horseman[]
+  dominierend: Horseman | null
+  locale?: Locale
+}) {
   const ALL: Horseman[] = ['kritik', 'verachtung', 'abwehr', 'stonewalling']
   if (praesenz.length === 0) {
-    return <div className="font-serif text-xl text-ink-muted">None of the four warning signs visible.</div>
+    return (
+      <div className="font-serif text-xl text-ink-muted">
+        {locale === 'de' ? 'Keines der vier Warnzeichen sichtbar.' : 'None of the four warning signs visible.'}
+      </div>
+    )
   }
   return (
     <div className="flex flex-wrap gap-2">
@@ -606,7 +608,7 @@ function HorsemenPanel({ praesenz, dominierend }: { praesenz: Horseman[]; domini
             : `${base} border-line/50 text-ink-faint line-through`
         return (
           <span key={h} className={cls}>
-            {horsemanLabel(h)}
+            {horsemanLabel(h, locale)}
           </span>
         )
       })}
@@ -616,8 +618,8 @@ function HorsemenPanel({ praesenz, dominierend }: { praesenz: Horseman[]; domini
 
 // --- Labels ---
 
-function dyadLabel(d: AttachmentDyad): string {
-  return {
+function dyadLabel(d: AttachmentDyad, locale?: Locale): string {
+  const en: Record<AttachmentDyad, string> = {
     secure_secure: 'Secure ↔ Secure',
     anxious_avoidant: 'Anxious ↔ Avoidant',
     avoidant_anxious: 'Avoidant ↔ Anxious',
@@ -629,23 +631,48 @@ function dyadLabel(d: AttachmentDyad): string {
     avoidant_secure: 'Avoidant ↔ Secure',
     disorganisiert_beteiligt: 'Disorganized involvement',
     unklar: "Can't be cleanly classified",
-  }[d]
+  }
+  const de: Record<AttachmentDyad, string> = {
+    secure_secure: 'Sicher ↔ Sicher',
+    anxious_avoidant: 'Ängstlich ↔ Vermeidend',
+    avoidant_anxious: 'Vermeidend ↔ Ängstlich',
+    anxious_anxious: 'Ängstlich ↔ Ängstlich',
+    avoidant_avoidant: 'Vermeidend ↔ Vermeidend',
+    secure_anxious: 'Sicher ↔ Ängstlich',
+    anxious_secure: 'Ängstlich ↔ Sicher',
+    secure_avoidant: 'Sicher ↔ Vermeidend',
+    avoidant_secure: 'Vermeidend ↔ Sicher',
+    disorganisiert_beteiligt: 'Desorganisierte Beteiligung',
+    unklar: 'Nicht klar einzuordnen',
+  }
+  return (locale === 'de' ? de : en)[d]
 }
 
-function bidResponseLabel(r: BidResponse): string {
-  return {
+function bidResponseLabel(r: BidResponse, locale?: Locale): string {
+  const en: Record<BidResponse, string> = {
     turning_toward: 'Turning toward · engagement',
     turning_away: 'Turning away · ignoring',
     turning_against: 'Turning against · rejection',
-  }[r]
+  }
+  const de: Record<BidResponse, string> = {
+    turning_toward: 'Hinwendung · Eingehen',
+    turning_away: 'Abwendung · Ignorieren',
+    turning_against: 'Gegen-Wendung · Ablehnung',
+  }
+  return (locale === 'de' ? de : en)[r]
 }
 
-function bidFreqLabel(f: 'selten' | 'mittel' | 'hoch'): string {
-  return { selten: 'Rarely', mittel: 'Sometimes', hoch: 'Often' }[f]
-}
-
-function demandWithdrawLabel(dw: DemandWithdraw, participants: string[]): string {
+function demandWithdrawLabel(dw: DemandWithdraw, participants: string[], locale?: Locale): string {
   const [a, b] = participants
+  if (locale === 'de') {
+    return {
+      a_demand_b_withdraw: `${a ?? 'A'} drängt · ${b ?? 'B'} zieht sich zurück`,
+      b_demand_a_withdraw: `${b ?? 'B'} drängt · ${a ?? 'A'} zieht sich zurück`,
+      symmetrisch_demand: 'Beide drängen · niemand zieht sich zurück',
+      symmetrisch_withdraw: 'Beide ziehen sich zurück · niemand drängt',
+      kein_muster: 'Kein klares Drängen/Zurückziehen-Muster',
+    }[dw]
+  }
   return {
     a_demand_b_withdraw: `${a ?? 'A'} pushes · ${b ?? 'B'} pulls back`,
     b_demand_a_withdraw: `${b ?? 'B'} pushes · ${a ?? 'A'} pulls back`,
@@ -655,8 +682,10 @@ function demandWithdrawLabel(dw: DemandWithdraw, participants: string[]): string
   }[dw]
 }
 
-function horsemanLabel(h: Horseman): string {
-  return { kritik: 'Criticism', verachtung: 'Contempt', abwehr: 'Defensiveness', stonewalling: 'Stonewalling' }[h]
+function horsemanLabel(h: Horseman, locale?: Locale): string {
+  const en = { kritik: 'Criticism', verachtung: 'Contempt', abwehr: 'Defensiveness', stonewalling: 'Stonewalling' }
+  const de = { kritik: 'Kritik', verachtung: 'Verachtung', abwehr: 'Abwehr', stonewalling: 'Mauern' }
+  return (locale === 'de' ? de : en)[h]
 }
 
 function collectMissingSections(p: unknown): string[] {
@@ -691,11 +720,21 @@ function collectMissingSections(p: unknown): string[] {
   return missing
 }
 
-function mentalisierungLabel(q: 'hoch' | 'mittel' | 'niedrig' | 'ungleichmäßig'): string {
-  return { hoch: 'High', mittel: 'Medium', niedrig: 'Low', ungleichmäßig: 'Uneven' }[q]
+function mentalisierungLabel(q: 'hoch' | 'mittel' | 'niedrig' | 'ungleichmäßig', locale?: Locale): string {
+  const en = { hoch: 'High', mittel: 'Medium', niedrig: 'Low', ungleichmäßig: 'Uneven' }
+  const de = { hoch: 'Hoch', mittel: 'Mittel', niedrig: 'Niedrig', ungleichmäßig: 'Ungleichmäßig' }
+  return (locale === 'de' ? de : en)[q]
 }
 
-function metaLabel(k: 'hoch' | 'mittel' | 'niedrig' | 'blockiert'): string {
+function metaLabel(k: 'hoch' | 'mittel' | 'niedrig' | 'blockiert', locale?: Locale): string {
+  if (locale === 'de') {
+    return {
+      hoch: 'Ihr könnt über die Beziehung reden.',
+      mittel: 'Meta-Gespräch passiert, aber es kostet Kraft.',
+      niedrig: 'Ihr redet kaum über die Beziehung.',
+      blockiert: 'Meta-Gespräch ist blockiert.',
+    }[k]
+  }
   return {
     hoch: 'You can talk about the relationship.',
     mittel: 'Meta-talk happens, but it takes effort.',
@@ -704,11 +743,18 @@ function metaLabel(k: 'hoch' | 'mittel' | 'niedrig' | 'blockiert'): string {
   }[k]
 }
 
-function levelLabel(l: 'niedrig' | 'mittel' | 'hoch'): string {
-  return { niedrig: 'Low', mittel: 'Medium', hoch: 'High' }[l]
-}
-
-function berneModusLabel(m: 'oberflächlich_parallel' | 'verdeckt_doppelbödig' | 'wiederkehrendes_spiel' | 'gemischt'): string {
+function berneModusLabel(
+  m: 'oberflächlich_parallel' | 'verdeckt_doppelbödig' | 'wiederkehrendes_spiel' | 'gemischt',
+  locale?: Locale,
+): string {
+  if (locale === 'de') {
+    return {
+      oberflächlich_parallel: 'Oberflächlich, läuft parallel',
+      verdeckt_doppelbödig: 'Verdeckt, doppelbödig',
+      wiederkehrendes_spiel: 'Wiederkehrendes Muster',
+      gemischt: 'Gemischt',
+    }[m]
+  }
   return {
     oberflächlich_parallel: 'Surface-level, running parallel',
     verdeckt_doppelbödig: 'Covert, double-layered',

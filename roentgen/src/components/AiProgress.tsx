@@ -1,3 +1,5 @@
+import { t, useLocale } from '../i18n'
+
 interface Props {
   done: number
   total: number
@@ -7,6 +9,7 @@ interface Props {
 }
 
 export function AiProgress({ done, total, currentPerson, error, onCancel }: Props) {
+  const locale = useLocale()
   const pct = total === 0 ? 0 : (done / total) * 100
 
   return (
@@ -14,24 +17,25 @@ export function AiProgress({ done, total, currentPerson, error, onCancel }: Prop
       <div className="w-full max-w-xl">
         <div className="label-mono text-b mb-8 animate-pulse-soft">
           <span className="inline-block w-1.5 h-1.5 bg-b rounded-full mr-2" />
-          The AI is reading · give it a sec
+          {t('aiprog.kicker', locale)}
         </div>
 
         <div className="font-serif text-4xl md:text-5xl leading-tight tracking-tight mb-4">
           {error ? (
-            <span className="italic text-b">Something went sideways.</span>
+            <span className="italic text-b">{t('aiprog.titleErr', locale)}</span>
           ) : currentPerson ? (
             <>
-              Writing your<span className="text-ink-muted italic"> portrait.</span>
+              {t('aiprog.titleA', locale)}
+              <span className="text-ink-muted italic"> {t('aiprog.titleB', locale)}</span>
             </>
           ) : (
-            'One moment …'
+            t('aiprog.titleWait', locale)
           )}
         </div>
 
         {currentPerson && !error && (
           <div className="font-mono text-sm text-ink-muted mb-10">
-            On it: {currentPerson}
+            {t('aiprog.onIt', locale)} {currentPerson}
           </div>
         )}
 
@@ -49,10 +53,10 @@ export function AiProgress({ done, total, currentPerson, error, onCancel }: Prop
         </div>
 
         <div className="mt-4 flex justify-between font-mono text-[11px] text-ink-faint">
-          <span>{done} of {total} through</span>
+          <span>{t('aiprog.progress', locale, { done, total })}</span>
           {onCancel && (
             <button onClick={onCancel} className="hover:text-ink transition-colors">
-              Cancel
+              {t('aiprog.cancelBtn', locale)}
             </button>
           )}
         </div>

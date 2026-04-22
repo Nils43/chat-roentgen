@@ -41,7 +41,7 @@ body::before {
 @layer components {
   /* Card → white box with hard black border + cut shadow */
   .card {
-    @apply bg-white border-2 border-ink rounded-none p-6 md:p-8;
+    @apply relative bg-white border-2 border-ink rounded-none p-6 md:p-8;
     box-shadow: 4px 4px 0 var(--black);
   }
 

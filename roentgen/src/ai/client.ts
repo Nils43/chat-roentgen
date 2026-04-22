@@ -15,10 +15,16 @@ export class AnalyzeError extends Error {
   }
 }
 
-export async function analyze(req: ApiRequest, signal?: AbortSignal): Promise<ApiResponse> {
+export async function analyze(
+  req: ApiRequest,
+  signal?: AbortSignal,
+  unlockToken?: string,
+): Promise<ApiResponse> {
+  const headers: Record<string, string> = { 'content-type': 'application/json' }
+  if (unlockToken) headers['x-unlock-token'] = unlockToken
   const res = await fetch('/api/analyze', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers,
     body: JSON.stringify(req),
     signal,
   })

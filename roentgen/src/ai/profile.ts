@@ -6,9 +6,11 @@ import {
   buildPseudonymMap,
   pseudonymizeDeep,
   restoreNamesDeep,
+  scrubPronounsDeep,
   type PseudonymMap,
 } from './pseudonymize'
-import { PROFILE_SYSTEM_PROMPT, PROFILE_TOOL_SCHEMA, buildProfileUserMessage } from './prompts'
+import { PROFILE_TOOL_SCHEMA, buildProfileUserMessage, selectProfilePrompt } from './prompts'
+import { i18n } from '../i18n'
 import type { PersonProfile, ProfileResult } from './types'
 
 // Model selection — ENV override wins, default Haiku 4.5 (cheapest + structured input
@@ -59,6 +61,8 @@ export interface RunProfilesOptions {
   // If set, only profile these specific participants. Per product concept,
   // the app only profiles the *user themselves* — never the other person.
   targetPersons?: string[]
+  // Unlock token from a completed Stripe checkout. Required in 'api' mode.
+  unlockToken?: string
 }
 
 export async function runProfileAnalyses({
@@ -67,6 +71,7 @@ export async function runProfileAnalyses({
   onProgress,
   signal,
   targetPersons,
+  unlockToken,
 }: RunProfilesOptions): Promise<ProfileResult[]> {
   const { pseudonymMap } = prepared
   const facts = analyzeHardFacts(chat)
@@ -82,9 +87,11 @@ export async function runProfileAnalyses({
 
   const tasks = targets.map(async (realName) => {
     const pseudoName = pseudonymMap.forward[realName]
+    const locale = i18n.get()
     const evidence = buildEvidence(facts, chat, realName)
     const pseudoEvidence = pseudonymizeDeep(evidence, pseudonymMap)
-    const userMessage = buildProfileUserMessage(pseudoName, pseudoEvidence)
+    const userMessage = buildProfileUserMessage(pseudoName, pseudoEvidence, locale)
+    const systemPrompt = selectProfilePrompt(locale)
 
     if (import.meta.env.DEV) {
       console.log('[profile] evidence bytes:', JSON.stringify(pseudoEvidence).length, 'notable moments:', pseudoEvidence.notableMoments.length)
@@ -93,12 +100,14 @@ export async function runProfileAnalyses({
     const response = await analyzer.analyze(
       {
         model: MODEL,
-        max_tokens: 3072,
+        // Profile schema is smaller than relationship but the punchier prompt
+        // now produces longer prose per section. Give it room.
+        max_tokens: 6144,
         // System prompt as a cached block — 90% off on retries within 5 min.
         system: [
           {
             type: 'text',
-            text: PROFILE_SYSTEM_PROMPT,
+            text: systemPrompt,
             cache_control: { type: 'ephemeral' },
           },
         ],
@@ -113,6 +122,7 @@ export async function runProfileAnalyses({
         tool_choice: { type: 'tool', name: PROFILE_TOOL_SCHEMA.name },
       },
       signal,
+      unlockToken,
     )
 
     const toolUse = response.content.find((b) => b.type === 'tool_use')
@@ -121,7 +131,15 @@ export async function runProfileAnalyses({
     }
 
     const profileRaw = toolUse.input as PersonProfile
-    const profile = restoreNamesDeep(profileRaw, pseudonymMap)
+    // Two-step cleanup:
+    //   1. Restore real names from pseudonyms (Person A → Lena, etc.)
+    //   2. Scrub any third-person pronouns the model left behind and replace
+    //      with the target person's name. Safe here because a profile has a
+    //      single subject — every "er/sie/ihn/..." refers to that person.
+    const profile = scrubPronounsDeep(
+      restoreNamesDeep(profileRaw, pseudonymMap),
+      realName,
+    )
     profile.person = realName
 
     done++

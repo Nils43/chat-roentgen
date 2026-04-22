@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { t, useLocale } from '../i18n'
 import type { Message, ParsedChat } from '../parser/types'
 
 interface Props {
@@ -27,6 +28,7 @@ const STICKER_PHRASES = [
 ]
 
 export function ParsingAnimation({ chat, onDone }: Props) {
+  const locale = useLocale()
   const [progress, setProgress] = useState(0)
   const [visibleBubbles, setVisibleBubbles] = useState(0)
   const startedAt = useRef<number | null>(null)
@@ -83,25 +85,23 @@ export function ParsingAnimation({ chat, onDone }: Props) {
             style={{ boxShadow: '3px 3px 0 #FFE234' }}
           >
             <span className="inline-block w-1.5 h-1.5 bg-[#FFE234] rounded-full animate-pulse mr-2" />
-            intercepting · {Math.round(eased * 100)}%
+            {t('parsing.intercepting', locale, { pct: Math.round(eased * 100) })}
           </div>
           <h2
             className="font-serif text-5xl md:text-7xl tracking-tight leading-[0.9]"
             style={{ fontFamily: 'Bebas Neue, sans-serif', letterSpacing: '0.02em' }}
           >
-            READING YOUR
+            {t('parsing.heroA', locale)}
             <br />
             <span
               className="inline-block px-2"
               style={{ background: '#FFE234', transform: 'rotate(-1deg)', display: 'inline-block' }}
             >
-              RECEIPTS
+              {t('parsing.heroB', locale)}
             </span>
           </h2>
           <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-black/50 mt-3">
-            {progress < 1
-              ? 'scanning every message — nobody reads along'
-              : 'evidence collected. assembling the case.'}
+            {progress < 1 ? t('parsing.scanning', locale) : t('parsing.collected', locale)}
           </p>
         </div>
 
@@ -120,7 +120,7 @@ export function ParsingAnimation({ chat, onDone }: Props) {
           <div
             className="absolute top-3 left-3 z-30 font-mono text-[9px] uppercase tracking-[0.2em] bg-black text-white px-2 py-1"
           >
-            case #{chat.messages.length.toString().slice(-4)}
+            {t('parsing.caseNo', locale, { id: chat.messages.length.toString().slice(-4) })}
           </div>
           <div
             className="absolute top-3 right-3 z-30 font-mono text-[9px] uppercase tracking-[0.2em] text-black/40"
@@ -220,17 +220,17 @@ export function ParsingAnimation({ chat, onDone }: Props) {
         {/* Stats row */}
         <div className="mt-6 grid grid-cols-3 gap-3">
           <StatTile
-            label="Messages"
-            value={messagesCount.toLocaleString('en-US')}
+            label={t('parsing.stat.messages', locale)}
+            value={messagesCount.toLocaleString(locale === 'de' ? 'de-DE' : 'en-US')}
             active={progress > 0}
           />
           <StatTile
-            label="People"
+            label={t('parsing.stat.people', locale)}
             value={progress > 0.18 ? chat.participants.length.toString() : '···'}
             active={progress > 0.18}
           />
           <StatTile
-            label="Span"
+            label={t('parsing.stat.span', locale)}
             value={progress > 0.55 ? span : '···'}
             active={progress > 0.55}
           />
@@ -240,14 +240,14 @@ export function ParsingAnimation({ chat, onDone }: Props) {
         <div className="mt-5 text-center">
           {progress < 1 ? (
             <span className="font-mono text-[11px] uppercase tracking-[0.14em] text-black/40 animate-pulse">
-              compiling the evidence...
+              {t('parsing.compiling', locale)}
             </span>
           ) : (
             <span
               className="inline-block px-4 py-2 font-mono text-[12px] uppercase tracking-[0.14em] bg-black text-white"
               style={{ boxShadow: '3px 3px 0 #FFE234', transform: 'rotate(-0.5deg)' }}
             >
-              case file ready. let's see what we've got.
+              {t('parsing.done', locale)}
             </span>
           )}
         </div>

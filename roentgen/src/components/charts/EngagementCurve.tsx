@@ -1,4 +1,5 @@
 import type { HardFacts } from '../../analysis/hardFacts'
+import { i18n } from '../../i18n'
 
 interface Props {
   facts: HardFacts
@@ -11,7 +12,7 @@ const COLORS = ['#0A0A0A', '#FF90BB', '#89b4f4', '#fbbd5c', '#c9a6f0']
 export function EngagementCurve({ facts, width = 720, height = 220 }: Props) {
   const { weekly, perPerson } = facts
   if (weekly.length < 2) {
-    return <div className="text-ink-muted font-mono text-sm">Not enough data for a curve yet.</div>
+    return <div className="text-ink-muted font-mono text-sm">{i18n.get() === 'de' ? 'Noch nicht genug Daten für eine Kurve.' : 'Not enough data for a curve yet.'}</div>
   }
 
   const pad = { top: 16, right: 12, bottom: 32, left: 36 }
@@ -31,7 +32,6 @@ export function EngagementCurve({ facts, width = 720, height = 220 }: Props) {
 
   // Peak week index
   const peakIdx = weekly.reduce((best, w, i, arr) => w.count > arr[best].count ? i : best, 0)
-  const peakWeek = weekly[peakIdx]
 
   // Build per-person line paths
   const personPaths = perPerson.map((p, pIdx) => {

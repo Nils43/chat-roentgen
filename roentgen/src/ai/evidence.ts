@@ -1,5 +1,7 @@
 import type { HardFacts, PerPersonStats } from '../analysis/hardFacts'
 import type { ParsedChat, Message } from '../parser/types'
+import { sampleForAI } from './sampling'
+import { scrubPii } from './pseudonymize'
 
 // Evidence Packet v2 — the slimmest surface the model needs to interpret well.
 // Adds signature language + tone hints + flags; strips redundant counts and
@@ -48,8 +50,25 @@ export interface EvidencePacket {
   // Locally detected red-flag triggers (heuristic; the model makes the final call)
   flags: Flag[]
 
-  // 12 curated moments with reason tag. Model cites by index.
+  // Curated moments with reason tag. Model cites by index.
   notableMoments: NotableMoment[]
+
+  // Raw dialogue excerpts — sampled by `sampleForAI` to preserve dialogue flow.
+  // Without these the model only sees statistics and can't read rhythm, tone, or
+  // how the two voices actually talk to each other. Shape: compact {a, t, x}
+  // tuples so the JSON stays small.
+  conversation: ConversationLine[]
+}
+
+/**
+ * Compact shape for raw dialogue in the evidence packet. We drop the seconds
+ * from the timestamp and use short keys to keep the token footprint down.
+ *   a = author   t = "YYYY-MM-DD HH:MM"   x = text
+ */
+export interface ConversationLine {
+  a: string
+  t: string
+  x: string
 }
 
 export interface PersonEvidence {
@@ -106,21 +125,22 @@ export interface NotableMoment {
   reason: NotableReason
 }
 
-const MAX_NOTABLE = 12
+const MAX_NOTABLE = 30
 const TEXT_CAP = 140
-const LONG_TEXT_CAP = 180
+const LONG_TEXT_CAP = 200
 
-// Per-reason caps enforce diversity — no tunnel-vision on one type.
+// Per-reason caps enforce diversity — no tunnel-vision on one type. Scaled up
+// along with MAX_NOTABLE so each reason has real headroom.
 const REASON_CAPS: Record<NotableReason, number> = {
-  apology: 2,
-  hedge_cluster: 2,
-  late_night: 2,
-  burst_start: 2,
-  post_silence: 1,
-  pre_silence: 1,
-  drift_window: 2,
-  long_message: 1,
-  peak_day: 1,
+  apology: 4,
+  hedge_cluster: 4,
+  late_night: 4,
+  burst_start: 5,
+  post_silence: 3,
+  pre_silence: 3,
+  drift_window: 4,
+  long_message: 3,
+  peak_day: 2,
 }
 
 const LONG_SILENCE_MS = 24 * 60 * 60 * 1000
@@ -179,6 +199,18 @@ export function buildEvidence(
   const flags = detectFlags(facts, people, notableMoments)
   const asymmetryNote = buildAsymmetryNote(pA, pB, asymmetry, rhythm)
 
+  // Raw dialogue so the model can read tone, rhythm, escalation, repair, flow —
+  // stuff that statistics alone can't capture. `sampleForAI` targets ~20k
+  // tokens and preserves whole conversations (gaps < 4h) ranked by signal.
+  const sample = sampleForAI(chat)
+  const conversation: ConversationLine[] = sample.messages.map((m) => ({
+    a: m.author,
+    t: compactTs(m.ts),
+    // Strip obvious PII (phones, emails, raw URLs) before the text leaves the
+    // browser. Names are pseudonymized later by `pseudonymizeDeep`.
+    x: scrubPii(m.text),
+  }))
+
   return {
     participants: chat.participants,
     self: selfPerson,
@@ -197,7 +229,14 @@ export function buildEvidence(
     arc,
     flags,
     notableMoments,
+    conversation,
   }
+}
+
+function compactTs(ts: Date): string {
+  // YYYY-MM-DD HH:MM — dropping seconds, plenty precise for a chat readout.
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())} ${pad(ts.getHours())}:${pad(ts.getMinutes())}`
 }
 
 function groupByAuthor(messages: Message[]): Record<string, Message[]> {
@@ -527,7 +566,7 @@ function pickNotableMoments(messages: Message[], facts: HardFacts): NotableMomen
       ts: `${pad(m.ts.getHours())}:${pad(m.ts.getMinutes())}`,
       date: isoDate(m.ts),
       author: m.author,
-      text: truncate(m.text, cap),
+      text: truncate(scrubPii(m.text), cap),
       reason,
     }
   })

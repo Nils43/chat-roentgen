@@ -19,7 +19,10 @@ export interface SampleResult {
   }
 }
 
-const TARGET_TOKENS = 20_000
+// Tighter budget keeps each analysis under the per-call cost ceiling. The
+// sampler still picks high-signal sessions first, so 8k tokens of curated
+// dialogue ends up denser than 20k of raw chronological slice.
+const TARGET_TOKENS = 8_000
 const TOKEN_ESTIMATE_PER_CHAR = 0.28
 const SESSION_GAP_MS = 4 * 60 * 60 * 1000
 const MIN_SPEAKER_WORD_SHARE = 0.25 // each participant should have ≥ this share

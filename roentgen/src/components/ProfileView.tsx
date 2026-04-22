@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import type { ProfileResult } from '../ai/types'
+import { t, useLocale, type Locale } from '../i18n'
+import { AiDisclosure } from './AiDisclosure'
 
 interface Props {
   profiles: ProfileResult[]
   chatId: string | null
   onGoToRelationship?: () => void
+  onRerun?: () => void
 }
 
 const PERSON_COLORS = [
@@ -14,58 +17,78 @@ const PERSON_COLORS = [
   { text: 'text-orange-400', bg: 'bg-orange-400', ring: 'ring-orange-400', dim: 'text-orange-400/60', glow: 'bg-orange-400/10' },
 ]
 
-export function ProfileView({ profiles, onGoToRelationship }: Props) {
-  // tea profiles only the user themselves. Render the first (and only)
-  // result — the other participants are never analyzed.
+export function ProfileView({ profiles, onGoToRelationship, onRerun }: Props) {
+  const locale = useLocale()
+  const r = (en: string, de: string) => (locale === 'de' ? de : en)
   const result = profiles[0]
 
   return (
     <div className="max-w-4xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-12">
-      <header className="space-y-6">
+      <header className="space-y-6 relative">
+        {onRerun && (
+          <button
+            onClick={onRerun}
+            className="absolute top-0 right-0 font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 hover:text-ink underline underline-offset-4 decoration-dotted"
+          >
+            ↻ {t('rerun.cta', locale, { lang: t(`rerun.lang.${locale}`, locale) })}
+          </button>
+        )}
         <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink/60">
-          files · your portrait
+          {r('files · your portrait', 'akten · dein portrait')}
         </div>
+        <AiDisclosure />
         <h2 className="font-serif italic text-[14vw] md:text-[120px] leading-[0.85] tracking-tight">
-          you.
+          {r('you.', 'du.')}
         </h2>
         <p className="serif-body text-base md:text-lg max-w-2xl mt-2">
-          An honest portrait — only for you. The other person didn't agree to be read, so I don't read them.
+          {r(
+            "An honest read — only for you. The other person didn't sign off on being read, so I don't touch them.",
+            'Ein ehrliches Portrait — nur für dich. Die andere Person hat nicht zugestimmt, also lese ich sie nicht.',
+          )}
         </p>
       </header>
 
-      {result && <ProfileCard result={result} colorIdx={0} />}
+      {result && <ProfileCard result={result} colorIdx={0} locale={locale} />}
 
       {onGoToRelationship && (
         <section className="card relative overflow-hidden text-center">
           <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-a/10 blur-3xl pointer-events-none" />
           <div className="relative">
-            <div className="label-mono text-a mb-3">Up next</div>
+            <div className="label-mono text-a mb-3">{r('Up next', 'Als nächstes')}</div>
             <h3 className="font-serif text-3xl md:text-4xl leading-tight mb-3">
-              What's <span className="italic text-ink-muted">between</span> you.
+              {locale === 'de' ? (
+                <>Was <span className="italic text-ink-muted">zwischen</span> euch läuft.</>
+              ) : (
+                <>What's <span className="italic text-ink-muted">between</span> you.</>
+              )}
             </h3>
             <p className="serif-body text-base text-ink-muted max-w-xl mx-auto mb-6">
-              Who gives, who holds back, how you fight, how close you let each other, which rules you've never said out loud — not the individuals, but the space between.
+              {r(
+                "Who gives, who holds back, how you fight, how close you let each other, which rules you've never said out loud — not the individuals, but the space between.",
+                'Wer gibt, wer hält zurück, wie ihr streitet, wie nah ihr euch lasst, welche Regeln nie ausgesprochen wurden — nicht die einzelnen, sondern der Raum dazwischen.',
+              )}
             </p>
             <button
               onClick={onGoToRelationship}
               className="px-6 py-3 bg-a text-bg rounded-full font-sans text-sm tracking-wide hover:bg-a/90 transition-colors"
             >
-              Show the dynamic →
+              {r('Show the dynamic →', 'Zeig die Dynamik →')}
             </button>
           </div>
         </section>
       )}
 
       <div className="text-center serif-body text-ink-muted italic pt-6 border-t border-line/40">
-        "A read, not a diagnosis. For the real stuff, see a professional."
+        "{r('A read, not a diagnosis. For the real stuff, see a professional.', 'Eine Lesart, keine Diagnose. Für die echten Fragen → zu einer Fachperson.')}"
       </div>
     </div>
   )
 }
 
-function ProfileCard({ result, colorIdx }: { result: ProfileResult; colorIdx: number }) {
+function ProfileCard({ result, colorIdx, locale }: { result: ProfileResult; colorIdx: number; locale: Locale }) {
   const { profile } = result
   const c = PERSON_COLORS[colorIdx % PERSON_COLORS.length]
+  const r = (en: string, de: string) => (locale === 'de' ? de : en)
 
   return (
     <article className={`card relative overflow-hidden`}>
@@ -74,7 +97,7 @@ function ProfileCard({ result, colorIdx }: { result: ProfileResult; colorIdx: nu
 
       <header className="relative flex items-baseline justify-between mb-8 pb-6 border-b border-line/40">
         <div>
-          <div className="label-mono mb-2">Portrait</div>
+          <div className="label-mono mb-2">{r('Portrait', 'Portrait')}</div>
           <h3 className={`font-serif text-5xl md:text-6xl ${c.text} tracking-tight`}>{profile.person}</h3>
         </div>
       </header>
@@ -84,84 +107,82 @@ function ProfileCard({ result, colorIdx }: { result: ProfileResult; colorIdx: nu
         "{profile.kern_insight}"
       </blockquote>
 
-      {/* Axes */}
+      {/* How they write — prose only, numeric axis sliders were too clinical. */}
       <section className="mb-10">
-        <SectionKicker label="How they write here" />
-        <p className="serif-body text-lg text-ink mb-6">{profile.kommunikationsstil.beschreibung}</p>
-        <div className="space-y-4">
-          <AxisSlider label="Direct" rightLabel="Indirect" value={profile.kommunikationsstil.achsen.direktIndirekt} color={c.bg} />
-          <AxisSlider label="Emotional" rightLabel="Matter-of-fact" value={profile.kommunikationsstil.achsen.emotionalSachlich} color={c.bg} />
-          <AxisSlider label="Verbose" rightLabel="Terse" value={profile.kommunikationsstil.achsen.ausfuehrlichKnapp} color={c.bg} />
-          <AxisSlider label="Initiating" rightLabel="Reacting" value={profile.kommunikationsstil.achsen.initiierendReagierend} color={c.bg} />
-        </div>
+        <SectionKicker label={r('How they write here', 'Schreibstil in diesem Chat')} />
+        <p className="serif-body text-lg text-ink">{profile.kommunikationsstil.beschreibung}</p>
       </section>
 
       {/* Frameworks — no theorist labels */}
       <Framework
         thinker=""
-        topic="How this person meets others"
-        tag={horneyLabel(profile.horney.orientierung)}
+        topic={r('How this person meets others', 'Wie diese Person auf andere zugeht')}
+        tag={horneyLabel(profile.horney.orientierung, locale)}
         color={c}
         text={profile.horney.interpretation}
         evidence={profile.horney.evidenz}
+        locale={locale}
       />
       <Framework
         thinker=""
-        topic="Which inner voice is speaking here"
-        tag={berneLabel(profile.berne.dominanter_zustand, profile.berne.nuance)}
+        topic={r('Which inner voice is speaking here', 'Welche innere Stimme hier spricht')}
+        tag={berneLabel(profile.berne.dominanter_zustand, profile.berne.nuance, locale)}
         color={c}
         text={profile.berne.interpretation}
         evidence={profile.berne.evidenz}
+        locale={locale}
       />
       <Framework
         thinker=""
-        topic="How this person handles closeness"
-        tag={bowlbyLabel(profile.bowlby.tendenz)}
+        topic={r('How this person handles closeness', 'Wie diese Person mit Nähe umgeht')}
+        tag={bowlbyLabel(profile.bowlby.tendenz, locale)}
         color={c}
-        confidenceTag={confidenceLabel(profile.bowlby.sicherheit)}
         text={profile.bowlby.interpretation}
         evidence={profile.bowlby.evidenz}
+        locale={locale}
       />
       <Framework
         thinker=""
-        topic="What this person compensates for"
+        topic={r('What this person compensates for', 'Was diese Person kompensiert')}
         tag={profile.adler.kompensation}
         color={c}
         text={profile.adler.interpretation}
         evidence={profile.adler.evidenz}
+        locale={locale}
       />
       <Framework
         thinker=""
-        topic="The facade — and when it slips"
-        tag="Front & backstage"
+        topic={r('The facade — and when it slips', 'Die Fassade — und wann sie rutscht')}
+        tag={r('Front & backstage', 'Front & Backstage')}
         color={c}
         text={
           <>
             <p className="mb-3">
-              <span className="label-mono mr-2">Front</span>
+              <span className="label-mono mr-2">{r('Front', 'Front')}</span>
               {profile.goffman.front_stage}
             </p>
             <p className="mb-3">
-              <span className="label-mono mr-2">Behind</span>
+              <span className="label-mono mr-2">{r('Behind', 'Dahinter')}</span>
               {profile.goffman.back_stage_durchbrueche}
             </p>
             <p>{profile.goffman.interpretation}</p>
           </>
         }
         evidence={profile.goffman.evidenz}
+        locale={locale}
       />
 
       {/* Fingerprints */}
       <section className="mt-10 pt-8 border-t border-line/40">
-        <SectionKicker label="Signature words & patterns" />
+        <SectionKicker label={r('Signature words & patterns', 'Signature-Wörter & Patterns')} />
         <div className="grid md:grid-cols-2 gap-6">
           <FingerprintBlock
-            label="Favorite phrases"
+            label={r('Favorite phrases', 'Lieblings-Phrasen')}
             items={profile.sprachliche_fingerabdruecke.lieblings_formulierungen}
             color={c.text}
           />
           <FingerprintBlock
-            label="Typical sentence starts"
+            label={r('Typical sentence starts', 'Typische Satzanfänge')}
             items={profile.sprachliche_fingerabdruecke.wiederkehrende_satzanfaenge}
             color={c.text}
           />
@@ -178,26 +199,6 @@ function SectionKicker({ label }: { label: string }) {
   return <div className="label-mono text-ink-muted mb-4">{label}</div>
 }
 
-function AxisSlider({ label, rightLabel, value, color }: { label: string; rightLabel: string; value: number; color: string }) {
-  // value in -10..10
-  const pct = ((value + 10) / 20) * 100
-  return (
-    <div>
-      <div className="flex justify-between text-[11px] font-mono mb-1.5 text-ink-faint uppercase tracking-widest">
-        <span className={value < -2 ? 'text-ink' : ''}>{label}</span>
-        <span className={value > 2 ? 'text-ink' : ''}>{rightLabel}</span>
-      </div>
-      <div className="relative h-[3px] bg-line rounded-full">
-        <div className="absolute inset-y-0 left-1/2 w-px bg-ink-faint/40" />
-        <div
-          className={`absolute -top-1.5 w-3 h-3 ${color} rounded-full shadow-lg transition-all duration-1000 ease-out`}
-          style={{ left: `calc(${pct}% - 6px)` }}
-        />
-      </div>
-    </div>
-  )
-}
-
 function Framework({
   thinker,
   topic,
@@ -206,6 +207,7 @@ function Framework({
   confidenceTag,
   text,
   evidence,
+  locale,
 }: {
   thinker: string
   topic: string
@@ -214,8 +216,10 @@ function Framework({
   confidenceTag?: string
   text: React.ReactNode
   evidence: string[]
+  locale?: Locale
 }) {
   const [open, setOpen] = useState(false)
+  const evidenceLabel = locale === 'de' ? 'Direkt aus dem Chat' : 'Straight from the chat'
   return (
     <section className="mt-8 pt-8 border-t border-line/40">
       <button onClick={() => setOpen((v) => !v)} className="w-full text-left group">
@@ -241,7 +245,7 @@ function Framework({
           <div className="serif-body text-lg text-ink">{text}</div>
           {evidence.length > 0 && (
             <div className="space-y-2 pt-3 border-t border-line/30">
-              <div className="label-mono">Examples straight from the chat</div>
+              <div className="label-mono">{evidenceLabel}</div>
               {evidence.map((e, i) => (
                 <div key={i} className="font-mono text-sm text-ink-muted pl-3 border-l border-line">
                   "{e}"
@@ -270,7 +274,15 @@ function FingerprintBlock({ label, items, color }: { label: string; items: strin
   )
 }
 
-function horneyLabel(o: string): string {
+function horneyLabel(o: string, locale?: Locale): string {
+  if (locale === 'de') {
+    return {
+      zu_menschen: 'Geht auf Leute zu (sucht Nähe)',
+      gegen_menschen: 'Geht gegen Leute (übernimmt die Führung)',
+      von_menschen: 'Geht weg von Leuten (zieht sich zurück)',
+      gemischt: 'Gemischte Orientierung',
+    }[o] ?? o
+  }
   return {
     zu_menschen: 'Moves toward people (seeks closeness)',
     gegen_menschen: 'Moves against people (takes charge)',
@@ -279,26 +291,51 @@ function horneyLabel(o: string): string {
   }[o] ?? o
 }
 
-function berneLabel(state: string, nuance: string | null | undefined): string {
-  const base = {
-    eltern_ich: 'Parent mode',
-    erwachsenen_ich: 'Adult mode',
-    kind_ich: 'Child mode',
-    gemischt: 'Mixed',
-  }[state] ?? state
-  const nuanceMap: Record<string, string> = {
-    fürsorglich: 'caring',
-    kritisch: 'critical',
-    sachlich_rational: 'matter-of-fact',
-    spontan: 'spontaneous',
-    angepasst: 'adaptive',
-    rebellisch: 'rebellious',
-  }
+function berneLabel(state: string, nuance: string | null | undefined, locale?: Locale): string {
+  const isDe = locale === 'de'
+  const base = isDe
+    ? ({
+        eltern_ich: 'Eltern-Mode',
+        erwachsenen_ich: 'Erwachsenen-Mode',
+        kind_ich: 'Kind-Mode',
+        gemischt: 'Gemischt',
+      } as Record<string, string>)[state] ?? state
+    : ({
+        eltern_ich: 'Parent mode',
+        erwachsenen_ich: 'Adult mode',
+        kind_ich: 'Child mode',
+        gemischt: 'Mixed',
+      } as Record<string, string>)[state] ?? state
+  const nuanceMap: Record<string, string> = isDe
+    ? {
+        fürsorglich: 'fürsorglich',
+        kritisch: 'kritisch',
+        sachlich_rational: 'sachlich',
+        spontan: 'spontan',
+        angepasst: 'angepasst',
+        rebellisch: 'rebellisch',
+      }
+    : {
+        fürsorglich: 'caring',
+        kritisch: 'critical',
+        sachlich_rational: 'matter-of-fact',
+        spontan: 'spontaneous',
+        angepasst: 'adaptive',
+        rebellisch: 'rebellious',
+      }
   const n = nuance ? nuanceMap[nuance] ?? nuance : null
   return n ? `${base} · ${n}` : base
 }
 
-function bowlbyLabel(t: string): string {
+function bowlbyLabel(t: string, locale?: Locale): string {
+  if (locale === 'de') {
+    return {
+      sicher: 'Sicher',
+      aengstlich_ambivalent: 'Ängstlich / ambivalent',
+      vermeidend: 'Vermeidend',
+      desorganisiert: 'Desorganisiert',
+    }[t] ?? t
+  }
   return {
     sicher: 'Secure',
     aengstlich_ambivalent: 'Anxious / ambivalent',
@@ -307,10 +344,3 @@ function bowlbyLabel(t: string): string {
   }[t] ?? t
 }
 
-function confidenceLabel(s: string): string {
-  return {
-    niedrig: 'Confidence: low',
-    mittel: 'Confidence: medium',
-    hoch: 'Confidence: high',
-  }[s] ?? s
-}

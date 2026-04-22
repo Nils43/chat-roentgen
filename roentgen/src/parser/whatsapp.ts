@@ -10,19 +10,46 @@ import type { Message, ParsedChat } from './types'
 // System notices (encryption, group events, media placeholders) are dropped.
 
 const SYSTEM_MARKERS = [
-  // WhatsApp system notices
+  // E2E notices
   'end-to-end verschlüsselt',
   'end-to-end encrypted',
   'messages and calls are end-to-end',
   'nachrichten und anrufe sind ende-zu-ende',
+  'are now secured with end-to-end encryption',
+  // Group lifecycle
   'hat die gruppe',
+  'gruppe erstellt',
+  'diese gruppe erstellt',
+  'created group',
+  'created this group',
+  'you created this group',
   'joined using this group',
+  'joined using this invite',
+  'ist der gruppe beigetreten',
   'left the group',
+  'hat die gruppe verlassen',
+  // Subject / description / icon
   'changed the subject',
   'changed this group',
+  "changed this group's icon",
+  'changed the group description',
+  'gruppenbeschreibung',
+  'gruppen-icon',
+  'hat den gruppennamen',
+  // Admin actions
   'wurde hinzugefügt',
+  'hinzugefügt',
   'added',
+  'wurde entfernt',
   'removed',
+  'is now an admin',
+  'ist jetzt admin',
+  'no longer an admin',
+  'nicht mehr admin',
+  // Pins
+  'pinned a message',
+  'angeheftet',
+  // Phone
   'changed their phone number',
   'hat die telefonnummer gewechselt',
 ]
@@ -115,6 +142,34 @@ function isSystemMessage(text: string): boolean {
   return SYSTEM_MARKERS.some((m) => lower.includes(m))
 }
 
+// Looser check for post-parse scrubbing. Matches single-message "participants"
+// that look like group-admin notices which slipped past SYSTEM_MARKERS — usually
+// the group's own name appearing once as the author of a creation/rename line.
+// Keep these specific enough that a real user's one-off message wouldn't match.
+const SYSTEM_KEYWORDS_LOOSE = [
+  'erstellt',
+  'created group',
+  'created this group',
+  'hinzugefügt',
+  'added you',
+  'added me',
+  'wurde entfernt',
+  'beigetreten',
+  'gruppenbeschreibung',
+  'gruppen-icon',
+  'gruppennamen',
+  'group description',
+  'group icon',
+  'group name',
+  'angeheftet',
+  'pinned a message',
+]
+
+function looksLikeSystemNotice(text: string): boolean {
+  const lower = text.toLowerCase()
+  return SYSTEM_KEYWORDS_LOOSE.some((k) => lower.includes(k))
+}
+
 function isMediaOnly(text: string): boolean {
   const stripped = text
     .toLowerCase()
@@ -190,6 +245,29 @@ export function parseWhatsApp(raw: string): ParsedChat {
     warnings.push(
       "No messages detected. Is this actually a WhatsApp export? Check the date format on the first line.",
     )
+  }
+
+  // Post-parse scrub: if a "participant" has ≤2 messages and all of them look
+  // like admin notices (created group, added X, changed description, …), drop
+  // them. This cleans up cases where the group name itself was captured as an
+  // author because WhatsApp formatted a system line with a colon.
+  const authorMessageCounts = new Map<string, Message[]>()
+  for (const msg of messages) {
+    const list = authorMessageCounts.get(msg.author) ?? []
+    list.push(msg)
+    authorMessageCounts.set(msg.author, list)
+  }
+  const ghostAuthors = new Set<string>()
+  for (const [author, msgs] of authorMessageCounts) {
+    if (msgs.length <= 2 && msgs.every((m) => looksLikeSystemNotice(m.text))) {
+      ghostAuthors.add(author)
+    }
+  }
+  if (ghostAuthors.size > 0) {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (ghostAuthors.has(messages[i].author)) messages.splice(i, 1)
+    }
+    for (const author of ghostAuthors) participantsSet.delete(author)
   }
 
   const participants = [...participantsSet.entries()]

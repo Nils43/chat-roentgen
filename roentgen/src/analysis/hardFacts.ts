@@ -490,14 +490,15 @@ export function analyzeHardFacts(chat: ParsedChat): HardFacts {
   }
 }
 
-export function formatDuration(ms: number | null): string {
+export function formatDuration(ms: number | null, locale: 'en' | 'de' = 'en'): string {
   if (ms == null) return '—'
+  const de = locale === 'de'
   const sec = Math.round(ms / 1000)
-  if (sec < 60) return `${sec}s`
+  if (sec < 60) return `${sec} ${de ? (sec === 1 ? 'Sekunde' : 'Sekunden') : sec === 1 ? 'second' : 'seconds'}`
   const min = Math.round(sec / 60)
-  if (min < 60) return `${min}min`
+  if (min < 60) return `${min} ${de ? (min === 1 ? 'Minute' : 'Minuten') : min === 1 ? 'minute' : 'minutes'}`
   const hr = Math.round(min / 60)
-  if (hr < 24) return `${hr}h`
+  if (hr < 24) return `${hr} ${de ? (hr === 1 ? 'Stunde' : 'Stunden') : hr === 1 ? 'hour' : 'hours'}`
   const d = Math.round(hr / 24)
-  return `${d}d`
+  return `${d} ${de ? (d === 1 ? 'Tag' : 'Tage') : d === 1 ? 'day' : 'days'}`
 }
