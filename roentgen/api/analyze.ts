@@ -54,49 +54,46 @@ async function refundCredit(accountId: string, note: string): Promise<void> {
     .eq('id', accountId)
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'method_not_allowed' })
-    return
-  }
+function sendJsonError(res: VercelResponse, status: number, error: string, message?: string): void {
+  res.status(status).setHeader('content-type', 'application/json').send(
+    JSON.stringify(message ? { error, message } : { error }),
+  )
+}
+
+async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<void> {
+  if (req.method !== 'POST') return sendJsonError(res, 405, 'method_not_allowed')
 
   const key = process.env.ANTHROPIC_API_KEY
-  if (!key) {
-    res.status(500).json({ error: 'missing_api_key' })
-    return
-  }
+  if (!key) return sendJsonError(res, 500, 'missing_env', 'ANTHROPIC_API_KEY not set on server')
 
-  // Dev bypass: PAYWALL_DISABLED=true skips auth and credits entirely. Never
-  // flip on in production.
   const paywallDisabled = process.env.PAYWALL_DISABLED === 'true'
 
   let userId: string | null = null
   if (!paywallDisabled) {
-    userId = await userFromAuthHeader(req.headers.authorization)
-    if (!userId) {
-      res.status(401).json({ error: 'not_signed_in' })
-      return
+    // Config checks up front so the browser sees a specific cause instead of a
+    // generic "function crashed" HTML page.
+    if (!process.env.SUPABASE_URL && !process.env.VITE_SUPABASE_URL) {
+      return sendJsonError(res, 500, 'missing_env', 'SUPABASE_URL not set on server')
     }
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return sendJsonError(res, 500, 'missing_env', 'SUPABASE_SERVICE_ROLE_KEY not set on server')
+    }
+    userId = await userFromAuthHeader(req.headers.authorization)
+    if (!userId) return sendJsonError(res, 401, 'not_signed_in')
   }
 
   let body: AnthropicBody
   try {
     body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body as AnthropicBody)
   } catch {
-    res.status(400).json({ error: 'invalid_json' })
-    return
+    return sendJsonError(res, 400, 'invalid_json')
   }
 
   const bodySize = JSON.stringify(body).length
-  if (bodySize > MAX_BODY_BYTES) {
-    res.status(413).json({ error: 'payload_too_large' })
-    return
-  }
+  if (bodySize > MAX_BODY_BYTES) return sendJsonError(res, 413, 'payload_too_large')
 
   const note = noteForTool(toolName(body))
 
-  // Spend 1 credit before calling Anthropic so a concurrent request can't
-  // double-spend. Atomic at the DB level (SELECT … FOR UPDATE).
   if (!paywallDisabled && userId) {
     const sb = adminClient()
     const { data: spent, error: spendErr } = await sb.rpc('spend_credit', {
@@ -104,16 +101,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       p_note: note,
     })
     if (spendErr) {
-      res.status(500).json({ error: 'spend_failed', message: spendErr.message })
-      return
+      return sendJsonError(res, 500, 'spend_failed', spendErr.message)
     }
-    if (spent !== true) {
-      res.status(402).json({ error: 'insufficient_credits' })
-      return
-    }
+    if (spent !== true) return sendJsonError(res, 402, 'insufficient_credits')
   }
 
-  // Narrow to the Anthropic allow-list — we never forward arbitrary keys.
   const systemField =
     typeof body.system === 'string' || Array.isArray(body.system) ? body.system : undefined
   const forward = {
@@ -138,22 +130,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
     const text = await upstream.text()
     if (!upstream.ok && !paywallDisabled && userId) {
-      // Anthropic failed — refund so the user isn't charged for a broken call.
-      try {
-        await refundCredit(userId, note + '_refund')
-      } catch {
-        // Refund failure is logged server-side only; don't leak to client.
-      }
+      try { await refundCredit(userId, note + '_refund') } catch { /* swallow */ }
     }
     res.status(upstream.status).setHeader('content-type', 'application/json').send(text)
-  } catch {
+  } catch (e) {
     if (!paywallDisabled && userId) {
-      try {
-        await refundCredit(userId, note + '_refund')
-      } catch {
-        /* ignore */
-      }
+      try { await refundCredit(userId, note + '_refund') } catch { /* swallow */ }
     }
-    res.status(502).json({ error: 'upstream_unreachable' })
+    const msg = e instanceof Error ? e.message : 'upstream_unreachable'
+    sendJsonError(res, 502, 'upstream_unreachable', msg)
+  }
+}
+
+// Outer wrapper: any uncaught throw (e.g. adminClient() with bad env, DNS,
+// Supabase reject) is serialized as JSON instead of Vercel's HTML crash page.
+// Without this the browser sees "Proxy did not return JSON" and has no clue.
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  try {
+    await handlerInner(req, res)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    if (!res.headersSent) sendJsonError(res, 500, 'server_exception', msg)
   }
 }
