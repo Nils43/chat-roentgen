@@ -19,8 +19,14 @@ export function useSession(): { session: Session | null | undefined; loading: bo
       if (mounted) setSession(data.session ?? null)
     })
 
-    const { data } = sb.auth.onAuthStateChange((_event, nextSession) => {
+    const { data } = sb.auth.onAuthStateChange((event, nextSession) => {
       if (mounted) setSession(nextSession ?? null)
+      // The DB trigger on auth.users is unreliable across auth providers
+      // (especially OAuth), so we force the account row ourselves every time
+      // a session lands. Idempotent: `on conflict do nothing`.
+      if (event === 'SIGNED_IN' && nextSession) {
+        void sb.rpc('ensure_account')
+      }
     })
 
     return () => {
