@@ -24,10 +24,9 @@ import { t, useLocale } from './i18n'
 import type { ModuleId } from './store/chatLibrary'
 import type { ProfileResult, RelationshipResult } from './ai/types'
 import { CheckoutModal, getStripe } from './components/CheckoutModal'
-import { PhoneAuth } from './components/PhoneAuth'
 import { CreditsBadge } from './components/CreditsBadge'
 import { CreditsPage } from './components/CreditsPage'
-import { useSession } from './auth/useSession'
+import { useSession, signInWithGoogle } from './auth/useSession'
 import { useCredits } from './credits/useCredits'
 import { startPackCheckout } from './credits/client'
 import type { Pack } from './credits/packs'
@@ -71,8 +70,6 @@ function App() {
   const [relationship, setRelationship] = useState<RelationshipResult | null>(null)
   const [relationshipError, setRelationshipError] = useState<string | null>(null)
 
-  // Auth modal — shown when the user clicks unlock without a session.
-  const [showAuth, setShowAuth] = useState(false)
   // Active Stripe embedded-checkout session for a credit pack.
   const [checkout, setCheckout] = useState<{ clientSecret: string } | null>(null)
   // UI-level "opening checkout…" / "confirming…" overlays.
@@ -266,8 +263,7 @@ function App() {
     const disabled = import.meta.env.VITE_PAYWALL_DISABLED === 'true'
     if (!disabled) {
       if (!session) {
-        setPendingModule(moduleId)
-        setShowAuth(true)
+        void signInWithGoogle()
         return
       }
       if ((balance ?? 0) <= 0) {
@@ -347,7 +343,7 @@ function App() {
   // useCredits refreshes the badge + balance automatically.
   const handleBuyPack = async (pack: Pack) => {
     if (!session) {
-      setShowAuth(true)
+      void signInWithGoogle()
       return
     }
     setPayError(null)
@@ -380,18 +376,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-bg text-ink pb-20">
-      {showAuth && (
-        <PhoneAuth
-          onSuccess={() => {
-            setShowAuth(false)
-            // After sign-in, re-evaluate the gated action: if the user still
-            // has zero credits, send them to buy; else let them proceed.
-            if ((balance ?? 0) <= 0) setStage('credits')
-            else if (chat) startModule(pendingModule)
-          }}
-          onClose={() => setShowAuth(false)}
-        />
-      )}
       {checkout && (
         <CheckoutModal
           clientSecret={checkout.clientSecret}
@@ -482,7 +466,7 @@ function App() {
             />
             <CreditsBadge
               onOpen={() => setStage('credits')}
-              onSignIn={() => setShowAuth(true)}
+              onSignIn={() => void signInWithGoogle()}
             />
           </div>
         </div>
@@ -599,7 +583,7 @@ function App() {
           <CreditsPage
             onBuy={handleBuyPack}
             onBack={() => setStage(chat ? 'analysis' : library.length > 0 ? 'library' : 'upload')}
-            onSignIn={() => setShowAuth(true)}
+            onSignIn={() => void signInWithGoogle()}
           />
         )}
 

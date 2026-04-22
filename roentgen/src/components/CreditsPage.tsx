@@ -80,8 +80,8 @@ export function CreditsPage({ onBuy, onBack, onSignIn }: Props) {
           </div>
           <p className="serif-body text-base text-ink mb-4">
             {r(
-              'Credits belong to a phone number so they stick around. One SMS, no email.',
-              'Credits hängen an der handynummer — damit sie dir bleiben. Eine sms, keine email.',
+              'Credits belong to your Google account so they stick around.',
+              'Credits hängen an deinem Google-Account — damit sie dir bleiben.',
             )}
           </p>
           <button
@@ -89,13 +89,13 @@ export function CreditsPage({ onBuy, onBack, onSignIn }: Props) {
             className="bg-ink text-pop-yellow border-2 border-ink px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.16em] hover:bg-white hover:text-ink transition-colors"
             style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
           >
-            {r('sign in with phone →', 'mit handy einloggen →')}
+            {r('continue with google →', 'mit google weiter →')}
           </button>
         </div>
       ) : (
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink/60">
-            {r('signed in as', 'eingeloggt als')} · {session.user.phone}
+            {r('signed in as', 'eingeloggt als')} · {session.user.email}
           </div>
           <button
             onClick={() => void signOut()}

@@ -15,7 +15,6 @@ export function useSession(): { session: Session | null | undefined; loading: bo
     const sb = getSupabase()
     let mounted = true
 
-    // Initial read from storage (synchronous-ish — returns quickly).
     sb.auth.getSession().then(({ data }) => {
       if (mounted) setSession(data.session ?? null)
     })
@@ -33,37 +32,19 @@ export function useSession(): { session: Session | null | undefined; loading: bo
   return { session, loading: session === undefined }
 }
 
-// Imperative helpers. Used from buttons, not from render.
-
-export async function sendSmsOtp(phone: string): Promise<void> {
+// Kick off the Google OAuth redirect. The browser navigates to Google, the
+// user authorizes, Supabase bounces back to the same origin with the session
+// in the URL hash — picked up automatically by the SDK on the next load.
+export async function signInWithGoogle(): Promise<void> {
   const sb = getSupabase()
-  // Supabase signInWithOtp sends an SMS via the configured provider (Twilio).
-  // If the phone has never signed in before, a new auth.users row is created.
-  const { error } = await sb.auth.signInWithOtp({
-    phone,
-    options: { channel: 'sms' },
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin },
   })
-  if (error) throw new Error(error.message)
-}
-
-export async function verifySmsOtp(phone: string, token: string): Promise<void> {
-  const sb = getSupabase()
-  const { error } = await sb.auth.verifyOtp({ phone, token, type: 'sms' })
   if (error) throw new Error(error.message)
 }
 
 export async function signOut(): Promise<void> {
   const sb = getSupabase()
   await sb.auth.signOut()
-}
-
-// Normalize phone input to E.164 ("+49…"). Accepts common German patterns so
-// users can type the way they're used to ("0170 1234567" / "+49 170 1234567").
-export function normalizePhone(raw: string): string | null {
-  const trimmed = raw.replace(/\s+/g, '').replace(/[-()]/g, '')
-  if (!trimmed) return null
-  if (/^\+[1-9]\d{7,14}$/.test(trimmed)) return trimmed
-  // "0170…" → "+49170…"
-  if (/^0\d{6,14}$/.test(trimmed)) return '+49' + trimmed.slice(1)
-  return null
 }

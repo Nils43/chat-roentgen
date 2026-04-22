@@ -1,6 +1,6 @@
 # Credits system — setup
 
-Migration away from per-analysis unlock tokens → phone-authed user accounts with a credits balance. Phone-only sign-in (no email), Stripe packs top up credits, AI calls decrement.
+Migration away from per-analysis unlock tokens → user accounts with a credits balance. Google sign-in (one tap, no SMS provider needed), Stripe packs top up credits, AI calls decrement.
 
 ## 1. Supabase
 
@@ -14,19 +14,34 @@ Europe region (Frankfurt) for GDPR. Write down:
 | `anon` / `publishable` key | Settings → API | `VITE_SUPABASE_ANON_KEY` |
 | `service_role` / `secret` key | Settings → API | `SUPABASE_SERVICE_ROLE_KEY` (**server only**) |
 
-### 1b. Enable Phone Auth
+### 1b. Enable Google OAuth
 
-Authentication → Providers → **Phone** → Enable.
+**In Google Cloud Console** (https://console.cloud.google.com):
 
-Pick an SMS provider. Cheapest reliable path: **Twilio**. Register at twilio.com, create a Messaging Service, paste:
+1. Create a project (or pick existing) → **APIs & Services → OAuth consent screen**
+   - User type: **External** → save
+   - App name, user support email, developer email — fill in
+   - Scopes: leave default (email, profile, openid)
+   - Publish app (otherwise only test users can sign in)
+2. **Credentials → + Create Credentials → OAuth Client ID**
+   - Type: **Web application**
+   - **Authorized JavaScript origins**:
+     - `http://localhost:5173` (dev)
+     - `https://<your-domain>.vercel.app` (prod)
+   - **Authorized redirect URIs** — one entry, from Supabase:
+     - `https://<project>.supabase.co/auth/v1/callback`
+     - (Supabase → Auth → Providers → Google shows this exact URL — copy it)
+   - Create → copy **Client ID** + **Client Secret**
 
-- Twilio Account SID
-- Twilio Auth Token
-- Twilio Messaging Service SID (looks like `MG…`)
+**In Supabase**:
 
-into Supabase Phone provider settings. Save.
+Authentication → **Sign In / Up** → **Google** → Enable → paste Client ID + Secret → Save.
 
-Optional: under **Auth → Rate Limits**, cap SMS per hour (e.g. 10/IP). Twilio bills per SMS; abuse can run up a bill.
+Authentication → **URL Configuration** → add to **Redirect URLs**:
+- `http://localhost:5173`
+- `https://<your-domain>.vercel.app`
+
+Set **Site URL** to your production URL (or localhost during dev).
 
 ### 1c. Schema
 
@@ -36,7 +51,7 @@ Supabase → SQL Editor → **New query** → paste and **Run**:
 -- One row per paying user. Keyed on the Supabase auth user id.
 create table if not exists public.accounts (
   id uuid primary key references auth.users(id) on delete cascade,
-  phone text unique not null,
+  email text,
   credits integer not null default 0 check (credits >= 0),
   created_at timestamptz not null default now()
 );
@@ -65,8 +80,8 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.accounts (id, phone)
-  values (new.id, new.phone)
+  insert into public.accounts (id, email)
+  values (new.id, new.email)
   on conflict (id) do nothing;
   return new;
 end;
