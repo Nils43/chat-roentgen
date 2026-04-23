@@ -446,9 +446,13 @@ function App() {
       )}
       {showKeepPrompt && (
         <KeepCreditsModal
-          onSignIn={() => {
+          onSignIn={async () => {
             setShowKeepPrompt(false)
-            void signInWithGoogle()
+            try {
+              await signInWithGoogle()
+            } catch (e) {
+              setPayError((e as Error).message)
+            }
           }}
           onDismiss={() => setShowKeepPrompt(false)}
         />
@@ -536,7 +540,10 @@ function App() {
             />
             <CreditsBadge
               onOpen={() => setStage('credits')}
-              onSignIn={() => void signInWithGoogle()}
+              onSignIn={async () => {
+              try { await signInWithGoogle() }
+              catch (e) { setPayError((e as Error).message) }
+            }}
             />
           </div>
         </div>
@@ -657,7 +664,10 @@ function App() {
           <CreditsPage
             onBuy={handleBuyPack}
             onBack={() => setStage(chat ? 'analysis' : library.length > 0 ? 'library' : 'upload')}
-            onSignIn={() => void signInWithGoogle()}
+            onSignIn={async () => {
+              try { await signInWithGoogle() }
+              catch (e) { setPayError((e as Error).message) }
+            }}
           />
         )}
 

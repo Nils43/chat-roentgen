@@ -49,7 +49,11 @@ export function useSession(): { session: Session | null | undefined; loading: bo
 }
 
 // "Sign in with Google" — anonymous users get linkIdentity (upgrade in place,
-// credits stay). Signed-out / already-permanent users get plain OAuth.
+// credits stay attached to the same user id). Already-permanent users get
+// plain OAuth. There is NO silent fallback from linkIdentity → OAuth: the
+// fallback used to swap the session out to a fresh user, orphaning every
+// credit the anonymous session had just bought. If linkIdentity errors we
+// surface it and keep the anon session intact so the user's credits stay safe.
 export async function signInWithGoogle(): Promise<void> {
   const sb = getSupabase()
   const { data: { session } } = await sb.auth.getSession()
@@ -60,11 +64,12 @@ export async function signInWithGoogle(): Promise<void> {
       provider: 'google',
       options: { redirectTo },
     })
-    if (!error) return
-    // linkIdentity failed (most likely: that Google account is already
-    // linked elsewhere). Fall through to plain OAuth — credits bought on
-    // this anon session will orphan, but the user can at least proceed.
-    console.warn('[auth] linkIdentity failed, falling back to OAuth:', error.message)
+    if (error) {
+      throw new Error(
+        `Couldn't link Google to this browser session: ${error.message}. Your credits are still here — try again, or contact support.`,
+      )
+    }
+    return
   }
 
   const { error } = await sb.auth.signInWithOAuth({
