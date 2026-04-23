@@ -12,11 +12,13 @@ import {
 import { i18n } from '../i18n'
 import type { RelationshipPayload, RelationshipResult } from './types'
 
-// Sonnet for relationship — the schema has 13 top-level blocks with dense
-// nested required fields, and Haiku was flaking ~30% of the time even with
-// retries. One Sonnet call is both cheaper AND more reliable than three
-// Haiku calls in practice. Override with VITE_ROENTGEN_RELATIONSHIP_MODEL.
-const DEFAULT_MODEL = 'claude-sonnet-4-6'
+// Haiku for everything — keeps the per-call cost around 3-4 cents. The
+// relationship schema is big and Haiku flakes on some nested fields, but
+// the server-side retries with hint messages + backfill of schema defaults
+// cover the gap; a partial Haiku payload plus our default filler is better
+// economics than a pristine Sonnet payload. Override with
+// VITE_ROENTGEN_RELATIONSHIP_MODEL if you ever want to upgrade a paid tier.
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
 const MODEL =
   (import.meta.env.VITE_ROENTGEN_RELATIONSHIP_MODEL as string | undefined) ??
   (import.meta.env.VITE_ROENTGEN_MODEL as string | undefined) ??

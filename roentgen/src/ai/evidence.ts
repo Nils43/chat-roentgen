@@ -115,13 +115,14 @@ export type NotableReason =
   | 'peak_day'
   | 'drift_window'
   | 'long_message'
-  // Positive-valence reasons — without these the sample is dominated by
-  // signals of friction (apology, hedging, silence, drift) and the AI
-  // writes a grim analysis for chats that are actually mostly warm.
   | 'affection'
   | 'laughter'
   | 'appreciation'
   | 'excitement'
+  // Neutral everyday exchange. Without this the sampler is all peaks — only
+  // friction or warmth — and the AI never sees the texture of the 70% of
+  // messages that are just "wie war dein tag" / "soll ich bier mitbringen".
+  | 'ordinary'
 
 export interface NotableMoment {
   index: number
@@ -136,8 +137,7 @@ const MAX_NOTABLE = 30
 const TEXT_CAP = 140
 const LONG_TEXT_CAP = 200
 
-// Per-reason caps enforce diversity — no tunnel-vision on one type. Scaled up
-// along with MAX_NOTABLE so each reason has real headroom.
+// Per-reason caps enforce diversity — no tunnel-vision on one type.
 const REASON_CAPS: Record<NotableReason, number> = {
   apology: 3,
   hedge_cluster: 3,
@@ -152,13 +152,31 @@ const REASON_CAPS: Record<NotableReason, number> = {
   laughter: 4,
   appreciation: 3,
   excitement: 3,
+  ordinary: 14,
 }
 
-// Slots reserved for positive signals. If the chat has any positive moments
-// at all, fill this many before letting negative signals win the remaining
-// slots. Guarantees the AI reads both halves of the dynamic.
-const MIN_POSITIVE_SLOTS = 10
-const POSITIVE_REASONS = new Set<NotableReason>(['affection', 'laughter', 'appreciation', 'excitement'])
+// Three-way valence split of the 30 sample slots. Roughly even so the AI
+// sees the full texture of the chat, not just the peaks. Each category
+// gets its share of slots reserved before the others can compete.
+const CATEGORY_TARGETS = { ordinary: 12, warmth: 9, friction: 9 } as const
+const FRICTION_REASONS = new Set<NotableReason>([
+  'apology', 'hedge_cluster', 'late_night', 'post_silence', 'pre_silence', 'drift_window',
+])
+const WARMTH_REASONS = new Set<NotableReason>([
+  'affection', 'laughter', 'appreciation', 'excitement',
+])
+// Anti-clustering: don't pick two moments within this gap — avoids the sample
+// being three consecutive messages of the same exchange.
+const MIN_PICK_GAP_MS = 10 * 60 * 1000
+// Temporal stratification — divide the chat into segments, try to cover each.
+const TIME_SEGMENTS = 5
+
+function categoryOf(r: NotableReason): 'warmth' | 'friction' | 'ordinary' | 'neutral' {
+  if (WARMTH_REASONS.has(r)) return 'warmth'
+  if (FRICTION_REASONS.has(r)) return 'friction'
+  if (r === 'ordinary') return 'ordinary'
+  return 'neutral'
+}
 
 const LONG_SILENCE_MS = 24 * 60 * 60 * 1000
 const BURST_GAP_MS = 5 * 60 * 1000
@@ -548,19 +566,11 @@ function pickNotableMoments(messages: Message[], facts: HardFacts): NotableMomen
     const text = m.text
 
     if (h >= 23 || h < 5) add(i, 'late_night', 55 + (h < 5 ? 5 - h : h - 22))
-
     if (APOLOGY_RE.test(text)) add(i, 'apology', 70)
-
     const hedgeMatches = countMatches(text, HEDGES_ANY_RE)
     if (hedgeMatches >= 2) add(i, 'hedge_cluster', 50 + hedgeMatches * 4)
-
     if (isoDate(m.ts) === peakDate) add(i, 'peak_day', 45)
-
     if (text.length > 180) add(i, 'long_message', 40 + Math.min(20, text.length / 40))
-
-    // Positive-valence detections — scored competitively with the negative
-    // ones so warmth surfaces in the sample when it's there. Each signal
-    // is specific enough that a casual "thanks" after a fight won't trigger.
     if (AFFECTION_RE.test(text)) add(i, 'affection', 72)
     if (LAUGHTER_RE.test(text)) add(i, 'laughter', 60)
     if (APPRECIATION_RE.test(text)) add(i, 'appreciation', 58)
@@ -573,51 +583,102 @@ function pickNotableMoments(messages: Message[], facts: HardFacts): NotableMomen
         add(i - 1, 'pre_silence', 58 + Math.min(10, gap / (LONG_SILENCE_MS * 4)))
       }
     }
-
     if (driftTs && Math.abs(+m.ts - +driftTs) <= 3 * 24 * 60 * 60 * 1000) {
       add(i, 'drift_window', 48)
     }
   }
 
-  // Two-pass greedy-pick:
-  //   Pass 1: fill MIN_POSITIVE_SLOTS from positive candidates first, so
-  //           warmth is never crowded out by higher-scoring friction signals.
-  //   Pass 2: fill the rest from all remaining candidates by score.
-  // Both passes respect per-reason and per-author caps. Per-author cap keeps
-  // one dominant talker from monopolising the sample (if Person A wrote 80%
-  // they'd trigger 80% of bursts / late-nights and the model would read the
-  // chat as an A-monologue).
+  // Ordinary pass — everyday texture. Must have no other score, moderate
+  // length, be part of an actual back-and-forth. That's the mundane middle
+  // the AI was previously blind to.
+  const alreadyScored = new Set(candidates.map((c) => c.idx))
+  for (let i = 0; i < messages.length; i++) {
+    if (alreadyScored.has(i)) continue
+    const m = messages[i]
+    const len = m.text.length
+    if (len < 15 || len > 120) continue
+    const prev = i > 0 ? messages[i - 1] : null
+    const next = i < messages.length - 1 ? messages[i + 1] : null
+    const inExchange = (prev && prev.author !== m.author) || (next && next.author !== m.author)
+    if (!inExchange) continue
+    add(i, 'ordinary', 30 + Math.min(15, len / 10))
+  }
+
+  // Three-axis balanced picker:
+  //   axis 1 — VALENCE: friction ÷ warmth ÷ ordinary each get a reserved
+  //            share of the 30 slots so the AI sees every colour of the chat
+  //   axis 2 — TIME: within each valence, we stratify across 5 equal-time
+  //            segments so one bad week can't monopolise the sample
+  //   axis 3 — AUTHOR: 60% cap per person so the louder talker doesn't
+  //            dominate just because they wrote more
+  // Plus anti-cluster: minimum 10-minute gap between picks to avoid the
+  // sample being three adjacent messages of the same exchange.
+  const firstMs = +messages[0].ts
+  const lastMs = +messages[messages.length - 1].ts
+  const segmentOf = (tsMs: number): number => {
+    if (lastMs <= firstMs) return 0
+    const rel = (tsMs - firstMs) / (lastMs - firstMs)
+    return Math.min(TIME_SEGMENTS - 1, Math.max(0, Math.floor(rel * TIME_SEGMENTS)))
+  }
+
   candidates.sort((a, b) => b.score - a.score)
   const picked = new Map<number, NotableReason>()
   const capCount: Record<NotableReason, number> = {
     apology: 0, hedge_cluster: 0, late_night: 0, burst_start: 0,
     post_silence: 0, pre_silence: 0, drift_window: 0, long_message: 0, peak_day: 0,
-    affection: 0, laughter: 0, appreciation: 0, excitement: 0,
+    affection: 0, laughter: 0, appreciation: 0, excitement: 0, ordinary: 0,
   }
   const authorCount = new Map<string, number>()
+  const segCount = new Array<number>(TIME_SEGMENTS).fill(0)
   const AUTHOR_CAP = Math.ceil(MAX_NOTABLE * 0.6)
 
   const tryPick = (c: { idx: number; reason: NotableReason }) => {
     if (picked.has(c.idx)) return false
     if (capCount[c.reason] >= REASON_CAPS[c.reason]) return false
-    const author = messages[c.idx].author
-    if ((authorCount.get(author) ?? 0) >= AUTHOR_CAP) return false
+    const msg = messages[c.idx]
+    if ((authorCount.get(msg.author) ?? 0) >= AUTHOR_CAP) return false
     if (picked.size >= MAX_NOTABLE) return false
+    // Anti-cluster: reject if within MIN_PICK_GAP_MS of any already-picked.
+    for (const pickedIdx of picked.keys()) {
+      if (Math.abs(+messages[pickedIdx].ts - +msg.ts) < MIN_PICK_GAP_MS) return false
+    }
     picked.set(c.idx, c.reason)
     capCount[c.reason]++
-    authorCount.set(author, (authorCount.get(author) ?? 0) + 1)
+    authorCount.set(msg.author, (authorCount.get(msg.author) ?? 0) + 1)
+    segCount[segmentOf(+msg.ts)]++
     return true
   }
 
-  // Pass 1: positive quota
-  let positivePicked = 0
-  for (const c of candidates) {
-    if (positivePicked >= MIN_POSITIVE_SLOTS) break
-    if (!POSITIVE_REASONS.has(c.reason)) continue
-    if (tryPick(c)) positivePicked++
+  const fillCategory = (category: 'friction' | 'warmth' | 'ordinary', target: number) => {
+    const pool = candidates.filter((c) => categoryOf(c.reason) === category)
+    // Pass A — stratify: rotate through time segments, picking best-scored
+    // available candidate in each before moving on. Stops early if target hit.
+    const perSeg = Math.ceil(target / TIME_SEGMENTS)
+    const bySeg: typeof pool[] = Array.from({ length: TIME_SEGMENTS }, () => [])
+    for (const c of pool) bySeg[segmentOf(+messages[c.idx].ts)].push(c)
+    for (let seg = 0; seg < TIME_SEGMENTS; seg++) bySeg[seg].sort((a, b) => b.score - a.score)
+    let filled = Array.from(picked.values()).filter((r) => categoryOf(r) === category).length
+    for (let round = 0; round < perSeg && filled < target; round++) {
+      for (let seg = 0; seg < TIME_SEGMENTS && filled < target; seg++) {
+        const c = bySeg[seg][round]
+        if (c && tryPick(c)) filled++
+      }
+    }
+    // Pass B — if stratification couldn't hit target (e.g. no candidates in
+    // some segments), fall through to pure score order within the category.
+    for (const c of pool) {
+      if (filled >= target) break
+      if (tryPick(c)) filled++
+    }
   }
 
-  // Pass 2: fill remaining slots by pure score
+  fillCategory('ordinary', CATEGORY_TARGETS.ordinary)
+  fillCategory('warmth', CATEGORY_TARGETS.warmth)
+  fillCategory('friction', CATEGORY_TARGETS.friction)
+
+  // Any remaining slot goes to whoever scored highest, regardless of category.
+  // This pulls in neutral reasons (burst_start, peak_day, long_message) plus
+  // any overflow from under-filled categories.
   for (const c of candidates) {
     if (picked.size >= MAX_NOTABLE) break
     tryPick(c)
