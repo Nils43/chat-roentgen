@@ -121,21 +121,57 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
   }
 
   try {
-    const upstream = await fetch(ANTHROPIC_URL, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify(forward),
-    })
-
-    const text = await upstream.text()
-    if (!upstream.ok && !paywallDisabled && userId) {
+    // Call Anthropic with internal retry: the model occasionally returns a
+    // tool_use missing required fields (flakes on structured output), or the
+    // API itself hiccups with a 5xx. We retry silently up to twice — the user
+    // already paid the one credit, retries are on the house.
+    const schema =
+      Array.isArray(forward.tools) && forward.tools[0] && typeof forward.tools[0] === 'object'
+        ? ((forward.tools[0] as { input_schema?: unknown }).input_schema as Record<string, unknown> | undefined)
+        : undefined
+    let attempt = 0
+    let upstream: Response | null = null
+    let responseText = ''
+    let lastValidationMiss: string[] = []
+    const MAX_ATTEMPTS = 3
+    while (attempt < MAX_ATTEMPTS) {
+      attempt++
+      upstream = await fetch(ANTHROPIC_URL, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify(forward),
+      })
+      responseText = await upstream.text()
+      if (!upstream.ok) {
+        // 5xx → transient, try again. 4xx → model/schema issue, don't waste retries.
+        if (upstream.status >= 500 && attempt < MAX_ATTEMPTS) continue
+        break
+      }
+      // 200-class: validate tool_use if a schema was provided.
+      if (!schema) break
+      const missing = validateToolUse(responseText, schema)
+      if (missing.length === 0) break
+      lastValidationMiss = missing
+      if (process.env.ROENTGEN_DEBUG) {
+        console.warn(`[analyze] retry ${attempt}/${MAX_ATTEMPTS} — missing:`, missing.join(', '))
+      }
+    }
+    // Only refund if the final response failed upstream. A valid 200 with some
+    // missing fields still uses the credit — we return partial data, client
+    // surfaces it, user got a best-effort result.
+    const ok = !!upstream && upstream.ok
+    if (!ok && !paywallDisabled && userId) {
       try { await refundCredit(userId, note + '_refund') } catch { /* swallow */ }
     }
-    res.status(upstream.status).setHeader('content-type', 'application/json').send(text)
+    // Debug header surfaces retry state to the client without changing the body.
+    if (lastValidationMiss.length > 0) {
+      res.setHeader('x-roentgen-validation-miss', lastValidationMiss.slice(0, 5).join(','))
+    }
+    res.status(upstream?.status ?? 502).setHeader('content-type', 'application/json').send(responseText)
   } catch (e) {
     if (!paywallDisabled && userId) {
       try { await refundCredit(userId, note + '_refund') } catch { /* swallow */ }
@@ -143,6 +179,63 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
     const msg = e instanceof Error ? e.message : 'upstream_unreachable'
     sendJsonError(res, 502, 'upstream_unreachable', msg)
   }
+}
+
+// Walk Anthropic's response JSON, find the tool_use block, and validate its
+// input against the JSON-schema we sent. Returns a list of missing-or-empty
+// required paths (e.g. "bids.interpretation"). Empty = all good.
+function validateToolUse(responseText: string, schema: Record<string, unknown>): string[] {
+  type ToolUse = { type: 'tool_use'; input: unknown }
+  type ContentBlock = { type: string } & Partial<ToolUse>
+  let parsed: { content?: ContentBlock[] }
+  try {
+    parsed = JSON.parse(responseText) as { content?: ContentBlock[] }
+  } catch {
+    return ['root:unparsable']
+  }
+  const toolUse = parsed.content?.find((b) => b.type === 'tool_use')
+  if (!toolUse || !toolUse.input) return ['root:no_tool_use']
+  return validateAgainstSchema(toolUse.input, schema, '')
+}
+
+function validateAgainstSchema(value: unknown, schema: Record<string, unknown>, path: string): string[] {
+  const out: string[] = []
+  const type = schema.type as string | string[] | undefined
+  const isObj = type === 'object' || (Array.isArray(type) && type.includes('object'))
+  const isArr = type === 'array' || (Array.isArray(type) && type.includes('array'))
+  if (isObj) {
+    const obj = (value && typeof value === 'object' && !Array.isArray(value))
+      ? (value as Record<string, unknown>)
+      : null
+    const required = Array.isArray(schema.required) ? (schema.required as string[]) : []
+    const properties = (schema.properties as Record<string, Record<string, unknown>> | undefined) ?? {}
+    for (const key of required) {
+      const sub = path ? `${path}.${key}` : key
+      const v = obj ? obj[key] : undefined
+      if (v === undefined || v === null) {
+        out.push(sub)
+        continue
+      }
+      if (typeof v === 'string' && v.trim() === '') {
+        out.push(sub)
+        continue
+      }
+      const childSchema = properties[key]
+      if (childSchema) out.push(...validateAgainstSchema(v, childSchema, sub))
+    }
+  } else if (isArr) {
+    const minItems = typeof schema.minItems === 'number' ? schema.minItems : 0
+    if (!Array.isArray(value)) {
+      out.push(path + ':not_array')
+    } else {
+      if (value.length < minItems) out.push(path + ':too_few')
+      const items = schema.items as Record<string, unknown> | undefined
+      if (items) {
+        value.forEach((item, i) => out.push(...validateAgainstSchema(item, items, `${path}[${i}]`)))
+      }
+    }
+  }
+  return out
 }
 
 // Outer wrapper: any uncaught throw (e.g. adminClient() with bad env, DNS,
