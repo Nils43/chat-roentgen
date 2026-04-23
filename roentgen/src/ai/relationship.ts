@@ -12,41 +12,15 @@ import {
 import { i18n } from '../i18n'
 import type { RelationshipPayload, RelationshipResult } from './types'
 
-const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
+// Sonnet for relationship — the schema has 13 top-level blocks with dense
+// nested required fields, and Haiku was flaking ~30% of the time even with
+// retries. One Sonnet call is both cheaper AND more reliable than three
+// Haiku calls in practice. Override with VITE_ROENTGEN_RELATIONSHIP_MODEL.
+const DEFAULT_MODEL = 'claude-sonnet-4-6'
 const MODEL =
-  (import.meta.env.VITE_ROENTGEN_MODEL as string | undefined) ?? DEFAULT_MODEL
-
-// Required top-level keys on a complete relationship payload. If any are
-// missing after a call we retry once before surfacing the truncation UI.
-const REQUIRED_KEYS = [
-  'kopplung',
-  'machtstruktur',
-  'bindungsdyade',
-  'bids',
-  'repair',
-  'konflikt_signatur',
-  'mentalisierung',
-  'meta_kommunikation',
-  'berne',
-  'unausgesprochene_regeln',
-  'kern_insight',
-  'safety_flag',
-] as const
-
-function isComplete(payload: unknown): boolean {
-  if (!payload || typeof payload !== 'object') return false
-  const obj = payload as Record<string, unknown>
-  for (const k of REQUIRED_KEYS) {
-    if (obj[k] == null) return false
-  }
-  const m = obj.mentalisierung as { pro_person?: unknown } | undefined
-  if (!m || !Array.isArray(m.pro_person)) return false
-  const bids = obj.bids as { pro_person?: unknown } | undefined
-  if (!bids || !Array.isArray(bids.pro_person)) return false
-  const kk = obj.konflikt_signatur as { four_horsemen_pro_person?: unknown } | undefined
-  if (!kk || !Array.isArray(kk.four_horsemen_pro_person)) return false
-  return true
-}
+  (import.meta.env.VITE_ROENTGEN_RELATIONSHIP_MODEL as string | undefined) ??
+  (import.meta.env.VITE_ROENTGEN_MODEL as string | undefined) ??
+  DEFAULT_MODEL
 
 export interface RunRelationshipOptions {
   chat: ParsedChat
@@ -102,23 +76,15 @@ export async function runRelationshipAnalysis({
     tool_choice: { type: 'tool' as const, name: RELATIONSHIP_TOOL_SCHEMA.name },
   }
 
-  // One automatic retry if the first pass returns a truncated/incomplete
-  // payload. Empirically the second try rarely also truncates — it's cheaper
-  // than asking the user to click retry and matches their expectation that
-  // "a paid analysis either works or we eat the cost".
-  let response = await analyzer.analyze(request, signal)
-  let toolUse = response.content.find((b) => b.type === 'tool_use')
-  let raw: RelationshipPayload | null =
+  // No client-side retry here — every call to analyzer.analyze hits the
+  // server proxy which spends a credit. The server already retries up to 3
+  // times on validation failure (with an incremental hint to the model) and
+  // refunds the credit if all attempts end incomplete. So one call here =
+  // one credit spent OR refunded, never two.
+  const response = await analyzer.analyze(request, signal)
+  const toolUse = response.content.find((b) => b.type === 'tool_use')
+  const raw: RelationshipPayload | null =
     toolUse && toolUse.type === 'tool_use' ? (toolUse.input as RelationshipPayload) : null
-
-  if (!raw || !isComplete(raw)) {
-    if (import.meta.env.DEV) {
-      console.warn('[relationship] first pass incomplete, retrying once')
-    }
-    response = await analyzer.analyze(request, signal)
-    toolUse = response.content.find((b) => b.type === 'tool_use')
-    raw = toolUse && toolUse.type === 'tool_use' ? (toolUse.input as RelationshipPayload) : raw
-  }
 
   if (!raw) {
     throw new Error('No structured relationship analysis returned.')

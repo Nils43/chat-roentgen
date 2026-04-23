@@ -371,10 +371,14 @@ function App() {
       })
       setProfiles(results)
       setStage('profiles')
-      void refreshCredits()
     } catch (e) {
       const err = e as Error
       setAiError(err.message ?? t('app.analysis.failed', locale))
+    } finally {
+      // Always refresh — on failure the server has refunded the credit, we
+      // need to pull the refunded balance so the UI doesn't display the
+      // transient "minus 1" state.
+      void refreshCredits()
     }
   }
 
@@ -391,10 +395,11 @@ function App() {
       const result = await runRelationshipAnalysis({ chat, prepared })
       setRelationship(result)
       setStage('relationship')
-      void refreshCredits()
     } catch (e) {
       const err = e as Error
       setRelationshipError(err.message ?? t('app.relationship.failed', locale))
+    } finally {
+      void refreshCredits()
     }
   }
 
