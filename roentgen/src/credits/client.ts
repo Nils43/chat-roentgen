@@ -1,4 +1,6 @@
 import { getSupabase } from '../auth/supabase'
+import { i18n } from '../i18n'
+import { friendlyError } from '../errors'
 import type { Pack } from './packs'
 
 // Ask the server to create a Stripe Checkout session for the chosen pack.
@@ -9,7 +11,8 @@ export async function startPackCheckout(pack: Pack): Promise<{ clientSecret: str
   const sb = getSupabase()
   const { data } = await sb.auth.getSession()
   const access = data.session?.access_token
-  if (!access) throw new Error('not_signed_in')
+  const locale = i18n.get()
+  if (!access) throw new Error(friendlyError('not_signed_in', locale))
 
   const res = await fetch('/api/checkout', {
     method: 'POST',
@@ -22,7 +25,7 @@ export async function startPackCheckout(pack: Pack): Promise<{ clientSecret: str
 
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string }
-    throw new Error(body.message ?? body.error ?? `checkout failed (${res.status})`)
+    throw new Error(friendlyError(body.error, locale, body.message))
   }
   return (await res.json()) as { clientSecret: string }
 }

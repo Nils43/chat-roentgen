@@ -1,5 +1,7 @@
 import type { ApiRequest, ApiResponse } from './types'
 import { getSupabase } from '../auth/supabase'
+import { i18n } from '../i18n'
+import { friendlyError } from '../errors'
 
 // Thin client for the Zone-2 proxy. The browser hits /api/analyze and the
 // proxy holds the Anthropic key, spends a credit from the signed-in user's
@@ -40,20 +42,18 @@ export async function analyze(req: ApiRequest, signal?: AbortSignal): Promise<Ap
   })
 
   const text = await res.text()
+  const locale = i18n.get()
   let body: unknown
   try {
     body = JSON.parse(text)
   } catch {
-    throw new AnalyzeError('invalid_response', 'Proxy did not return JSON.', res.status)
+    throw new AnalyzeError('invalid_response', friendlyError('invalid_response', locale), res.status)
   }
 
   if (!res.ok) {
     const errBody = body as { error?: string; message?: string }
-    throw new AnalyzeError(
-      errBody.error ?? 'upstream_error',
-      errBody.message ?? `Request failed (${res.status}).`,
-      res.status,
-    )
+    const code = errBody.error ?? 'upstream_error'
+    throw new AnalyzeError(code, friendlyError(code, locale, errBody.message), res.status)
   }
 
   return body as ApiResponse
