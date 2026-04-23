@@ -184,22 +184,32 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
       }
     }
 
-    // Success = upstream 2xx AND (no schema OR validation passed on some attempt).
-    const success = bestStatus >= 200 && bestStatus < 300 && (bestMiss?.length ?? 0) === 0
-    if (!success) {
-      // Refund — user should never pay for an unusable result.
+    // Policy: the user must never see an error on the result page. After all
+    // retries, if we have ANY parseable 200 response (even with some missing
+    // fields), we backfill the schema defaults and ship it — a slightly bare
+    // section is better than a "something went wrong". Refund only triggers
+    // on total failure: non-2xx across all attempts, or 200 with no tool_use.
+    const status2xx = bestStatus >= 200 && bestStatus < 300
+    const hasAnyToolUse = status2xx && bestMiss !== null && !bestMiss.includes('root:no_tool_use')
+
+    if (!status2xx || !hasAnyToolUse) {
       if (!paywallDisabled && userId) {
         try { await refundCredit(userId, note + '_refund') } catch { /* swallow */ }
       }
       const code = bestStatus === 0 ? 'upstream_unreachable' : 'analysis_incomplete'
       const diagnostic =
-        bestMiss && bestMiss.length > 0
-          ? `Missing after ${MAX_ATTEMPTS} attempts: ${bestMiss.slice(0, 5).join(', ')}`
-          : `Upstream returned ${bestStatus}`
-      if (bestMiss && bestMiss.length > 0) {
-        res.setHeader('x-roentgen-validation-miss', bestMiss.slice(0, 5).join(','))
-      }
-      return sendJsonError(res, bestStatus === 0 ? 502 : 502, code, diagnostic)
+        bestStatus === 0
+          ? 'Upstream unreachable'
+          : `Upstream returned ${bestStatus} with no tool_use`
+      return sendJsonError(res, 502, code, diagnostic)
+    }
+
+    // Fill defaults for any missing required fields so the client always sees
+    // a structurally complete object. Surface the miss list via header so we
+    // can watch for model patterns in logs without changing the body shape.
+    if (bestMiss && bestMiss.length > 0 && schema) {
+      res.setHeader('x-roentgen-validation-miss', bestMiss.slice(0, 5).join(','))
+      bestText = backfillDefaults(bestText, schema)
     }
 
     res.status(bestStatus).setHeader('content-type', 'application/json').send(bestText)
@@ -230,6 +240,81 @@ function buildRetryBody(base: AnthropicBody & { messages?: unknown[] }, missing:
     return base
   }
   return { ...base, messages }
+}
+
+// Rewrite the Anthropic response with a tool_use input where every missing
+// required field has been filled from the schema defaults (empty string,
+// 0, false, [], first enum value, recursively for nested objects). The
+// client then sees a structurally complete payload even if the model
+// skipped a sub-section — UI renders "—" / empty array etc instead of
+// crashing on undefined. Non-tool_use blocks are passed through unchanged.
+function backfillDefaults(responseText: string, schema: Record<string, unknown>): string {
+  try {
+    const parsed = JSON.parse(responseText) as { content?: Array<{ type: string; input?: unknown }> }
+    const blocks = parsed.content ?? []
+    for (const b of blocks) {
+      if (b.type === 'tool_use' && b.input !== undefined) {
+        b.input = applyDefaults(b.input, schema)
+      }
+    }
+    return JSON.stringify(parsed)
+  } catch {
+    return responseText
+  }
+}
+
+function applyDefaults(value: unknown, schema: Record<string, unknown>): unknown {
+  const type = schema.type as string | undefined
+  if (type === 'object') {
+    const obj = (value && typeof value === 'object' && !Array.isArray(value))
+      ? { ...(value as Record<string, unknown>) }
+      : {}
+    const required = Array.isArray(schema.required) ? (schema.required as string[]) : []
+    const properties = (schema.properties as Record<string, Record<string, unknown>> | undefined) ?? {}
+    for (const key of required) {
+      const childSchema = properties[key]
+      if (!childSchema) continue
+      if (!(key in obj) || obj[key] == null) {
+        obj[key] = defaultForSchema(childSchema)
+      } else {
+        obj[key] = applyDefaults(obj[key], childSchema)
+      }
+    }
+    return obj
+  }
+  if (type === 'array') {
+    const items = schema.items as Record<string, unknown> | undefined
+    const arr = Array.isArray(value) ? value.slice() : []
+    const minItems = typeof schema.minItems === 'number' ? schema.minItems : 0
+    while (arr.length < minItems && items) arr.push(defaultForSchema(items))
+    if (items) return arr.map((v) => applyDefaults(v, items))
+    return arr
+  }
+  if (type === 'string' && (typeof value !== 'string' || value.trim() === '')) {
+    return defaultForSchema(schema)
+  }
+  return value
+}
+
+function defaultForSchema(schema: Record<string, unknown>): unknown {
+  if (Array.isArray(schema.enum) && schema.enum.length > 0) return schema.enum[0]
+  const type = schema.type as string | string[] | undefined
+  const t = Array.isArray(type) ? type[0] : type
+  if (t === 'string') return '—'
+  if (t === 'integer' || t === 'number') return 0
+  if (t === 'boolean') return false
+  if (t === 'array') return []
+  if (t === 'object') {
+    const out: Record<string, unknown> = {}
+    const required = Array.isArray(schema.required) ? (schema.required as string[]) : []
+    const properties = (schema.properties as Record<string, Record<string, unknown>> | undefined) ?? {}
+    for (const key of required) {
+      const childSchema = properties[key]
+      if (childSchema) out[key] = defaultForSchema(childSchema)
+    }
+    return out
+  }
+  return null
 }
 
 // Walk Anthropic's response JSON, find the tool_use block, and validate its
