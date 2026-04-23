@@ -121,21 +121,27 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
   }
 
   try {
-    // Call Anthropic with internal retry: the model occasionally returns a
-    // tool_use missing required fields (flakes on structured output), or the
-    // API itself hiccups with a 5xx. We retry silently up to twice — the user
-    // already paid the one credit, retries are on the house.
+    // Retry strategy — goal: credit is ONLY kept when the user walks away
+    // with a fully-valid response. Anything short of that and we refund.
+    //
+    // Cost model: system prompt is cached (90% off on retries within 5min),
+    // so retry #2 and #3 mostly pay for user-message input + output tokens.
+    // Per retry we append a ~50-token hint telling the model which required
+    // fields it omitted — massively boosts attempt-2 success without doubling
+    // input cost. Worst case 3 Haiku 4.5 calls ≈ €0.05, vs €3 credit price.
     const schema =
       Array.isArray(forward.tools) && forward.tools[0] && typeof forward.tools[0] === 'object'
         ? ((forward.tools[0] as { input_schema?: unknown }).input_schema as Record<string, unknown> | undefined)
         : undefined
-    let attempt = 0
-    let upstream: Response | null = null
-    let responseText = ''
-    let lastValidationMiss: string[] = []
     const MAX_ATTEMPTS = 3
-    while (attempt < MAX_ATTEMPTS) {
-      attempt++
+    let upstream: Response | null = null
+    let bestText = ''
+    let bestStatus = 0
+    let bestMiss: string[] | null = null // null = never got a parseable 200
+    let lastMiss: string[] = []
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const bodyForAttempt = attempt === 1 ? forward : buildRetryBody(forward, lastMiss)
       upstream = await fetch(ANTHROPIC_URL, {
         method: 'POST',
         headers: {
@@ -143,35 +149,60 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
           'x-api-key': key,
           'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify(forward),
+        body: JSON.stringify(bodyForAttempt),
       })
-      responseText = await upstream.text()
+      const text = await upstream.text()
+
       if (!upstream.ok) {
-        // 5xx → transient, try again. 4xx → model/schema issue, don't waste retries.
+        // 5xx → transient, retry. 4xx → auth/schema/quota, retrying won't help.
         if (upstream.status >= 500 && attempt < MAX_ATTEMPTS) continue
+        bestText = text
+        bestStatus = upstream.status
         break
       }
-      // 200-class: validate tool_use if a schema was provided.
-      if (!schema) break
-      const missing = validateToolUse(responseText, schema)
+
+      if (!schema) {
+        // No schema means we can't validate — assume the 200 is good enough.
+        bestText = text
+        bestStatus = 200
+        bestMiss = []
+        break
+      }
+
+      const missing = validateToolUse(text, schema)
+      // Track the attempt that came closest to valid, in case all attempts miss
+      // something — we still have the least-broken payload to inspect server-side.
+      if (bestMiss === null || missing.length < bestMiss.length) {
+        bestText = text
+        bestStatus = 200
+        bestMiss = missing
+      }
+      lastMiss = missing
       if (missing.length === 0) break
-      lastValidationMiss = missing
       if (process.env.ROENTGEN_DEBUG) {
         console.warn(`[analyze] retry ${attempt}/${MAX_ATTEMPTS} — missing:`, missing.join(', '))
       }
     }
-    // Only refund if the final response failed upstream. A valid 200 with some
-    // missing fields still uses the credit — we return partial data, client
-    // surfaces it, user got a best-effort result.
-    const ok = !!upstream && upstream.ok
-    if (!ok && !paywallDisabled && userId) {
-      try { await refundCredit(userId, note + '_refund') } catch { /* swallow */ }
+
+    // Success = upstream 2xx AND (no schema OR validation passed on some attempt).
+    const success = bestStatus >= 200 && bestStatus < 300 && (bestMiss?.length ?? 0) === 0
+    if (!success) {
+      // Refund — user should never pay for an unusable result.
+      if (!paywallDisabled && userId) {
+        try { await refundCredit(userId, note + '_refund') } catch { /* swallow */ }
+      }
+      const code = bestStatus === 0 ? 'upstream_unreachable' : 'analysis_incomplete'
+      const diagnostic =
+        bestMiss && bestMiss.length > 0
+          ? `Missing after ${MAX_ATTEMPTS} attempts: ${bestMiss.slice(0, 5).join(', ')}`
+          : `Upstream returned ${bestStatus}`
+      if (bestMiss && bestMiss.length > 0) {
+        res.setHeader('x-roentgen-validation-miss', bestMiss.slice(0, 5).join(','))
+      }
+      return sendJsonError(res, bestStatus === 0 ? 502 : 502, code, diagnostic)
     }
-    // Debug header surfaces retry state to the client without changing the body.
-    if (lastValidationMiss.length > 0) {
-      res.setHeader('x-roentgen-validation-miss', lastValidationMiss.slice(0, 5).join(','))
-    }
-    res.status(upstream?.status ?? 502).setHeader('content-type', 'application/json').send(responseText)
+
+    res.status(bestStatus).setHeader('content-type', 'application/json').send(bestText)
   } catch (e) {
     if (!paywallDisabled && userId) {
       try { await refundCredit(userId, note + '_refund') } catch { /* swallow */ }
@@ -179,6 +210,26 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
     const msg = e instanceof Error ? e.message : 'upstream_unreachable'
     sendJsonError(res, 502, 'upstream_unreachable', msg)
   }
+}
+
+// Append a brief retry hint to the last user message. Cheap (~50 tokens),
+// lifts attempt-2 success rate significantly because the model now knows
+// exactly which required fields it dropped.
+function buildRetryBody(base: AnthropicBody & { messages?: unknown[] }, missing: string[]): typeof base {
+  if (missing.length === 0) return base
+  const messages = Array.isArray(base.messages) ? base.messages.slice() : []
+  const lastIdx = messages.length - 1
+  const last = messages[lastIdx] as { role?: string; content?: unknown } | undefined
+  if (!last || last.role !== 'user') return base
+  const hint = `\n\n[RETRY — previous tool_use omitted these required fields: ${missing.slice(0, 10).join(', ')}. Populate every required field this time, no placeholders, no skipping.]`
+  if (typeof last.content === 'string') {
+    messages[lastIdx] = { ...last, content: last.content + hint }
+  } else if (Array.isArray(last.content)) {
+    messages[lastIdx] = { ...last, content: [...last.content, { type: 'text', text: hint }] }
+  } else {
+    return base
+  }
+  return { ...base, messages }
 }
 
 // Walk Anthropic's response JSON, find the tool_use block, and validate its

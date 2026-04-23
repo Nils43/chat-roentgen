@@ -62,6 +62,10 @@ const MAP: Record<string, Message> = {
     en: 'The AI isn’t responding right now. Try again in a minute.',
     de: 'Die AI reagiert gerade nicht. In einer minute nochmal probieren.',
   },
+  analysis_incomplete: {
+    en: 'The AI kept returning incomplete results. Your credit was refunded — try again in a moment.',
+    de: 'Die AI hat mehrfach unvollständige Antworten geliefert. Dein credit wurde zurückerstattet — gleich nochmal versuchen.',
+  },
   upstream_error: {
     en: 'The AI returned an error. Try again in a moment.',
     de: 'Die AI hat einen fehler gemeldet. Gleich nochmal versuchen.',
