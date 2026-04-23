@@ -539,20 +539,29 @@ function pickNotableMoments(messages: Message[], facts: HardFacts): NotableMomen
     }
   }
 
-  // Sort by score desc, then greedy-pick under per-reason caps
+  // Sort by score desc, then greedy-pick under per-reason AND per-author caps.
+  // Per-author cap stops one dominant talker from swallowing the sample — if
+  // Person A wrote 80% of the chat they'd naturally trigger 80% of bursts /
+  // late-nights / long messages too, and the AI would read that as "the
+  // dynamic is Person A" instead of actually seeing both sides.
   candidates.sort((a, b) => b.score - a.score)
   const picked = new Map<number, NotableReason>() // idx → winning reason
   const capCount: Record<NotableReason, number> = {
     apology: 0, hedge_cluster: 0, late_night: 0, burst_start: 0,
     post_silence: 0, pre_silence: 0, drift_window: 0, long_message: 0, peak_day: 0,
   }
+  const authorCount = new Map<string, number>()
+  const AUTHOR_CAP = Math.ceil(MAX_NOTABLE * 0.6) // max 60% from any single person
 
   for (const c of candidates) {
     if (picked.has(c.idx)) continue
     if (capCount[c.reason] >= REASON_CAPS[c.reason]) continue
+    const author = messages[c.idx].author
+    if ((authorCount.get(author) ?? 0) >= AUTHOR_CAP) continue
     if (picked.size >= MAX_NOTABLE) break
     picked.set(c.idx, c.reason)
     capCount[c.reason]++
+    authorCount.set(author, (authorCount.get(author) ?? 0) + 1)
   }
 
   // Sort chronologically for readable model input
