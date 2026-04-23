@@ -113,6 +113,18 @@ function App() {
     void getStripe()
   }, [])
 
+  // Recovery: localStorage sometimes gets wiped by Safari ITP or by users
+  // clearing "site data" — but the actual chat snapshots live in IndexedDB
+  // which survives both. If the library index is empty on load, scan IDB for
+  // orphaned sessions and rebuild the index.
+  useEffect(() => {
+    void chatLibrary.recoverFromSessions().then((n) => {
+      if (n > 0 && import.meta.env.DEV) {
+        console.log(`[chatLibrary] recovered ${n} chat(s) from IndexedDB`)
+      }
+    })
+  }, [])
+
   // --- URL routing for the static stages (credits / legal / settings) ---
   // Internal wizard stages (parsing → ai → profiles …) stay state-only because
   // they carry too much transient state to survive a refresh, and each one

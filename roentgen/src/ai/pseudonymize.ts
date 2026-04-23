@@ -34,20 +34,53 @@ const PHONE_RE = /(\+?\d{1,3}[\s.-]?)?(\(?\d{2,4}\)?[\s.-]?)?\d{3,4}[\s.-]?\d{3,
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[\w.-]+/g
 const URL_RE = /https?:\/\/\S+/g
 
-// Scrub first-name tokens that appear *inside* message text, based on the
-// participant list. Use a word-boundary-ish match case-insensitive.
+// Scrub name tokens that appear *inside* message text, based on the
+// participant list. Previously only scrubbed first names — surnames leaked
+// through and the model would paste them back onto the pseudonym
+// ("Person A Müller"), which after restoration became a doubled surname
+// ("Max Müller Müller"). Now we also strip surnames / middle tokens.
 function scrubNamesInText(text: string, map: PseudonymMap): string {
-  let out = text
-  for (const { real, pseudonym } of map.participants) {
-    if (real.length < 2) continue
-    const re = new RegExp(`(?<![\\w])${escapeRe(real.split(/\s+/)[0])}(?![\\w])`, 'gi')
-    out = out.replace(re, pseudonym)
-  }
-  return out
+  return applyNameScrub(text, map.participants.map((p) => ({ real: p.real, replacement: p.pseudonym })))
 }
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+// Shared helper for both pseudonymize (real → pseudonym) and scrub passes.
+// Two passes:
+//  1) full-name verbatim ("Max Müller" → "Person A").
+//  2) individual tokens (≥ 2 chars), but only if unique to one participant —
+//     otherwise a shared surname would be ambiguously rewritten.
+function applyNameScrub(text: string, pairs: { real: string; replacement: string }[]): string {
+  let out = text
+  // Pass 1 — whole real name first, so the regex doesn't eat tokens we'd
+  // match again in pass 2.
+  for (const { real, replacement } of pairs) {
+    if (real.length < 2) continue
+    if (!/\s/.test(real)) continue // single-token real names handled in pass 2
+    const fullRe = new RegExp(`(?<!\\w)${escapeRe(real)}(?!\\w)`, 'gi')
+    out = out.replace(fullRe, replacement)
+  }
+  // Pass 2 — individual tokens, disambiguated.
+  const tokenOwner = new Map<string, string>()
+  for (const { real, replacement } of pairs) {
+    for (const token of real.split(/\s+/)) {
+      if (token.length < 2) continue
+      const key = token.toLowerCase()
+      if (tokenOwner.has(key) && tokenOwner.get(key) !== replacement) {
+        tokenOwner.set(key, '__AMBIGUOUS__')
+      } else {
+        tokenOwner.set(key, replacement)
+      }
+    }
+  }
+  for (const [tokenLC, replacement] of tokenOwner) {
+    if (replacement === '__AMBIGUOUS__') continue
+    const re = new RegExp(`(?<!\\w)${escapeRe(tokenLC)}(?!\\w)`, 'gi')
+    out = out.replace(re, replacement)
+  }
+  return out
 }
 
 export function pseudonymizeMessages(messages: Message[], map: PseudonymMap): Message[] {
@@ -72,13 +105,10 @@ export function scrubPii(text: string): string {
 // Forward-pseudonymize free text — real name → pseudonym. Used on the evidence
 // packet before serialization so no real names leak to the API.
 export function pseudonymizeText(text: string, map: PseudonymMap): string {
-  let out = text
-  for (const [real, pseudo] of Object.entries(map.forward)) {
-    if (real.length < 2) continue
-    const re = new RegExp(`(?<![\\w])${escapeRe(real.split(/\s+/)[0])}(?![\\w])`, 'gi')
-    out = out.replace(re, pseudo)
-  }
-  return out
+  return applyNameScrub(
+    text,
+    Object.entries(map.forward).map(([real, pseudo]) => ({ real, replacement: pseudo })),
+  )
 }
 
 // Recursively walk a JSON value and pseudonymize every string leaf and key.
@@ -109,6 +139,16 @@ export function restoreNames(text: string, map: PseudonymMap): string {
   for (const [pseudo, real] of Object.entries(map.reverse)) {
     const re = new RegExp(`(?<!\\w)${escapeRe(pseudo)}(?!\\w)`, 'gi')
     out = out.replace(re, real)
+  }
+  // Defensive: if the model ever echoed a surname from chat text onto the
+  // pseudonym ("Person A Müller"), the restore above will have produced
+  // "Max Müller Müller". Collapse those immediate trailing-token duplicates.
+  for (const { real } of map.participants) {
+    const tokens = real.split(/\s+/).filter((t) => t.length >= 2)
+    if (tokens.length < 2) continue
+    const last = tokens[tokens.length - 1]
+    const dupRe = new RegExp(`(${escapeRe(real)})(\\s+${escapeRe(last)})+(?!\\w)`, 'gi')
+    out = out.replace(dupRe, '$1')
   }
   return out
 }

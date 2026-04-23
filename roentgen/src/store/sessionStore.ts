@@ -152,3 +152,23 @@ export async function clearSession(id: string): Promise<void> {
     // ignore
   }
 }
+
+// List all chat-session keys in IDB. Used by chatLibrary to rebuild its index
+// when localStorage gets wiped (Safari ITP clears localStorage after ~7 days of
+// inactivity; IDB survives). Returns the id portion (without the PREFIX).
+export async function listSessionIds(): Promise<string[]> {
+  try {
+    await migrateFromLocalStorage()
+    const db = await openDB()
+    return await new Promise<string[]>((resolve, reject) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAllKeys()
+      req.onsuccess = () => {
+        const keys = (req.result as IDBValidKey[]).filter((k): k is string => typeof k === 'string')
+        resolve(keys.filter((k) => k.startsWith(PREFIX)).map((k) => k.slice(PREFIX.length)))
+      }
+      req.onerror = () => reject(req.error)
+    })
+  } catch {
+    return []
+  }
+}

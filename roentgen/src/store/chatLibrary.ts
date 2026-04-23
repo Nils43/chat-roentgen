@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import type { ParsedChat } from '../parser/types'
-import { clearSession, saveSession, type SessionSnapshot } from './sessionStore'
+import { clearSession, listSessionIds, loadSession, saveSession, type SessionSnapshot } from './sessionStore'
 
 export type ModuleId = 'profiles' | 'relationship'
 
@@ -162,6 +162,50 @@ export const chatLibrary = {
 
   getMeta(id: string): ChatMeta | undefined {
     return get().find((m) => m.id === id)
+  },
+
+  // Recover the library from IndexedDB if the localStorage index is empty.
+  // Safari ITP (and occasional storage cleanups) wipes localStorage after a
+  // few days of inactivity — but IndexedDB survives. So when the index
+  // reads empty, we scan IDB for orphaned session snapshots and rebuild.
+  async recoverFromSessions(): Promise<number> {
+    if (get().length > 0) return 0
+    try {
+      const ids = await listSessionIds()
+      if (ids.length === 0) return 0
+      const snapshots = await Promise.all(
+        ids.map(async (id) => {
+          const snap = await loadSession(id)
+          return snap ? { id, snap } : null
+        }),
+      )
+      const valid = snapshots.filter((x): x is { id: string; snap: Partial<SessionSnapshot> } => !!x && !!x.snap?.chat)
+      if (valid.length === 0) return 0
+      const rebuilt: ChatMeta[] = valid.map(({ id, snap }) => {
+        const chat = snap.chat!
+        const messages = chat.messages ?? []
+        const first = messages[0]
+        const last = messages[messages.length - 1]
+        return {
+          id,
+          fileName: snap.fileName ?? null,
+          participants: chat.participants ?? [],
+          messageCount: messages.length,
+          firstTs: first?.ts ? new Date(first.ts as unknown as string).toISOString() : null,
+          lastTs: last?.ts ? new Date(last.ts as unknown as string).toISOString() : null,
+          createdAt: snap.savedAt ?? new Date().toISOString(),
+          modulesDone: collectModules(snap),
+        }
+      })
+      // Stable-sort newest first, matching what the user expects to see.
+      rebuilt.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1))
+      cache = rebuilt
+      writeIndex(rebuilt)
+      emit()
+      return rebuilt.length
+    } catch {
+      return 0
+    }
   },
 }
 
