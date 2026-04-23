@@ -200,10 +200,16 @@ function App() {
       return
     }
     const meta = chatLibrary.create(parsed, name)
-    // Only set self if the filename heuristic actually matched — the random
-    // "first speaker" fallback caused personal analyses to silently analyze
-    // the wrong person. If null, the consent screen forces a pick.
-    const self = inferSelfPerson(name, parsed)
+    // Self detection — try Google profile name first (highest confidence when
+    // signed in), then filename heuristic, then email. Final fallback is
+    // participants[0]: imperfect but matches the user expectation that the
+    // app "just picks" without showing a chooser screen.
+    const fullName = (session?.user?.user_metadata?.full_name ?? session?.user?.user_metadata?.name ?? null) as string | null
+    const inferred = inferSelfPerson(
+      { fileName: name, fullName, email: session?.user?.email ?? null },
+      parsed,
+    )
+    const self = inferred ?? parsed.participants[0] ?? null
     if (self) chatLibrary.setSelf(meta.id, self)
     const ok = await saveSession(meta.id, {
       fileName: name,
@@ -357,7 +363,9 @@ function App() {
   const runAi = async () => {
     if (!chat || !prepared) return
     const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
-    const selfPerson = meta?.selfPerson
+    // Self is set at upload via inferSelfPerson, but fall back to first
+    // participant if somehow missing — we never want to hang silently here.
+    const selfPerson = meta?.selfPerson ?? chat.participants[0]
     if (!selfPerson) return
     setAiError(null)
     setAiProgress({ done: 0, total: 1, current: selfPerson })
@@ -620,10 +628,6 @@ function App() {
             moduleId={pendingModule}
             onAccept={onConsentAccept}
             onCancel={() => setStage('analysis')}
-            selfPerson={currentChatId ? (chatLibrary.getMeta(currentChatId)?.selfPerson ?? null) : null}
-            onSelfPersonChange={(name) => {
-              if (currentChatId) chatLibrary.setSelf(currentChatId, name)
-            }}
           />
         )}
 
