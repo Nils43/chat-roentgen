@@ -115,6 +115,13 @@ export type NotableReason =
   | 'peak_day'
   | 'drift_window'
   | 'long_message'
+  // Positive-valence reasons — without these the sample is dominated by
+  // signals of friction (apology, hedging, silence, drift) and the AI
+  // writes a grim analysis for chats that are actually mostly warm.
+  | 'affection'
+  | 'laughter'
+  | 'appreciation'
+  | 'excitement'
 
 export interface NotableMoment {
   index: number
@@ -132,16 +139,26 @@ const LONG_TEXT_CAP = 200
 // Per-reason caps enforce diversity — no tunnel-vision on one type. Scaled up
 // along with MAX_NOTABLE so each reason has real headroom.
 const REASON_CAPS: Record<NotableReason, number> = {
-  apology: 4,
-  hedge_cluster: 4,
-  late_night: 4,
-  burst_start: 5,
-  post_silence: 3,
-  pre_silence: 3,
-  drift_window: 4,
+  apology: 3,
+  hedge_cluster: 3,
+  late_night: 3,
+  burst_start: 4,
+  post_silence: 2,
+  pre_silence: 2,
+  drift_window: 3,
   long_message: 3,
   peak_day: 2,
+  affection: 4,
+  laughter: 4,
+  appreciation: 3,
+  excitement: 3,
 }
+
+// Slots reserved for positive signals. If the chat has any positive moments
+// at all, fill this many before letting negative signals win the remaining
+// slots. Guarantees the AI reads both halves of the dynamic.
+const MIN_POSITIVE_SLOTS = 10
+const POSITIVE_REASONS = new Set<NotableReason>(['affection', 'laughter', 'appreciation', 'excitement'])
 
 const LONG_SILENCE_MS = 24 * 60 * 60 * 1000
 const BURST_GAP_MS = 5 * 60 * 1000
@@ -151,6 +168,21 @@ const APOLOGY_RE =
 
 const HEDGES_ANY_RE =
   /\b(vielleicht|eigentlich|irgendwie|halt|fast|sozusagen|maybe|kinda|just|i\s+think|i\s+guess|glaub(?:e)?|evtl\.?)\b/gi
+
+// Positive signal regexes — tuned for both DE and EN, loose enough to catch
+// the common casual forms but tight enough to avoid false positives on, say,
+// "thanks anyway" following a fight.
+const AFFECTION_RE =
+  /\b(love\s*(?:you|u|ya)|i\s+love\s+you|ily|liebe\s+dich|hab\s+dich\s+lieb|hdl|miss\s+(?:you|u|ya)|vermiss(?:e)?\s+dich|du\s+fehlst|ich\s+mag\s+dich|thinking\s+of\s+(?:you|u)|denke\s+an\s+dich)\b|❤️|🥰|😘|💕|💖|💗|💘|💝|💞/i
+
+const LAUGHTER_RE =
+  /\b(hahah+a*|lmao|rofl|lol+|lolol+|xd)\b|😂{1,}|🤣{1,}|😆|😹/i
+
+const APPRECIATION_RE =
+  /\b(thanks?(?:\s+(?:a\s+lot|so\s+much))?|thx|ty|thank\s+you|thanks?\s*a\s*lot|danke(?:\s+dir|\s+schön|\s+sehr)?|du\s+bist\s+(?:toll|die\s+beste|der\s+beste|süß|ein\s+schatz)|you(?:'re|\s+are)\s+(?:the\s+best|amazing|awesome|incredible))\b/i
+
+const EXCITEMENT_RE =
+  /!{2,}|\b(yess+|yay+|omg|omfg|wohoo+|juhuu+|geil(?:er|es|e)?|super\s+geil|nice{2,}|amazing|awesome|can't\s+wait|kann's?\s+kaum\s+erwarten|freue?\s+mich\s+(?:sehr|richtig|so))\b|🎉|🥳|🤩|💃|🕺/i
 
 // Stopwords for signature-word extraction (rough DE + EN)
 const STOPWORDS = new Set<string>([
@@ -526,6 +558,14 @@ function pickNotableMoments(messages: Message[], facts: HardFacts): NotableMomen
 
     if (text.length > 180) add(i, 'long_message', 40 + Math.min(20, text.length / 40))
 
+    // Positive-valence detections — scored competitively with the negative
+    // ones so warmth surfaces in the sample when it's there. Each signal
+    // is specific enough that a casual "thanks" after a fight won't trigger.
+    if (AFFECTION_RE.test(text)) add(i, 'affection', 72)
+    if (LAUGHTER_RE.test(text)) add(i, 'laughter', 60)
+    if (APPRECIATION_RE.test(text)) add(i, 'appreciation', 58)
+    if (EXCITEMENT_RE.test(text)) add(i, 'excitement', 55)
+
     if (i > 0) {
       const gap = +m.ts - +messages[i - 1].ts
       if (gap >= LONG_SILENCE_MS) {
@@ -539,29 +579,48 @@ function pickNotableMoments(messages: Message[], facts: HardFacts): NotableMomen
     }
   }
 
-  // Sort by score desc, then greedy-pick under per-reason AND per-author caps.
-  // Per-author cap stops one dominant talker from swallowing the sample — if
-  // Person A wrote 80% of the chat they'd naturally trigger 80% of bursts /
-  // late-nights / long messages too, and the AI would read that as "the
-  // dynamic is Person A" instead of actually seeing both sides.
+  // Two-pass greedy-pick:
+  //   Pass 1: fill MIN_POSITIVE_SLOTS from positive candidates first, so
+  //           warmth is never crowded out by higher-scoring friction signals.
+  //   Pass 2: fill the rest from all remaining candidates by score.
+  // Both passes respect per-reason and per-author caps. Per-author cap keeps
+  // one dominant talker from monopolising the sample (if Person A wrote 80%
+  // they'd trigger 80% of bursts / late-nights and the model would read the
+  // chat as an A-monologue).
   candidates.sort((a, b) => b.score - a.score)
-  const picked = new Map<number, NotableReason>() // idx → winning reason
+  const picked = new Map<number, NotableReason>()
   const capCount: Record<NotableReason, number> = {
     apology: 0, hedge_cluster: 0, late_night: 0, burst_start: 0,
     post_silence: 0, pre_silence: 0, drift_window: 0, long_message: 0, peak_day: 0,
+    affection: 0, laughter: 0, appreciation: 0, excitement: 0,
   }
   const authorCount = new Map<string, number>()
-  const AUTHOR_CAP = Math.ceil(MAX_NOTABLE * 0.6) // max 60% from any single person
+  const AUTHOR_CAP = Math.ceil(MAX_NOTABLE * 0.6)
 
-  for (const c of candidates) {
-    if (picked.has(c.idx)) continue
-    if (capCount[c.reason] >= REASON_CAPS[c.reason]) continue
+  const tryPick = (c: { idx: number; reason: NotableReason }) => {
+    if (picked.has(c.idx)) return false
+    if (capCount[c.reason] >= REASON_CAPS[c.reason]) return false
     const author = messages[c.idx].author
-    if ((authorCount.get(author) ?? 0) >= AUTHOR_CAP) continue
-    if (picked.size >= MAX_NOTABLE) break
+    if ((authorCount.get(author) ?? 0) >= AUTHOR_CAP) return false
+    if (picked.size >= MAX_NOTABLE) return false
     picked.set(c.idx, c.reason)
     capCount[c.reason]++
     authorCount.set(author, (authorCount.get(author) ?? 0) + 1)
+    return true
+  }
+
+  // Pass 1: positive quota
+  let positivePicked = 0
+  for (const c of candidates) {
+    if (positivePicked >= MIN_POSITIVE_SLOTS) break
+    if (!POSITIVE_REASONS.has(c.reason)) continue
+    if (tryPick(c)) positivePicked++
+  }
+
+  // Pass 2: fill remaining slots by pure score
+  for (const c of candidates) {
+    if (picked.size >= MAX_NOTABLE) break
+    tryPick(c)
   }
 
   // Sort chronologically for readable model input
