@@ -270,6 +270,50 @@ export function parseWhatsApp(raw: string): ParsedChat {
     for (const author of ghostAuthors) participantsSet.delete(author)
   }
 
+  // Alias dedup. One physical person sometimes appears under two strings in
+  // the export — a rename mid-chat, a phone number that later became a
+  // contact, trailing whitespace from a paste. We merge when one author is a
+  // strict word-prefix of another (case-insensitive, whitespace-collapsed),
+  // keeping the longer form as the canonical name. Anything ambiguous is
+  // left alone so we don't silently mis-attribute messages.
+  const normalize = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase()
+  const authors = [...participantsSet.keys()]
+  const aliasMap = new Map<string, string>()
+  for (const shorter of authors) {
+    for (const longer of authors) {
+      if (shorter === longer) continue
+      if (longer.length <= shorter.length) continue
+      const s = normalize(shorter)
+      const l = normalize(longer)
+      // word-boundary prefix/suffix, e.g. "nils" ⊂ "nils heck" or "heck" ⊂ "nils heck"
+      if (l.startsWith(s + ' ') || l.endsWith(' ' + s)) {
+        aliasMap.set(shorter, longer)
+      }
+    }
+  }
+  // Resolve any chains (A→B, B→C ⇒ A→C).
+  for (const [alias, canon] of aliasMap) {
+    let resolved = canon
+    const seen = new Set<string>([alias])
+    while (aliasMap.has(resolved) && !seen.has(resolved)) {
+      seen.add(resolved)
+      resolved = aliasMap.get(resolved)!
+    }
+    aliasMap.set(alias, resolved)
+  }
+  if (aliasMap.size > 0) {
+    for (const msg of messages) {
+      const canon = aliasMap.get(msg.author)
+      if (canon) msg.author = canon
+    }
+    for (const alias of aliasMap.keys()) participantsSet.delete(alias)
+    warnings.push(
+      `Merged alias participant${aliasMap.size > 1 ? 's' : ''}: ${[...aliasMap.entries()]
+        .map(([a, c]) => `"${a}" → "${c}"`)
+        .join(', ')}`,
+    )
+  }
+
   const participants = [...participantsSet.entries()]
     .sort((a, b) => a[1] - b[1])
     .map(([name]) => name)
