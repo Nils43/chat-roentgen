@@ -188,7 +188,10 @@ function App() {
       return
     }
     const meta = chatLibrary.create(parsed, name)
-    const self = inferSelfPerson(name, parsed) ?? parsed.participants[0] ?? null
+    // Only set self if the filename heuristic actually matched — the random
+    // "first speaker" fallback caused personal analyses to silently analyze
+    // the wrong person. If null, the consent screen forces a pick.
+    const self = inferSelfPerson(name, parsed)
     if (self) chatLibrary.setSelf(meta.id, self)
     const ok = await saveSession(meta.id, {
       fileName: name,
@@ -266,10 +269,9 @@ function App() {
   const startAiAnalysis = () => {
     if (!chat) return
     setPendingModule('profiles')
-    const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
-    if (!meta?.selfPerson && currentChatId) {
-      chatLibrary.setSelf(currentChatId, chat.participants[0] ?? '')
-    }
+    // Don't pre-pick self here — the consent screen has a picker and gates
+    // the Accept button until one is selected. Guessing silently is what
+    // caused wrong analyses in the first place.
     const p = prepareAnalysis(chat)
     setPrepared(p)
     setStage('consent')
@@ -343,7 +345,7 @@ function App() {
   const runAi = async () => {
     if (!chat || !prepared) return
     const meta = currentChatId ? chatLibrary.getMeta(currentChatId) : undefined
-    const selfPerson = meta?.selfPerson ?? chat.participants[0]
+    const selfPerson = meta?.selfPerson
     if (!selfPerson) return
     setAiError(null)
     setAiProgress({ done: 0, total: 1, current: selfPerson })
@@ -594,6 +596,10 @@ function App() {
             moduleId={pendingModule}
             onAccept={onConsentAccept}
             onCancel={() => setStage('analysis')}
+            selfPerson={currentChatId ? (chatLibrary.getMeta(currentChatId)?.selfPerson ?? null) : null}
+            onSelfPersonChange={(name) => {
+              if (currentChatId) chatLibrary.setSelf(currentChatId, name)
+            }}
           />
         )}
 

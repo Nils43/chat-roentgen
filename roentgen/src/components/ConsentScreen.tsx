@@ -9,17 +9,27 @@ interface Props {
   onAccept: () => void
   onCancel: () => void
   moduleId?: ModuleId
+  selfPerson: string | null
+  onSelfPersonChange: (name: string) => void
 }
 
 export function ConsentScreen({
+  chat,
   prepared,
   onAccept,
   onCancel,
+  moduleId,
+  selfPerson,
+  onSelfPersonChange,
 }: Props) {
   const locale = useLocale()
   const pctOfChat = ((prepared.messagesSent / Math.max(1, prepared.totalAvailable)) * 100).toFixed(1)
   const isFixture = prepared.analyzerKind === 'fixture'
   const localeTag = locale === 'de' ? 'de-DE' : 'en-US'
+  // Personal module analyzes the self-person. Relationship analyzes both so
+  // self matters less — but the picker still lets them fix a wrong auto-guess.
+  const showSelfPicker = chat.participants.length >= 2
+  const canProceed = !showSelfPicker || (selfPerson !== null && chat.participants.includes(selfPerson))
 
   return (
     <div className="min-h-[80vh] flex items-start justify-center px-5 md:px-8 py-12">
@@ -50,6 +60,39 @@ export function ConsentScreen({
           />
         </div>
 
+        {/* You-are picker — silently wrong auto-guesses were giving people
+            "personal" reports about the other person. Explicit pick fixes it. */}
+        {showSelfPicker && (
+          <div
+            className="bg-white border-2 border-ink p-5 mb-6"
+            style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+          >
+            <div className="label-mono mb-3 text-ink/70">
+              {moduleId === 'relationship'
+                ? locale === 'de' ? 'wer bist du in diesem chat?' : 'who are you in this chat?'
+                : locale === 'de' ? 'wer soll analysiert werden?' : 'who should be analyzed?'}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {chat.participants.map((p) => {
+                const active = p === selfPerson
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => onSelfPersonChange(p)}
+                    className={`border-2 border-ink px-3 py-2 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors ${
+                      active ? 'bg-ink text-pop-yellow' : 'bg-pop-yellow/60 text-ink hover:bg-pop-yellow'
+                    }`}
+                    style={{ boxShadow: active ? '3px 3px 0 #0A0A0A' : '2px 2px 0 #0A0A0A' }}
+                  >
+                    {active ? '✦ ' : ''}{p}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Art. 9 GDPR explicit consent */}
         {!isFixture && (
           <div className="bg-pop-yellow border-2 border-ink p-5 mb-8" style={{ boxShadow: '4px 4px 0 #0A0A0A', transform: 'rotate(-0.3deg)' }}>
@@ -64,7 +107,8 @@ export function ConsentScreen({
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={onAccept}
-            className="flex-1 btn-pop px-6 py-4 text-base"
+            disabled={!canProceed}
+            className="flex-1 btn-pop px-6 py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span aria-hidden>✨</span>
             {isFixture ? t('consent.cta.test', locale) : t('consent.cta.live', locale)}
