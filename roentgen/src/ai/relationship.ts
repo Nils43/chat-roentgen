@@ -12,14 +12,14 @@ import {
 import { i18n } from '../i18n'
 import type { RelationshipPayload, RelationshipResult } from './types'
 
-// Sonnet 4.6 for relationship. The schema has ~12 top-level blocks with deep
-// nesting; Haiku 4.5 produced unreliable tool_use here — missing required
-// fields often enough that users saw "—" filler in real sections, and retries
-// ate the Vercel budget. Sonnet handles the nested schema first-shot the vast
-// majority of the time, so a single ~8-15 s call beats 2-3 Haiku retries that
-// still ship a half-empty payload. Cost: ~€0.10 per call vs €3 credit price.
-// Override with VITE_ROENTGEN_RELATIONSHIP_MODEL to force a different model.
-const DEFAULT_MODEL = 'claude-sonnet-4-6'
+// Haiku 4.5 for relationship. We tried Sonnet 4.6 for better schema adherence,
+// but benchmark showed Sonnet generates ~45 tok/s vs Haiku's ~90 tok/s — at
+// 5500 output tokens Sonnet took 2+ minutes, blowing Vercel's 60 s maxDuration.
+// Haiku fits the budget; when it drops a required field the server-side
+// backfill ships schema defaults ("—") so the user always sees a complete
+// analysis rather than a timeout error. Override with
+// VITE_ROENTGEN_RELATIONSHIP_MODEL if you're willing to accept the latency.
+const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
 const MODEL =
   (import.meta.env.VITE_ROENTGEN_RELATIONSHIP_MODEL as string | undefined) ??
   (import.meta.env.VITE_ROENTGEN_MODEL as string | undefined) ??
@@ -58,13 +58,12 @@ export async function runRelationshipAnalysis({
 
   const request = {
     model: MODEL,
-    // Budget-capped output window. Sonnet 4.6 output is $15/MTok; at
-    // max_tokens=5500 the worst-case call stays around €0.08 even without
-    // caching on the input side. The schema produces ~4000-5000 tokens of
-    // populated output in practice; the remaining headroom absorbs model
-    // variance. If the model hits the cap the server-side backfill fills
-    // any missing required fields with schema defaults ("—", [], 0).
-    max_tokens: 5500,
+    // Time-capped output window. Haiku generates at ~90 tok/s, so 4000
+    // tokens ≈ 45 s — fits comfortably inside Vercel's 60 s maxDuration
+    // with headroom for the fetch round-trip and refund path. Cost at
+    // Haiku output rate ($5/MTok): ~€0.02 per call. If the schema needs
+    // more prose than fits, the backfill ships defaults for missing fields.
+    max_tokens: 4000,
     system: [
       {
         type: 'text' as const,
