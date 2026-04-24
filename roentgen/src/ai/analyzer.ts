@@ -1,5 +1,9 @@
 import type { ApiRequest, ApiResponse } from './types'
-import { analyze as callApi } from './client'
+import {
+  analyze as callApi,
+  analyzeRelationshipChunked,
+  type RelationshipChunkedRequest,
+} from './client'
 
 // Pluggable LLM backend. Swap via VITE_ROENTGEN_ANALYZER:
 //   'api'      → live Anthropic API through the /api/analyze proxy
@@ -9,12 +13,26 @@ import { analyze as callApi } from './client'
 export interface Analyzer {
   kind: 'api' | 'fixture'
   analyze(req: ApiRequest, signal?: AbortSignal): Promise<ApiResponse>
+  // Fan-out variant for the relationship tool. The server spends one credit
+  // and runs all chunks in parallel, merging the results server-side. Each
+  // chunk carries its own sub-schema so the Anthropic calls stay small and
+  // fit inside the Vercel 60 s function budget.
+  analyzeRelationshipChunked(
+    req: RelationshipChunkedRequest,
+    signal?: AbortSignal,
+  ): Promise<ApiResponse>
 }
 
 export class ApiAnalyzer implements Analyzer {
   kind = 'api' as const
   async analyze(req: ApiRequest, signal?: AbortSignal): Promise<ApiResponse> {
     return callApi(req, signal)
+  }
+  async analyzeRelationshipChunked(
+    req: RelationshipChunkedRequest,
+    signal?: AbortSignal,
+  ): Promise<ApiResponse> {
+    return analyzeRelationshipChunked(req, signal)
   }
 }
 
@@ -24,6 +42,32 @@ export class ApiAnalyzer implements Analyzer {
 // Simulates a realistic API latency so the loading animation still feels right.
 export class FixtureAnalyzer implements Analyzer {
   kind = 'fixture' as const
+
+  async analyzeRelationshipChunked(
+    req: RelationshipChunkedRequest,
+    signal?: AbortSignal,
+  ): Promise<ApiResponse> {
+    // Fixture mode doesn't need to fan out — the full relationship fixture
+    // already matches the merged schema. Re-use analyze() by passing a
+    // throwaway tool entry so the fixture dispatcher picks the right file.
+    return this.analyze(
+      {
+        model: req.model ?? 'fixture',
+        max_tokens: req.max_tokens ?? 0,
+        system: req.system ?? '',
+        messages: req.messages,
+        tools: [
+          {
+            name: 'submit_relationship',
+            description: 'fixture passthrough',
+            input_schema: {},
+          },
+        ],
+        tool_choice: { type: 'tool', name: 'submit_relationship' },
+      } as ApiRequest,
+      signal,
+    )
+  }
 
   async analyze(req: ApiRequest, signal?: AbortSignal): Promise<ApiResponse> {
     const toolName = req.tools?.[0]?.name ?? 'submit_profile'

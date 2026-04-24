@@ -19,7 +19,11 @@ export class AnalyzeError extends Error {
   }
 }
 
-export async function analyze(req: ApiRequest, signal?: AbortSignal): Promise<ApiResponse> {
+async function postJson(
+  path: string,
+  payload: unknown,
+  signal?: AbortSignal,
+): Promise<{ res: Response; text: string }> {
   const headers: Record<string, string> = { 'content-type': 'application/json' }
 
   // Attach the current Supabase access token if signed in. The server rejects
@@ -34,14 +38,18 @@ export async function analyze(req: ApiRequest, signal?: AbortSignal): Promise<Ap
     // decide whether that's acceptable.
   }
 
-  const res = await fetch('/api/analyze', {
+  const res = await fetch(path, {
     method: 'POST',
     headers,
-    body: JSON.stringify(req),
+    body: JSON.stringify(payload),
     signal,
   })
 
   const text = await res.text()
+  return { res, text }
+}
+
+function parseApiResponse(res: Response, text: string): ApiResponse {
   const locale = i18n.get()
   let body: unknown
   try {
@@ -49,12 +57,40 @@ export async function analyze(req: ApiRequest, signal?: AbortSignal): Promise<Ap
   } catch {
     throw new AnalyzeError('invalid_response', friendlyError('invalid_response', locale), res.status)
   }
-
   if (!res.ok) {
     const errBody = body as { error?: string; message?: string }
     const code = errBody.error ?? 'upstream_error'
     throw new AnalyzeError(code, friendlyError(code, locale, errBody.message), res.status)
   }
-
   return body as ApiResponse
+}
+
+export async function analyze(req: ApiRequest, signal?: AbortSignal): Promise<ApiResponse> {
+  const { res, text } = await postJson('/api/analyze', req, signal)
+  return parseApiResponse(res, text)
+}
+
+export interface RelationshipChunkTool {
+  name: string
+  description: string
+  input_schema: Record<string, unknown>
+}
+
+export interface RelationshipChunkedRequest {
+  model?: string
+  max_tokens?: number
+  system?: ApiRequest['system']
+  messages: ApiRequest['messages']
+  chunks: RelationshipChunkTool[]
+}
+
+// Parallel fan-out for the relationship tool. The server spends one credit,
+// fires one Anthropic call per chunk, and returns a merged tool_use payload
+// shaped like a normal Anthropic response.
+export async function analyzeRelationshipChunked(
+  req: RelationshipChunkedRequest,
+  signal?: AbortSignal,
+): Promise<ApiResponse> {
+  const { res, text } = await postJson('/api/analyze-relationship', req, signal)
+  return parseApiResponse(res, text)
 }

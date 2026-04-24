@@ -569,6 +569,45 @@ export const RELATIONSHIP_TOOL_SCHEMA = {
   },
 } as const
 
+// Chunked relationship schemas. The full schema yields ~4-5 k output tokens
+// which at Haiku's ~90 tok/s rate hugs Vercel's 60 s maxDuration cap. We fan
+// out into three parallel tool calls (each ~1.5-2 k tokens, ~20-25 s) and
+// merge server-side. Each chunk keeps the property definitions of its blocks
+// byte-for-byte from the master schema so the model sees identical contracts.
+const RELATIONSHIP_CHUNK_LAYOUT = {
+  a: ['teilnehmer', 'kopplung', 'machtstruktur', 'bindungsdyade'],
+  b: ['bids', 'repair', 'konflikt_signatur', 'mentalisierung'],
+  c: ['meta_kommunikation', 'berne', 'unausgesprochene_regeln', 'kern_insight', 'safety_flag'],
+} as const
+
+function makeRelationshipChunk(name: string, keys: readonly string[]): {
+  name: string
+  description: string
+  input_schema: Record<string, unknown>
+} {
+  const fullProps = RELATIONSHIP_TOOL_SCHEMA.input_schema.properties as unknown as Record<string, unknown>
+  const properties: Record<string, unknown> = {}
+  for (const k of keys) properties[k] = fullProps[k]
+  return {
+    name,
+    description: `Return the assigned subset (${keys.join(', ')}) of the relationship analysis. Other sections are handled by parallel calls.`,
+    input_schema: {
+      type: 'object',
+      required: [...keys],
+      properties,
+    },
+  }
+}
+
+export const RELATIONSHIP_CHUNK_A_SCHEMA = makeRelationshipChunk('submit_relationship_a', RELATIONSHIP_CHUNK_LAYOUT.a)
+export const RELATIONSHIP_CHUNK_B_SCHEMA = makeRelationshipChunk('submit_relationship_b', RELATIONSHIP_CHUNK_LAYOUT.b)
+export const RELATIONSHIP_CHUNK_C_SCHEMA = makeRelationshipChunk('submit_relationship_c', RELATIONSHIP_CHUNK_LAYOUT.c)
+export const RELATIONSHIP_CHUNK_SCHEMAS = [
+  RELATIONSHIP_CHUNK_A_SCHEMA,
+  RELATIONSHIP_CHUNK_B_SCHEMA,
+  RELATIONSHIP_CHUNK_C_SCHEMA,
+] as const
+
 // JSON Schema for tool_use / structured output. Matches PersonProfile in types.ts.
 export const PROFILE_TOOL_SCHEMA = {
   name: 'submit_profile',

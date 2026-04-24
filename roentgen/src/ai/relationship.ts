@@ -5,20 +5,21 @@ import type { PrepareResult } from './profile'
 import { buildEvidence } from './evidence'
 import { pseudonymizeDeep, restoreNamesDeep } from './pseudonymize'
 import {
-  RELATIONSHIP_TOOL_SCHEMA,
+  RELATIONSHIP_CHUNK_SCHEMAS,
   buildRelationshipUserMessage,
   selectRelationshipPrompt,
 } from './prompts'
 import { i18n } from '../i18n'
 import type { RelationshipPayload, RelationshipResult } from './types'
 
-// Haiku 4.5 for relationship. We tried Sonnet 4.6 for better schema adherence,
-// but benchmark showed Sonnet generates ~45 tok/s vs Haiku's ~90 tok/s — at
-// 5500 output tokens Sonnet took 2+ minutes, blowing Vercel's 60 s maxDuration.
-// Haiku fits the budget; when it drops a required field the server-side
-// backfill ships schema defaults ("—") so the user always sees a complete
-// analysis rather than a timeout error. Override with
-// VITE_ROENTGEN_RELATIONSHIP_MODEL if you're willing to accept the latency.
+// Haiku 4.5 for every chunk. The full relationship schema (~5 k tokens of
+// output) doesn't fit into Vercel's 60 s maxDuration when generated in a
+// single call, regardless of model — Sonnet runs at ~45 tok/s, Haiku at ~90.
+// We fan the schema out into three sub-tools (see prompts.ts) and run them
+// in parallel via /api/analyze-relationship. Each chunk emits ~1.5-2 k
+// tokens, ~20 s wall-clock, so the whole thing lands around 25 s. Override
+// with VITE_ROENTGEN_RELATIONSHIP_MODEL if you want to swap in a faster/
+// more capable model — the split logic is model-agnostic.
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
 const MODEL =
   (import.meta.env.VITE_ROENTGEN_RELATIONSHIP_MODEL as string | undefined) ??
@@ -32,8 +33,8 @@ export interface RunRelationshipOptions {
   onStart?: () => void
 }
 
-// Single API call that analyzes the relationship dynamic (not the individuals).
-// Uses the evidence packet built from HardFacts + curated moments.
+// Relationship analysis — dyad-level, not individual. Runs as three parallel
+// Anthropic calls behind a single credit spend (see api/analyze-relationship).
 export async function runRelationshipAnalysis({
   chat,
   prepared,
@@ -56,14 +57,13 @@ export async function runRelationshipAnalysis({
     console.log('[relationship] evidence bytes:', JSON.stringify(pseudoEvidence).length, 'notable moments:', pseudoEvidence.notableMoments.length)
   }
 
-  const request = {
+  // Per-chunk output budget. Each chunk covers 4-5 top-level schema blocks
+  // and produces ~1500-2000 tokens; 2500 gives Haiku headroom without
+  // wasting cap. Three chunks × ~25 s each, run in parallel server-side,
+  // keeps the wall-clock well inside Vercel's 60 s maxDuration.
+  const chunkedRequest = {
     model: MODEL,
-    // Time-capped output window. Haiku generates at ~90 tok/s, so 4000
-    // tokens ≈ 45 s — fits comfortably inside Vercel's 60 s maxDuration
-    // with headroom for the fetch round-trip and refund path. Cost at
-    // Haiku output rate ($5/MTok): ~€0.02 per call. If the schema needs
-    // more prose than fits, the backfill ships defaults for missing fields.
-    max_tokens: 4000,
+    max_tokens: 2500,
     system: [
       {
         type: 'text' as const,
@@ -72,22 +72,16 @@ export async function runRelationshipAnalysis({
       },
     ],
     messages: [{ role: 'user' as const, content: userMessage }],
-    tools: [
-      {
-        name: RELATIONSHIP_TOOL_SCHEMA.name,
-        description: RELATIONSHIP_TOOL_SCHEMA.description,
-        input_schema: RELATIONSHIP_TOOL_SCHEMA.input_schema as Record<string, unknown>,
-      },
-    ],
-    tool_choice: { type: 'tool' as const, name: RELATIONSHIP_TOOL_SCHEMA.name },
+    chunks: RELATIONSHIP_CHUNK_SCHEMAS.map((s) => ({
+      name: s.name,
+      description: s.description,
+      input_schema: s.input_schema,
+    })),
   }
 
-  // No client-side retry here — every call to analyzer.analyze hits the
-  // server proxy which spends a credit. The server already retries up to 3
-  // times on validation failure (with an incremental hint to the model) and
-  // refunds the credit if all attempts end incomplete. So one call here =
-  // one credit spent OR refunded, never two.
-  const response = await analyzer.analyze(request, signal)
+  // One credit for the whole fan-out. /api/analyze-relationship spends once
+  // up front, runs all chunks in parallel, and refunds if every chunk fails.
+  const response = await analyzer.analyzeRelationshipChunked(chunkedRequest, signal)
   const toolUse = response.content.find((b) => b.type === 'tool_use')
   const raw: RelationshipPayload | null =
     toolUse && toolUse.type === 'tool_use' ? (toolUse.input as RelationshipPayload) : null
