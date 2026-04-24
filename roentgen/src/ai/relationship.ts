@@ -58,9 +58,13 @@ export async function runRelationshipAnalysis({
 
   const request = {
     model: MODEL,
-    // Schema has ~12 top-level blocks; max_tokens caps the output window.
-    // 16k is well within Haiku 4.5's budget and only actual output is billed.
-    max_tokens: 16384,
+    // Budget-capped output window. Sonnet 4.6 output is $15/MTok; at
+    // max_tokens=5500 the worst-case call stays around €0.08 even without
+    // caching on the input side. The schema produces ~4000-5000 tokens of
+    // populated output in practice; the remaining headroom absorbs model
+    // variance. If the model hits the cap the server-side backfill fills
+    // any missing required fields with schema defaults ("—", [], 0).
+    max_tokens: 5500,
     system: [
       {
         type: 'text' as const,

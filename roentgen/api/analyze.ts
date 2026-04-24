@@ -143,7 +143,12 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
       Array.isArray(forward.tools) && forward.tools[0] && typeof forward.tools[0] === 'object'
         ? ((forward.tools[0] as { input_schema?: unknown }).input_schema as Record<string, unknown> | undefined)
         : undefined
-    const MAX_ATTEMPTS = 3
+    // Retry budget depends on the tool: the relationship analysis uses Sonnet
+    // (expensive output), so we cap at 1 attempt and lean on the backfill to
+    // fill any gaps — a second call would blow past the €0.10 per-credit cost
+    // ceiling. Profile runs on cheap Haiku where 3 attempts stay comfortably
+    // under budget and noticeably improve schema completeness.
+    const MAX_ATTEMPTS = toolName(body) === 'submit_relationship' ? 1 : 3
     let upstream: Response | null = null
     let bestText = ''
     let bestStatus = 0
