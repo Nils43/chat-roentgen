@@ -151,6 +151,35 @@ begin
   return true;
 end;
 $$;
+
+-- Sync the auth.users email into public.accounts on every sign-in. The
+-- handle_new_user trigger only fires on INSERT, so users who start anonymous
+-- and later link Google via linkIdentity never get their email copied over
+-- (auth.users UPDATE doesn't re-trigger INSERT handlers). The client calls
+-- this RPC on every SIGNED_IN event to keep the row in sync.
+create or replace function public.ensure_account()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid;
+  v_email text;
+begin
+  v_user_id := auth.uid();
+  if v_user_id is null then return; end if;
+
+  select email into v_email from auth.users where id = v_user_id;
+
+  insert into public.accounts (id, email)
+    values (v_user_id, v_email)
+  on conflict (id) do update
+    set email = coalesce(excluded.email, public.accounts.email);
+end;
+$$;
+
+grant execute on function public.ensure_account() to authenticated;
 ```
 
 ## 2. Stripe
