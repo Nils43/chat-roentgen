@@ -97,9 +97,12 @@ export async function runProfileAnalyses({
     const response = await analyzer.analyze(
       {
         model: MODEL,
-        // Profile schema is smaller than relationship but the punchier prompt
-        // now produces longer prose per section. Give it room.
-        max_tokens: 6144,
+        // Time-capped. Haiku generates at ~90 tok/s and Vercel caps us at
+        // 60 s maxDuration, so anything above ~5 k tokens risks aborting
+        // the fetch before the model finishes. The profile schema fills out
+        // comfortably in 3-4 k; 4500 keeps a full Haiku run under ~50 s and
+        // leaves headroom for retries + refund path.
+        max_tokens: 4500,
         // System prompt as a cached block — 90% off on retries within 5 min.
         system: [
           {

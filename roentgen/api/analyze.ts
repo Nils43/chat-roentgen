@@ -162,12 +162,13 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
       const bodyForAttempt = attempt === 1 ? forward : buildRetryBody(forward, lastMiss)
       const controller = new AbortController()
       const remaining = TOTAL_DEADLINE_MS - elapsed
-      // Each attempt gets a fair share of the remaining deadline. For a
-      // single-attempt tool (e.g. submit_relationship on Sonnet) this is
-      // almost the full 55 s, which covers Sonnet's 5k-token output runs.
-      // For 3-attempt tools the first attempt gets ~18 s — enough for Haiku.
-      const attemptsLeft = MAX_ATTEMPTS - attempt + 1
-      const perAttemptBudget = Math.max(5_000, Math.floor((remaining - 2_000) / attemptsLeft))
+      // Give the current attempt whatever time is left minus a small safety
+      // buffer for the refund/response path. The previous logic divided the
+      // budget across remaining attempts up front, which starved the first
+      // attempt (the common case) of time it needed for Haiku to finish
+      // generating. The outer deadline check already breaks the loop before
+      // we'd run an attempt with no room, so a per-attempt share isn't needed.
+      const perAttemptBudget = Math.max(5_000, remaining - 2_000)
       const timer = setTimeout(() => controller.abort(), perAttemptBudget)
       let text = ''
       try {
