@@ -4,7 +4,7 @@ interface Props {
   onBack: () => void
 }
 
-// §5 TMG / §18 MStV Imprint. Placeholders before go-live.
+// §5 TMG / §18 MStV Imprint.
 export function Imprint({ onBack }: Props) {
   const locale = useLocale()
   const de = locale === 'de'
@@ -27,24 +27,31 @@ export function Imprint({ onBack }: Props) {
       <article className="space-y-8 serif-body text-base md:text-lg leading-relaxed text-ink">
         <Section title="Angaben gemäß §5 TMG">
           <p className="font-mono text-sm whitespace-pre-line">
-            [Your Name]
-            [Street]
-            [Postal Code, City]
-            [Country]
+            {'Inflection Studio UG (haftungsbeschränkt) i.G.'}
+            {'\n'}Kürstraße 54
+            {'\n'}73666 Baltmannsweiler
+            {'\n'}Deutschland
+            {'\n\n'}Vertreten durch den Geschäftsführer: Nils Heck
+          </p>
+        </Section>
+
+        <Section title="Handelsregister">
+          <p className="font-mono text-sm whitespace-pre-line">
+            Eintragung beim zuständigen Amtsgericht beantragt.
+            {'\n'}HRB-Nummer wird nach erfolgter Eintragung ergänzt.
           </p>
         </Section>
 
         <Section title="Kontakt">
           <p className="font-mono text-sm whitespace-pre-line">
-            Email: [contact@your-domain]
-            {/* Telephone is not required by law if email is given. */}
+            Email: contact@spillteato.me
           </p>
         </Section>
 
         <Section title="Verantwortlich für den Inhalt nach §18 Abs. 2 MStV">
           <p className="font-mono text-sm whitespace-pre-line">
-            [Your Name]
-            [Same address as above]
+            Nils Heck
+            {'\n'}Anschrift wie oben
           </p>
         </Section>
 
@@ -78,15 +85,6 @@ export function Imprint({ onBack }: Props) {
           </p>
         </Section>
 
-        <Section title={de ? 'Hinweis' : 'Notice'}>
-          <p className="text-sm text-ink-muted">
-            <em>
-              {de
-                ? 'Platzhalter oben. Vor dem Go-Live durch echte Kontaktdaten ersetzen. Das Impressum muss von jeder Seite erreichbar sein (im Footer verlinkt).'
-                : 'Placeholders above. Replace with your actual contact info before go-live. This imprint must be reachable from every page (we link it in the footer).'}
-            </em>
-          </p>
-        </Section>
       </article>
 
       <div className="mt-16 pt-8 border-t border-ink/20">

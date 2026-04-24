@@ -5,8 +5,6 @@ interface Props {
 }
 
 // DSGVO-konforme Datenschutzerklärung. Vollständig zweisprachig (DE/EN).
-// Placeholders für Controller müssen vor Go-Live ersetzt werden (siehe
-// privacy-audit.md).
 export function PrivacyPolicy({ onBack }: Props) {
   const locale = useLocale()
   const de = locale === 'de'
@@ -53,18 +51,12 @@ export function PrivacyPolicy({ onBack }: Props) {
             <strong>{de ? 'Verantwortlicher' : 'Controller'}</strong> {de ? 'nach' : 'under'} Art. 4(7) {de ? 'DSGVO' : 'GDPR'}:
           </p>
           <p className="font-mono text-sm whitespace-pre-line">
-            {de ? '[Dein Name / Firma]' : '[Your Name / Company]'}
-            {'\n'}[Street]
-            {'\n'}[Postal Code, City]
-            {'\n'}[Country]
-            {'\n\n'}Email: [contact@your-domain]
-          </p>
-          <p className="text-sm text-ink-muted">
-            <em>
-              {de
-                ? 'Platzhalter — vor dem Go-Live ersetzen. Volle Kontaktdaten im Impressum.'
-                : 'Placeholder — replace before going live. See the imprint for full contact info.'}
-            </em>
+            Inflection Studio UG (haftungsbeschränkt) i.G.
+            {'\n'}{de ? 'Vertreten durch den Geschäftsführer: Nils Heck' : 'Represented by the managing director: Nils Heck'}
+            {'\n'}Kürstraße 54
+            {'\n'}73666 Baltmannsweiler
+            {'\n'}{de ? 'Deutschland' : 'Germany'}
+            {'\n\n'}Email: contact@spillteato.me
           </p>
         </Section>
 
