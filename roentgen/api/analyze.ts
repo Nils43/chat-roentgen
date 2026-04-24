@@ -24,9 +24,6 @@ export const config = { maxDuration: 60 }
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const MAX_BODY_BYTES = 500_000
-// Per-attempt ceiling. Keeps a single slow Anthropic call from eating the
-// whole maxDuration budget and stranding the refund path.
-const ATTEMPT_TIMEOUT_MS = 25_000
 // Leave ~5 s headroom before maxDuration so the refund + response always ship.
 const TOTAL_DEADLINE_MS = 55_000
 
@@ -166,7 +163,12 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
       const bodyForAttempt = attempt === 1 ? forward : buildRetryBody(forward, lastMiss)
       const controller = new AbortController()
       const remaining = TOTAL_DEADLINE_MS - elapsed
-      const perAttemptBudget = Math.min(ATTEMPT_TIMEOUT_MS, Math.max(5_000, remaining - 2_000))
+      // Each attempt gets a fair share of the remaining deadline. For a
+      // single-attempt tool (e.g. submit_relationship on Sonnet) this is
+      // almost the full 55 s, which covers Sonnet's 5k-token output runs.
+      // For 3-attempt tools the first attempt gets ~18 s — enough for Haiku.
+      const attemptsLeft = MAX_ATTEMPTS - attempt + 1
+      const perAttemptBudget = Math.max(5_000, Math.floor((remaining - 2_000) / attemptsLeft))
       const timer = setTimeout(() => controller.abort(), perAttemptBudget)
       let text = ''
       try {
