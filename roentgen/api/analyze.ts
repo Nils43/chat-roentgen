@@ -17,8 +17,18 @@ import { adminClient, userFromAuthHeader } from './_supabase.js'
 //
 // Nothing logged, nothing stored. Bodies held in memory only for the fetch.
 
+// Give the function enough headroom for 1–3 Anthropic calls. Without this,
+// Vercel's default (10–15 s) kills the process mid-analysis, after the credit
+// was spent but before the refund path runs → user loses the credit.
+export const config = { maxDuration: 60 }
+
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const MAX_BODY_BYTES = 500_000
+// Per-attempt ceiling. Keeps a single slow Anthropic call from eating the
+// whole maxDuration budget and stranding the refund path.
+const ATTEMPT_TIMEOUT_MS = 25_000
+// Leave ~5 s headroom before maxDuration so the refund + response always ship.
+const TOTAL_DEADLINE_MS = 55_000
 
 interface AnthropicBody {
   model?: string
@@ -139,19 +149,46 @@ async function handlerInner(req: VercelRequest, res: VercelResponse): Promise<vo
     let bestStatus = 0
     let bestMiss: string[] | null = null // null = never got a parseable 200
     let lastMiss: string[] = []
+    const startTime = Date.now()
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      // Refund-safety: bail out if we're close to the Vercel deadline so the
+      // refund path always has room to run. Better a "incomplete" response
+      // with refund than a killed function with a stolen credit.
+      const elapsed = Date.now() - startTime
+      if (elapsed > TOTAL_DEADLINE_MS - 5_000) break
+
       const bodyForAttempt = attempt === 1 ? forward : buildRetryBody(forward, lastMiss)
-      upstream = await fetch(ANTHROPIC_URL, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify(bodyForAttempt),
-      })
-      const text = await upstream.text()
+      const controller = new AbortController()
+      const remaining = TOTAL_DEADLINE_MS - elapsed
+      const perAttemptBudget = Math.min(ATTEMPT_TIMEOUT_MS, Math.max(5_000, remaining - 2_000))
+      const timer = setTimeout(() => controller.abort(), perAttemptBudget)
+      let text = ''
+      try {
+        upstream = await fetch(ANTHROPIC_URL, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+          },
+          body: JSON.stringify(bodyForAttempt),
+          signal: controller.signal,
+        })
+        text = await upstream.text()
+      } catch (err) {
+        const aborted = err instanceof Error && err.name === 'AbortError'
+        if (process.env.ROENTGEN_DEBUG) {
+          console.warn(`[analyze] attempt ${attempt}/${MAX_ATTEMPTS} ${aborted ? 'timed out' : 'failed'}`)
+        }
+        // Try again if we have budget + attempts left; otherwise fall through
+        // with upstream=null so the "no success" branch refunds.
+        if (attempt < MAX_ATTEMPTS) continue
+        upstream = null
+        break
+      } finally {
+        clearTimeout(timer)
+      }
 
       if (!upstream.ok) {
         // 5xx → transient, retry. 4xx → auth/schema/quota, retrying won't help.
