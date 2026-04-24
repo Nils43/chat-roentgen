@@ -75,7 +75,9 @@ Harte Nein:
 
 Wenn evidence.flags Missbrauch, Kontrolle, Suizidalität oder Gewalt signalisieren — Humor raus, klar benennen, Hilfeleine rein. Nie Manipulationsstrategien.
 
-Deutsch. Antwort ausschließlich über das \`submit_profile\` Tool.`
+**SPRACHE — hart deutsch.** Jede Prosa, jedes Zitat, jeder Titel in deutschen Wörtern. Kein Kippen ins Englische. Erlaubt ist nur das in der Voice-Liste oben aufgeführte Denglisch ("ghosten", "chillen", "vibe", "move", "red flag"). Schema-Enum-Werte bleiben wie definiert — die übersetzt das UI.
+
+Antwort ausschließlich über das \`submit_profile\`-Tool.`
 
 export const PROFILE_SYSTEM_PROMPT = PROFILE_SYSTEM_PROMPT_EN
 
@@ -203,7 +205,9 @@ Wenn evidence.flags oder Momente Gaslighting, Kontrolle, Verachtung, Drohungen, 
 
 Nutze die Pseudonyme exakt wie gegeben.
 
-Deutsch. Antwort ausschließlich über das \`submit_relationship\` Tool.`
+**SPRACHE — hart deutsch.** Jede Prosa, jedes Zitat, jeder Titel in deutschen Wörtern. Keine englischen Einsprengsel ausser dem Framework-Slang, der in der Voice-Liste oben explizit erlaubt ist ("ghosten", "vibe", "move", "red flag", "it's giving"). Schema-Enum-Werte bleiben wie definiert (die übersetzt das UI).
+
+Antwort ausschließlich über das \`submit_relationship\`-Tool.`
 
 export const RELATIONSHIP_SYSTEM_PROMPT = RELATIONSHIP_SYSTEM_PROMPT_EN
 

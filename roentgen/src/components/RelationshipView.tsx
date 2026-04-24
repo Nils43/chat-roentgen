@@ -85,7 +85,10 @@ export function RelationshipView({ result, participants, onBack, onRerun }: Prop
             'The model returned an incomplete payload. Missing sections: ',
             'Das Modell hat eine unvollständige Antwort geliefert. Fehlende Abschnitte: ',
           )}
-          <span className="font-mono text-sm">{missingSections.join(', ')}</span>.
+          <span className="serif-body italic">
+            {missingSections.map((k) => missingSectionLabel(k, locale)).join(', ')}
+          </span>
+          .
           <br />
           {r(
             'Run it again — usually works on the second try. If it keeps failing, set a bigger model via env (',
@@ -155,19 +158,19 @@ export function RelationshipView({ result, participants, onBack, onRerun }: Prop
           <LeadCard
             label={r('Topics', 'Themen')}
             sublabel={r('Who brings stuff up?', 'Wer bringt die Themen rein?')}
-            lead={payload.machtstruktur.inhalt_lead}
+            lead={leadLabel(payload.machtstruktur.inhalt_lead, locale)}
             colorFor={colorFor}
           />
           <LeadCard
             label={r('Pace', 'Tempo')}
             sublabel={r('Who sets the pace?', 'Wer gibt das Tempo vor?')}
-            lead={payload.machtstruktur.prozess_lead}
+            lead={leadLabel(payload.machtstruktur.prozess_lead, locale)}
             colorFor={colorFor}
           />
           <LeadCard
-            label={r('Mood', 'Mood')}
+            label={r('Mood', 'Stimmung')}
             sublabel={r("Whose feelings run the room?", 'Wessen Gefühl bestimmt den Raum?')}
-            lead={payload.machtstruktur.affekt_lead}
+            lead={leadLabel(payload.machtstruktur.affekt_lead, locale)}
             colorFor={colorFor}
           />
         </div>
@@ -718,6 +721,48 @@ function collectMissingSections(p: unknown): string[] {
   const bids = obj.bids as { pro_person?: unknown; beispiele?: unknown } | undefined
   if (bids && !Array.isArray(bids.pro_person)) missing.push('bids.pro_person')
   return missing
+}
+
+// machtstruktur.{inhalt,prozess,affekt}_lead is typed as a free string but the
+// schema documents three conceptual values: a pseudonym, "balanced", or
+// "shifting". The pseudonym is restored to a real name upstream, so only
+// "balanced"/"shifting" still need translating for the German UI — and we
+// keep the backfill dash ("—") as-is when the model dropped the field.
+function leadLabel(raw: string, locale?: Locale): string {
+  const s = raw?.trim()
+  if (!s) return '—'
+  const lower = s.toLowerCase()
+  if (lower === 'balanced') return locale === 'de' ? 'ausgewogen' : 'balanced'
+  if (lower === 'shifting') return locale === 'de' ? 'wechselnd' : 'shifting'
+  return s
+}
+
+// Friendly labels for the raw schema keys that collectMissingSections returns.
+// Users should never see "kopplung, bids, kern_insight" in the fallback UI.
+function missingSectionLabel(key: string, locale: Locale): string {
+  const de = locale === 'de'
+  const map: Record<string, { en: string; de: string }> = {
+    teilnehmer: { en: 'participants', de: 'Teilnehmende' },
+    kopplung: { en: 'connection', de: 'Ankommen' },
+    machtstruktur: { en: 'power balance', de: 'Machtgefüge' },
+    bindungsdyade: { en: 'attachment dyad', de: 'Bindung' },
+    bids: { en: 'bids for attention', de: 'Signale' },
+    repair: { en: 'repair', de: 'Wieder-glatt-ziehen' },
+    konflikt_signatur: { en: 'conflict signature', de: 'Konflikt' },
+    mentalisierung: { en: 'mentalization', de: 'Gedanken-lesen' },
+    meta_kommunikation: { en: 'meta-talk', de: 'Meta-Gespräch' },
+    berne: { en: 'hidden games', de: 'Verdeckte Ebenen' },
+    unausgesprochene_regeln: { en: 'unspoken rules', de: 'Ungesagte Regeln' },
+    kern_insight: { en: 'core insight', de: 'Kern-Insight' },
+    safety_flag: { en: 'safety', de: 'Warnsignal' },
+    'mentalisierung.pro_person': { en: 'per-person mentalization', de: 'Gedanken-lesen pro Person' },
+    'konflikt_signatur.four_horsemen_pro_person': { en: 'per-person conflict markers', de: 'Konfliktmarker pro Person' },
+    'bids.pro_person': { en: 'per-person bids', de: 'Signale pro Person' },
+    payload: { en: 'everything', de: 'alles' },
+  }
+  const entry = map[key]
+  if (!entry) return key
+  return de ? entry.de : entry.en
 }
 
 function mentalisierungLabel(q: 'hoch' | 'mittel' | 'niedrig' | 'ungleichmäßig', locale?: Locale): string {
