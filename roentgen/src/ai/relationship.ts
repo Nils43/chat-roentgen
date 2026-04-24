@@ -12,13 +12,14 @@ import {
 import { i18n } from '../i18n'
 import type { RelationshipPayload, RelationshipResult } from './types'
 
-// Haiku for everything — keeps the per-call cost around 3-4 cents. The
-// relationship schema is big and Haiku flakes on some nested fields, but
-// the server-side retries with hint messages + backfill of schema defaults
-// cover the gap; a partial Haiku payload plus our default filler is better
-// economics than a pristine Sonnet payload. Override with
-// VITE_ROENTGEN_RELATIONSHIP_MODEL if you ever want to upgrade a paid tier.
-const DEFAULT_MODEL = 'claude-haiku-4-5-20251001'
+// Sonnet 4.6 for relationship. The schema has ~12 top-level blocks with deep
+// nesting; Haiku 4.5 produced unreliable tool_use here — missing required
+// fields often enough that users saw "—" filler in real sections, and retries
+// ate the Vercel budget. Sonnet handles the nested schema first-shot the vast
+// majority of the time, so a single ~8-15 s call beats 2-3 Haiku retries that
+// still ship a half-empty payload. Cost: ~€0.10 per call vs €3 credit price.
+// Override with VITE_ROENTGEN_RELATIONSHIP_MODEL to force a different model.
+const DEFAULT_MODEL = 'claude-sonnet-4-6'
 const MODEL =
   (import.meta.env.VITE_ROENTGEN_RELATIONSHIP_MODEL as string | undefined) ??
   (import.meta.env.VITE_ROENTGEN_MODEL as string | undefined) ??
