@@ -7,6 +7,8 @@ import { SplitBar } from './charts/SplitBar'
 import { EngagementCurve } from './charts/EngagementCurve'
 import { ReplyDistribution } from './charts/ReplyDistribution'
 import { ChatClock } from './charts/ChatClock'
+import { ShareModal } from './ShareModal'
+import { HardFactsShareCard } from './HardFactsShareCard'
 import type { ModuleId } from '../store/chatLibrary'
 
 interface Props {
@@ -103,6 +105,9 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
     ? `${facts.perPerson.length} voices`
     : `${personA.toLowerCase()} & ${personB.toLowerCase()}`
 
+  // Share-as-image modal — opens from the opener room.
+  const [shareOpen, setShareOpen] = useState(false)
+
   const rooms: RoomDef[] = [
     // ── ROOM 1: OPENER — the hardest-hitting asymmetry ──
     {
@@ -186,6 +191,16 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
               accent={facts.longestSilenceDays >= 7}
             />
           </section>
+
+          <div>
+            <button
+              onClick={() => setShareOpen(true)}
+              className="inline-flex items-center gap-2 bg-pop-yellow text-ink border-2 border-ink px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] hover:bg-ink hover:text-pop-yellow transition-colors"
+              style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+            >
+              ↗ {locale === 'de' ? 'als bild teilen' : 'share as image'}
+            </button>
+          </div>
         </section>
       ),
     },
@@ -1260,6 +1275,15 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
         </div>
       </div>
 
+      {shareOpen && (
+        <ShareModal
+          card={<HardFactsShareCard facts={facts} locale={locale} />}
+          filename={`spillteato-hardfacts-${(personA + '-' + personB).toLowerCase().replace(/[^a-z0-9-]+/g, '')}.png`}
+          shareTitle={locale === 'de' ? 'Hard Facts' : 'Hard Facts'}
+          shareText={locale === 'de' ? 'die zahlen sprechen.' : 'the numbers don’t lie.'}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </div>
   )
 }

@@ -1,25 +1,32 @@
-import type { RelationshipPayload } from '../ai/types'
+import type { HardFacts } from '../analysis/hardFacts'
 import type { Locale } from '../i18n'
 
-// Relationship share card — rendered at its real 1080×1350 size so
-// html-to-image can capture a crisp 4:5 Instagram-ready PNG regardless of
-// viewport. The caller shows a scaled-down preview via CSS transform on an
-// outer wrapper; this component itself never scales.
+// Hard Facts share card — mirrors the in-app opener punch ("11,090 messages
+// over 580 days. Antonia writes 50%. X takes the rest.") in the same
+// pink/ink/yellow brand template the AI cards use, sized 1080×1350 for
+// Instagram-friendly 4:5.
 
 interface Props {
-  payload: RelationshipPayload
-  participants: string[]
+  facts: HardFacts
   locale: Locale
 }
 
 const WIDTH = 1080
 const HEIGHT = 1350
 
-export function ShareCard({ payload, participants, locale }: Props) {
+export function HardFactsShareCard({ facts, locale }: Props) {
   const r = (en: string, de: string) => (locale === 'de' ? de : en)
-  const names = participants.slice(0, 2).join(' & ')
-  const attunement = payload.kopplung?.attunement ?? null
-  const dyadKey = payload.bindungsdyade?.konstellation ?? null
+  const shareLeaderIdx = facts.perPerson.reduce(
+    (best, p, i, arr) => (p.sharePct > arr[best].sharePct ? i : best),
+    0,
+  )
+  const shareLeader = facts.perPerson[shareLeaderIdx]?.author ?? ''
+  const shareLeaderPct = facts.perPerson[shareLeaderIdx]?.sharePct ?? 0
+  const shareOther =
+    facts.perPerson.length === 2
+      ? facts.perPerson[shareLeaderIdx === 0 ? 1 : 0]?.author ?? ''
+      : ''
+  const messages = facts.totalMessages.toLocaleString(locale === 'de' ? 'de-DE' : 'en-US')
 
   return (
     <div
@@ -48,46 +55,83 @@ export function ShareCard({ payload, participants, locale }: Props) {
           fontSize: 22,
           letterSpacing: '0.25em',
           textTransform: 'uppercase',
-          color: '#0A0A0A',
         }}
       >
-        <span>{r('relationship analysis', 'beziehungsanalyse')}</span>
+        <span>{r('hard facts', 'hard facts')}</span>
         <span>spillteato.me</span>
       </div>
 
-      {/* participant names */}
+      {/* big number — total messages */}
       <div
         style={{
           position: 'absolute',
           top: 150,
           left: 64,
           right: 64,
-          fontSize: 88,
-          lineHeight: 0.92,
-          letterSpacing: '-0.02em',
+          fontSize: 240,
+          lineHeight: 0.9,
+          letterSpacing: '-0.04em',
           fontWeight: 700,
         }}
       >
-        {names}
+        {messages}
       </div>
 
-      {/* core insight — the headline */}
       <div
         style={{
           position: 'absolute',
-          top: 310,
+          top: 410,
           left: 64,
           right: 64,
-          fontSize: 68,
-          lineHeight: 1.08,
-          letterSpacing: '-0.01em',
+          fontSize: 56,
+          lineHeight: 1.05,
           fontStyle: 'italic',
           fontWeight: 400,
-          maxHeight: 650,
+        }}
+      >
+        {r(
+          `messages over ${facts.durationDays} days.`,
+          `Nachrichten in ${facts.durationDays} Tagen.`,
+        )}
+      </div>
+
+      {/* asymmetry headline */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 560,
+          left: 64,
+          right: 64,
+          fontSize: 64,
+          lineHeight: 1.15,
+          letterSpacing: '-0.01em',
+          fontWeight: 700,
+          maxHeight: 380,
           overflow: 'hidden',
         }}
       >
-        “{payload.kern_insight}”
+        <span>{shareLeader}</span>{' '}
+        <span style={{ fontWeight: 400, fontStyle: 'italic' }}>
+          {r('writes', 'macht')}
+        </span>{' '}
+        <span
+          style={{
+            background: '#FFE234',
+            padding: '0 18px',
+            display: 'inline-block',
+          }}
+        >
+          {Math.round(shareLeaderPct)}%
+        </span>
+        {shareOther && (
+          <>
+            <span style={{ fontWeight: 400 }}>. </span>
+            <span>{shareOther}</span>{' '}
+            <span style={{ fontWeight: 400, fontStyle: 'italic' }}>
+              {r('takes the rest.', 'den rest.')}
+            </span>
+          </>
+        )}
       </div>
 
       {/* metrics strip */}
@@ -101,18 +145,17 @@ export function ShareCard({ payload, participants, locale }: Props) {
           gap: 16,
         }}
       >
-        {attunement !== null && (
-          <MetricCard
-            label={r('ATTUNEMENT', 'ATTUNEMENT')}
-            value={`${attunement}/100`}
-          />
-        )}
-        {dyadKey && (
-          <MetricCard
-            label={r('DYNAMIC', 'DYNAMIK')}
-            value={dyadLabelShort(dyadKey, locale)}
-          />
-        )}
+        <MetricCard
+          label={r('ACTIVE DAYS', 'AKTIVE TAGE')}
+          value={String(facts.activeDays)}
+        />
+        <MetricCard
+          label={r('LONGEST SILENCE', 'LÄNGSTE STILLE')}
+          value={r(
+            `${facts.longestSilenceDays} d`,
+            `${facts.longestSilenceDays} T`,
+          )}
+        />
       </div>
 
       {/* bottom stripe */}
@@ -181,7 +224,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       </div>
       <div
         style={{
-          fontSize: 38,
+          fontSize: 48,
           lineHeight: 1.1,
           fontWeight: 700,
         }}
@@ -190,26 +233,4 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       </div>
     </div>
   )
-}
-
-// Shorthand for the attachment dyad enum. Full labels live in the main view;
-// the share card needs something pithy that fits one line.
-function dyadLabelShort(key: string, locale: Locale): string {
-  const de = locale === 'de'
-  const map: Record<string, { en: string; de: string }> = {
-    secure_secure: { en: 'secure · secure', de: 'sicher · sicher' },
-    anxious_avoidant: { en: 'anxious · avoidant', de: 'ängstlich · vermeidend' },
-    avoidant_anxious: { en: 'avoidant · anxious', de: 'vermeidend · ängstlich' },
-    anxious_anxious: { en: 'anxious · anxious', de: 'ängstlich · ängstlich' },
-    avoidant_avoidant: { en: 'avoidant · avoidant', de: 'vermeidend · vermeidend' },
-    secure_anxious: { en: 'secure · anxious', de: 'sicher · ängstlich' },
-    anxious_secure: { en: 'anxious · secure', de: 'ängstlich · sicher' },
-    secure_avoidant: { en: 'secure · avoidant', de: 'sicher · vermeidend' },
-    avoidant_secure: { en: 'avoidant · secure', de: 'vermeidend · sicher' },
-    disorganisiert_beteiligt: { en: 'disorganised mix', de: 'desorganisiert' },
-    unklar: { en: 'mixed signal', de: 'gemischt' },
-  }
-  const entry = map[key]
-  if (!entry) return key
-  return de ? entry.de : entry.en
 }

@@ -9,8 +9,6 @@ import type {
 } from '../ai/types'
 import { SafetyBanner } from './SafetyBanner'
 import { AiDisclosure } from './AiDisclosure'
-import { ShareModal } from './ShareModal'
-import { ShareCard } from './ShareCard'
 import { t, useLocale, type Locale } from '../i18n'
 
 interface Props {
@@ -63,7 +61,6 @@ export function RelationshipView({ result, participants, onBack, onRerun }: Prop
   const locale = useLocale()
   const r = (en: string, de: string) => (locale === 'de' ? de : en)
   const { payload } = result
-  const [shareOpen, setShareOpen] = useState(false)
 
   const colorFor = (name: string): PersonColor => {
     const idx = participants.indexOf(name)
@@ -110,7 +107,6 @@ export function RelationshipView({ result, participants, onBack, onRerun }: Prop
   }
 
   return (
-    <>
     <div className="max-w-4xl mx-auto px-5 md:px-8 pt-12 pb-24 space-y-14">
       <header className="space-y-6 relative">
         {onRerun && (
@@ -144,16 +140,6 @@ export function RelationshipView({ result, participants, onBack, onRerun }: Prop
       <blockquote className="relative font-serif italic text-2xl md:text-4xl leading-snug text-ink pl-6 border-l-2 border-b">
         "{payload.kern_insight}"
       </blockquote>
-
-      <div>
-        <button
-          onClick={() => setShareOpen(true)}
-          className="inline-flex items-center gap-2 bg-pop-yellow text-ink border-2 border-ink px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] hover:bg-ink hover:text-pop-yellow transition-colors"
-          style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
-        >
-          ↗ {r('share this', 'teilen')}
-        </button>
-      </div>
 
       {/* 01 — Coupling. Meter tiles (0-100% sync/rhythm/lexicon) removed — the
           percentages felt made-up and clinical. Prose + quotes carry the read. */}
@@ -431,16 +417,6 @@ export function RelationshipView({ result, participants, onBack, onRerun }: Prop
         "{r('One reading, not the truth. For real talk, see a pro.', 'Eine Lesart, nicht die Wahrheit. Für echte Fragen → zu einer Fachperson.')}"
       </div>
     </div>
-    {shareOpen && (
-      <ShareModal
-        card={<ShareCard payload={payload} participants={participants} locale={locale} />}
-        filename={`spillteato-${participants.slice(0, 2).join('-').toLowerCase().replace(/[^a-z0-9-]+/g, '')}.png`}
-        shareTitle={r('Our analysis', 'Unsere Analyse')}
-        shareText={r('What is actually going on between us', 'Was läuft eigentlich zwischen uns')}
-        onClose={() => setShareOpen(false)}
-      />
-    )}
-    </>
   )
 }
 
