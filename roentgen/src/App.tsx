@@ -263,6 +263,10 @@ function App() {
     setPrepared(snap.prepared ?? null)
     setProfiles(snap.profiles ?? null)
     setRelationship(snap.relationship ?? null)
+    // Library re-opens always go to the scroll layout. The exhibit (slide-by-
+    // slide) is for the first-time post-upload reveal; if the user is back
+    // here via the library, they've already met the chat once.
+    chatLibrary.markExhibitSeen(id)
     setStage('analysis')
   }
 
@@ -430,6 +434,15 @@ function App() {
   const handleCheckoutComplete = () => {
     setCheckout(null)
     void refreshCredits()
+    // After a successful purchase, kick the user back to where they came
+    // from. If a chat is loaded, that's the analysis screen — they almost
+    // always bought credits to unlock a module on it. If there's no chat,
+    // fall back to the library or the upload landing.
+    if (chat) {
+      setStage('analysis')
+    } else {
+      setStage(chatLibrary.get().length > 0 ? 'library' : 'upload')
+    }
     // First-time buyers are on anonymous sessions — nudge them to link
     // Google so the credits survive a cleared browser.
     if (session?.user?.is_anonymous) {
