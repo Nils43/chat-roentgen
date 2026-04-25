@@ -1587,7 +1587,7 @@ function MiniShare({
         disabled={!onShareImage}
         className="btn-pop shrink-0 disabled:opacity-40"
       >
-        {locale === 'de' ? 'als bild' : 'as image'}
+        {locale === 'de' ? 'spill’s' : 'spill it'}
         <span aria-hidden className="ml-1">↗</span>
       </button>
     </div>
