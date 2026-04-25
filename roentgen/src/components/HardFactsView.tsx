@@ -1096,6 +1096,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
           onBuyCredits={onBuyCredits}
           completedModules={completedModules}
           canAnalyzeRelationship={canAnalyzeRelationship}
+          onShareImage={() => setShareOpen(true)}
         />
       ),
     },
@@ -1105,7 +1106,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
       kind: 'content',
       id: 'closing',
       render: () => (
-        <ClosingRoom total={facts.totalMessages} onShare={() => setShareOpen(true)} />
+        <ClosingRoom total={facts.totalMessages} />
       ),
     },
   ]
@@ -1276,7 +1277,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
   )
 }
 
-function ClosingRoom({ total, onShare }: { total: number; onShare?: () => void }) {
+function ClosingRoom({ total }: { total: number }) {
   const locale = useLocale()
   return (
     <section className="min-h-[60vh] flex flex-col justify-center space-y-6">
@@ -1292,17 +1293,6 @@ function ClosingRoom({ total, onShare }: { total: number; onShare?: () => void }
         <br />
         <span className="text-ink-muted">{t('closing.body.bottom', locale)}</span>
       </p>
-      {onShare && (
-        <div className="pt-2">
-          <button
-            onClick={onShare}
-            className="inline-flex items-center gap-2 bg-pop-yellow text-ink border-2 border-ink px-5 py-3 font-mono text-[11px] uppercase tracking-[0.18em] hover:bg-ink hover:text-pop-yellow transition-colors"
-            style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
-          >
-            ↗ {locale === 'de' ? 'als bild teilen' : 'share as image'}
-          </button>
-        </div>
-      )}
       <div className="pt-3 font-mono text-[10px] uppercase tracking-[0.24em] text-ink/40">
         · {t('paywall.endOfTape', locale).replace(/·/g, '').trim()} ·
       </div>
@@ -1322,6 +1312,7 @@ function PaywallRoom({
   onBuyCredits,
   completedModules,
   canAnalyzeRelationship,
+  onShareImage,
 }: {
   personA: string
   personB: string
@@ -1334,6 +1325,7 @@ function PaywallRoom({
   onBuyCredits?: () => void
   completedModules: ModuleId[]
   canAnalyzeRelationship: boolean
+  onShareImage?: () => void
 }) {
   const locale = useLocale()
   const profilesDone = completedModules.includes('profiles')
@@ -1452,7 +1444,13 @@ function PaywallRoom({
         )}
       </div>
 
-      <MiniShare chatId={chatId} personA={personA} personB={personB} isGroup={!canAnalyzeRelationship} />
+      <MiniShare
+        chatId={chatId}
+        personA={personA}
+        personB={personB}
+        isGroup={!canAnalyzeRelationship}
+        onShareImage={onShareImage}
+      />
 
       <div className="pt-6 text-center">
         <div className="inline-block font-mono text-[10px] uppercase tracking-[0.24em] text-ink/40 border-t-2 border-dotted border-ink/30 pt-3 px-6">
@@ -1556,21 +1554,19 @@ function FileCard({
   )
 }
 
-function MiniShare({ chatId, personA, personB, isGroup = false }: { chatId: string | null; personA: string; personB: string; isGroup?: boolean }) {
+function MiniShare({
+  personA,
+  personB,
+  isGroup = false,
+  onShareImage,
+}: {
+  chatId: string | null
+  personA: string
+  personB: string
+  isGroup?: boolean
+  onShareImage?: () => void
+}) {
   const locale = useLocale()
-  const [copied, setCopied] = useState(false)
-  const canShare = Boolean(chatId)
-  const copyLink = async () => {
-    if (!chatId) return
-    const url = `${window.location.origin}/?scroll=${encodeURIComponent(chatId)}`
-    try {
-      await navigator.clipboard.writeText(url)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2400)
-    } catch {
-      /* ignore */
-    }
-  }
   void personA
   const sendLabel = isGroup
     ? (locale === 'de' ? 'AN DIE GRUPPE.' : 'SEND TO THE GROUP.')
@@ -1587,18 +1583,12 @@ function MiniShare({ chatId, personA, personB, isGroup = false }: { chatId: stri
         </span>
       </div>
       <button
-        onClick={copyLink}
-        disabled={!canShare}
+        onClick={onShareImage}
+        disabled={!onShareImage}
         className="btn-pop shrink-0 disabled:opacity-40"
       >
-        {copied ? (
-          <>{t('share.copied', locale)}</>
-        ) : (
-          <>
-            {t('share.copy', locale)}
-            <span aria-hidden className="ml-1">→</span>
-          </>
-        )}
+        {locale === 'de' ? 'als bild' : 'as image'}
+        <span aria-hidden className="ml-1">↗</span>
       </button>
     </div>
   )
