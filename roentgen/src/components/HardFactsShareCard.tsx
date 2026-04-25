@@ -22,10 +22,10 @@ export function HardFactsShareCard({ facts, locale }: Props) {
   )
   const shareLeader = facts.perPerson[shareLeaderIdx]?.author ?? ''
   const shareLeaderPct = facts.perPerson[shareLeaderIdx]?.sharePct ?? 0
-  const shareOther =
-    facts.perPerson.length === 2
-      ? facts.perPerson[shareLeaderIdx === 0 ? 1 : 0]?.author ?? ''
-      : ''
+  // First person whose name differs from the leader — same defensive
+  // pattern as HardFactsView so we never end up printing the leader's
+  // name twice on the card.
+  const shareOther = facts.perPerson.find((p) => p.author !== shareLeader)?.author ?? ''
   const messages = facts.totalMessages.toLocaleString(locale === 'de' ? 'de-DE' : 'en-US')
 
   return (
