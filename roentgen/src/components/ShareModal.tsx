@@ -1,27 +1,27 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { toPng } from 'html-to-image'
-import type { RelationshipPayload } from '../ai/types'
 import { useLocale } from '../i18n'
-import { ShareCard } from './ShareCard'
 
-// Share modal — renders the ShareCard at its real size (1080×1350) inside
-// a scaled-down viewport so the user sees a preview before hitting save.
-// On save we capture the unscaled card via html-to-image, then either
-// hand the PNG to the native share sheet (Web Share API, mobile-first) or
-// fall back to a plain download.
+// Generic share modal. The caller supplies a 1080×1350 card component as
+// `card`; we render it twice — once inside a scaled preview the user can
+// see, once off-screen at full size for html-to-image to capture. The PNG
+// either goes to the native share sheet (Web Share API on mobile) or
+// falls back to a plain download.
 
 interface Props {
-  payload: RelationshipPayload
-  participants: string[]
+  card: ReactNode
+  filename: string
+  shareTitle: string
+  shareText: string
   onClose: () => void
 }
 
 const CARD_WIDTH = 1080
 const CARD_HEIGHT = 1350
 
-export function ShareModal({ payload, participants, onClose }: Props) {
+export function ShareModal({ card, filename, shareTitle, shareText, onClose }: Props) {
   const locale = useLocale()
-  const cardRef = useRef<HTMLDivElement>(null)
+  const captureRef = useRef<HTMLDivElement>(null)
   const [previewScale, setPreviewScale] = useState(0.3)
   const [status, setStatus] = useState<'idle' | 'rendering' | 'done' | 'error'>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -58,10 +58,10 @@ export function ShareModal({ payload, participants, onClose }: Props) {
   const r = (en: string, de: string) => (locale === 'de' ? de : en)
 
   async function render(): Promise<Blob | null> {
-    if (!cardRef.current) return null
-    // Capture at real 1080×1350; pixelRatio=2 would double the file size with
-    // only marginal quality gain — the card design is large-print anyway.
-    const dataUrl = await toPng(cardRef.current, {
+    if (!captureRef.current) return null
+    // Capture the off-screen wrapper. pixelRatio=1 keeps file size sane;
+    // the card design is large-print so it stays crisp on phones.
+    const dataUrl = await toPng(captureRef.current, {
       width: CARD_WIDTH,
       height: CARD_HEIGHT,
       canvasWidth: CARD_WIDTH,
@@ -80,7 +80,6 @@ export function ShareModal({ payload, participants, onClose }: Props) {
     try {
       const blob = await render()
       if (!blob) throw new Error('render_failed')
-      const filename = `spillteato-${participants.slice(0, 2).join('-').toLowerCase().replace(/[^a-z0-9-]+/g, '')}.png`
       const file = new File([blob], filename, { type: 'image/png' })
 
       // Prefer native share sheet (iOS, Android, newer desktops). If the
@@ -91,8 +90,8 @@ export function ShareModal({ payload, participants, onClose }: Props) {
         try {
           await navigator.share({
             files: [file],
-            title: r('Our analysis', 'Unsere Analyse'),
-            text: r('What is actually going on between us', 'Was läuft eigentlich zwischen uns'),
+            title: shareTitle,
+            text: shareText,
           })
           setStatus('done')
           return
@@ -151,8 +150,9 @@ export function ShareModal({ payload, participants, onClose }: Props) {
         </div>
 
         <div className="p-5 md:p-6 space-y-5">
-          {/* Scaled preview. The inner node is the full-size 1080×1350 card
-              that gets captured on save. */}
+          {/* Scaled preview. The inner node renders the card at full size
+              and gets visually shrunk via transform; the off-screen copy
+              below is what the capture pulls from. */}
           <div
             className="mx-auto border-2 border-ink"
             style={{
@@ -170,7 +170,7 @@ export function ShareModal({ payload, participants, onClose }: Props) {
                 transformOrigin: 'top left',
               }}
             >
-              <ShareCard payload={payload} participants={participants} locale={locale} />
+              {card}
             </div>
           </div>
 
@@ -208,8 +208,8 @@ export function ShareModal({ payload, participants, onClose }: Props) {
         </div>
       </div>
 
-      {/* Off-screen render for html-to-image. Keep the node attached and
-          visible so layout metrics are correct; hide it via positioning. */}
+      {/* Off-screen render for html-to-image. Kept attached + visible so
+          layout metrics resolve correctly; hidden via large negative left. */}
       <div
         aria-hidden="true"
         style={{
@@ -219,7 +219,9 @@ export function ShareModal({ payload, participants, onClose }: Props) {
           pointerEvents: 'none',
         }}
       >
-        <ShareCard ref={cardRef} payload={payload} participants={participants} locale={locale} />
+        <div ref={captureRef} style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}>
+          {card}
+        </div>
       </div>
     </div>
   )

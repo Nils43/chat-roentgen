@@ -1,25 +1,24 @@
-import type { RelationshipPayload } from '../ai/types'
+import type { PersonProfile } from '../ai/types'
 import type { Locale } from '../i18n'
 
-// Relationship share card — rendered at its real 1080×1350 size so
-// html-to-image can capture a crisp 4:5 Instagram-ready PNG regardless of
-// viewport. The caller shows a scaled-down preview via CSS transform on an
-// outer wrapper; this component itself never scales.
+// Profile share card — same 1080×1350 brand template as ShareCard, but
+// pulls from a single-person PersonProfile. Highlights the kern_insight
+// (the headline punch) plus two cheap-to-grasp metrics: attachment style
+// and Horney orientation.
 
 interface Props {
-  payload: RelationshipPayload
-  participants: string[]
+  profile: PersonProfile
   locale: Locale
 }
 
 const WIDTH = 1080
 const HEIGHT = 1350
 
-export function ShareCard({ payload, participants, locale }: Props) {
+export function ProfileShareCard({ profile, locale }: Props) {
   const r = (en: string, de: string) => (locale === 'de' ? de : en)
-  const names = participants.slice(0, 2).join(' & ')
-  const attunement = payload.kopplung?.attunement ?? null
-  const dyadKey = payload.bindungsdyade?.konstellation ?? null
+  const name = profile.person ?? '—'
+  const bowlby = bowlbyShort(profile.bowlby?.tendenz, locale)
+  const horney = horneyShort(profile.horney?.orientierung, locale)
 
   return (
     <div
@@ -51,43 +50,44 @@ export function ShareCard({ payload, participants, locale }: Props) {
           color: '#0A0A0A',
         }}
       >
-        <span>{r('relationship analysis', 'beziehungsanalyse')}</span>
+        <span>{r('portrait', 'portrait')}</span>
         <span>spillteato.me</span>
       </div>
 
-      {/* participant names */}
+      {/* person name */}
       <div
         style={{
           position: 'absolute',
           top: 150,
           left: 64,
           right: 64,
-          fontSize: 88,
+          fontSize: 110,
           lineHeight: 0.92,
           letterSpacing: '-0.02em',
+          fontStyle: 'italic',
           fontWeight: 700,
         }}
       >
-        {names}
+        {name}.
       </div>
 
-      {/* core insight — the headline */}
+      {/* core insight */}
       <div
         style={{
           position: 'absolute',
-          top: 310,
+          top: 320,
           left: 64,
           right: 64,
-          fontSize: 68,
-          lineHeight: 1.08,
+          fontSize: 64,
+          lineHeight: 1.1,
           letterSpacing: '-0.01em',
           fontStyle: 'italic',
           fontWeight: 400,
-          maxHeight: 650,
+          maxHeight: 640,
           overflow: 'hidden',
         }}
       >
-        “{payload.kern_insight}”
+        “{profile.kern_insight}”
       </div>
 
       {/* metrics strip */}
@@ -101,16 +101,16 @@ export function ShareCard({ payload, participants, locale }: Props) {
           gap: 16,
         }}
       >
-        {attunement !== null && (
+        {bowlby && (
           <MetricCard
-            label={r('ATTUNEMENT', 'ATTUNEMENT')}
-            value={`${attunement}/100`}
+            label={r('ATTACHMENT', 'BINDUNG')}
+            value={bowlby}
           />
         )}
-        {dyadKey && (
+        {horney && (
           <MetricCard
-            label={r('DYNAMIC', 'DYNAMIK')}
-            value={dyadLabelShort(dyadKey, locale)}
+            label={r('STANCE', 'HALTUNG')}
+            value={horney}
           />
         )}
       </div>
@@ -181,7 +181,7 @@ function MetricCard({ label, value }: { label: string; value: string }) {
       </div>
       <div
         style={{
-          fontSize: 38,
+          fontSize: 36,
           lineHeight: 1.1,
           fontWeight: 700,
         }}
@@ -192,24 +192,33 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   )
 }
 
-// Shorthand for the attachment dyad enum. Full labels live in the main view;
-// the share card needs something pithy that fits one line.
-function dyadLabelShort(key: string, locale: Locale): string {
+// Pithy one-liner for the Bowlby attachment tendency. Long-form labels live
+// in ProfileView; here we want something that fits on one card line.
+function bowlbyShort(t: string | undefined, locale: Locale): string | null {
+  if (!t) return null
   const de = locale === 'de'
   const map: Record<string, { en: string; de: string }> = {
-    secure_secure: { en: 'secure · secure', de: 'sicher · sicher' },
-    anxious_avoidant: { en: 'anxious · avoidant', de: 'ängstlich · vermeidend' },
-    avoidant_anxious: { en: 'avoidant · anxious', de: 'vermeidend · ängstlich' },
-    anxious_anxious: { en: 'anxious · anxious', de: 'ängstlich · ängstlich' },
-    avoidant_avoidant: { en: 'avoidant · avoidant', de: 'vermeidend · vermeidend' },
-    secure_anxious: { en: 'secure · anxious', de: 'sicher · ängstlich' },
-    anxious_secure: { en: 'anxious · secure', de: 'ängstlich · sicher' },
-    secure_avoidant: { en: 'secure · avoidant', de: 'sicher · vermeidend' },
-    avoidant_secure: { en: 'avoidant · secure', de: 'vermeidend · sicher' },
-    disorganisiert_beteiligt: { en: 'disorganised mix', de: 'desorganisiert' },
-    unklar: { en: 'mixed signal', de: 'gemischt' },
+    sicher: { en: 'secure', de: 'sicher' },
+    aengstlich_ambivalent: { en: 'anxious', de: 'ängstlich' },
+    vermeidend: { en: 'avoidant', de: 'vermeidend' },
+    desorganisiert: { en: 'disorganised', de: 'desorganisiert' },
   }
-  const entry = map[key]
-  if (!entry) return key
+  const entry = map[t]
+  if (!entry) return t
+  return de ? entry.de : entry.en
+}
+
+// Karen Horney's three orientations, condensed for the card.
+function horneyShort(o: string | undefined, locale: Locale): string | null {
+  if (!o) return null
+  const de = locale === 'de'
+  const map: Record<string, { en: string; de: string }> = {
+    zu_menschen: { en: 'toward people', de: 'zu Menschen hin' },
+    gegen_menschen: { en: 'against people', de: 'gegen Menschen' },
+    von_menschen: { en: 'away from people', de: 'von Menschen weg' },
+    gemischt: { en: 'mixed', de: 'gemischt' },
+  }
+  const entry = map[o]
+  if (!entry) return o
   return de ? entry.de : entry.en
 }

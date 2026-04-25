@@ -2,6 +2,8 @@ import { useState } from 'react'
 import type { ProfileResult } from '../ai/types'
 import { t, useLocale, type Locale } from '../i18n'
 import { AiDisclosure } from './AiDisclosure'
+import { ShareModal } from './ShareModal'
+import { ProfileShareCard } from './ProfileShareCard'
 
 interface Props {
   profiles: ProfileResult[]
@@ -89,6 +91,7 @@ function ProfileCard({ result, colorIdx, locale }: { result: ProfileResult; colo
   const { profile } = result
   const c = PERSON_COLORS[colorIdx % PERSON_COLORS.length]
   const r = (en: string, de: string) => (locale === 'de' ? de : en)
+  const [shareOpen, setShareOpen] = useState(false)
 
   return (
     <article className={`card relative overflow-hidden`}>
@@ -103,9 +106,29 @@ function ProfileCard({ result, colorIdx, locale }: { result: ProfileResult; colo
       </header>
 
       {/* Key insight */}
-      <blockquote className={`relative font-serif italic text-2xl md:text-3xl leading-snug ${c.text} mb-10 pl-6 border-l-2 ${c.bg.replace('bg-', 'border-')}`}>
+      <blockquote className={`relative font-serif italic text-2xl md:text-3xl leading-snug ${c.text} mb-6 pl-6 border-l-2 ${c.bg.replace('bg-', 'border-')}`}>
         "{profile.kern_insight}"
       </blockquote>
+
+      <div className="mb-10">
+        <button
+          onClick={() => setShareOpen(true)}
+          className="inline-flex items-center gap-2 bg-pop-yellow text-ink border-2 border-ink px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] hover:bg-ink hover:text-pop-yellow transition-colors"
+          style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
+        >
+          ↗ {r('share this', 'teilen')}
+        </button>
+      </div>
+
+      {shareOpen && (
+        <ShareModal
+          card={<ProfileShareCard profile={profile} locale={locale} />}
+          filename={`spillteato-${(profile.person ?? 'portrait').toLowerCase().replace(/[^a-z0-9-]+/g, '')}.png`}
+          shareTitle={r('My portrait', 'Mein Portrait')}
+          shareText={r('What this chat actually says about me', 'Was dieser Chat eigentlich über mich sagt')}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
 
       {/* How they write — prose only, numeric axis sliders were too clinical. */}
       <section className="mb-10">

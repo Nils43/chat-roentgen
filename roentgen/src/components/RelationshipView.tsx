@@ -10,6 +10,7 @@ import type {
 import { SafetyBanner } from './SafetyBanner'
 import { AiDisclosure } from './AiDisclosure'
 import { ShareModal } from './ShareModal'
+import { ShareCard } from './ShareCard'
 import { t, useLocale, type Locale } from '../i18n'
 
 interface Props {
@@ -432,8 +433,10 @@ export function RelationshipView({ result, participants, onBack, onRerun }: Prop
     </div>
     {shareOpen && (
       <ShareModal
-        payload={payload}
-        participants={participants}
+        card={<ShareCard payload={payload} participants={participants} locale={locale} />}
+        filename={`spillteato-${participants.slice(0, 2).join('-').toLowerCase().replace(/[^a-z0-9-]+/g, '')}.png`}
+        shareTitle={r('Our analysis', 'Unsere Analyse')}
+        shareText={r('What is actually going on between us', 'Was läuft eigentlich zwischen uns')}
         onClose={() => setShareOpen(false)}
       />
     )}
