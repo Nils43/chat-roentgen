@@ -189,16 +189,6 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
               accent={facts.longestSilenceDays >= 7}
             />
           </section>
-
-          <div>
-            <button
-              onClick={() => setShareOpen(true)}
-              className="inline-flex items-center gap-2 bg-pop-yellow text-ink border-2 border-ink px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] hover:bg-ink hover:text-pop-yellow transition-colors"
-              style={{ boxShadow: '3px 3px 0 #0A0A0A' }}
-            >
-              ↗ {locale === 'de' ? 'als bild teilen' : 'share as image'}
-            </button>
-          </div>
         </section>
       ),
     },
@@ -1115,7 +1105,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
       kind: 'content',
       id: 'closing',
       render: () => (
-        <ClosingRoom total={facts.totalMessages} />
+        <ClosingRoom total={facts.totalMessages} onShare={() => setShareOpen(true)} />
       ),
     },
   ]
@@ -1286,7 +1276,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
   )
 }
 
-function ClosingRoom({ total }: { total: number }) {
+function ClosingRoom({ total, onShare }: { total: number; onShare?: () => void }) {
   const locale = useLocale()
   return (
     <section className="min-h-[60vh] flex flex-col justify-center space-y-6">
@@ -1302,6 +1292,17 @@ function ClosingRoom({ total }: { total: number }) {
         <br />
         <span className="text-ink-muted">{t('closing.body.bottom', locale)}</span>
       </p>
+      {onShare && (
+        <div className="pt-2">
+          <button
+            onClick={onShare}
+            className="inline-flex items-center gap-2 bg-pop-yellow text-ink border-2 border-ink px-5 py-3 font-mono text-[11px] uppercase tracking-[0.18em] hover:bg-ink hover:text-pop-yellow transition-colors"
+            style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+          >
+            ↗ {locale === 'de' ? 'als bild teilen' : 'share as image'}
+          </button>
+        </div>
+      )}
       <div className="pt-3 font-mono text-[10px] uppercase tracking-[0.24em] text-ink/40">
         · {t('paywall.endOfTape', locale).replace(/·/g, '').trim()} ·
       </div>
