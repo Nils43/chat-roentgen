@@ -52,6 +52,15 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
   const moreShareIdx = facts.perPerson.length > 0 ? argmax('sharePct') : 0
   const shareLeader = facts.perPerson[moreShareIdx]?.author ?? personA
   const shareLeaderPct = facts.perPerson[moreShareIdx]?.sharePct ?? 50
+  // "The other one" relative to the share leader. Hardcoding personB broke
+  // the opener line whenever person B happened to be the louder writer —
+  // the sentence then printed their name twice ("Antonia writes 50%.
+  // Antonia takes the rest."). For N=2 this is just the non-leader; for
+  // groups we fall back to personB so the copy still parses.
+  const shareOther =
+    facts.perPerson.length === 2
+      ? facts.perPerson[moreShareIdx === 0 ? 1 : 0]?.author ?? personB
+      : personB
   const moreHedgeIdx = facts.perPerson.length > 0 ? argmax('hedgeRatio') : 0
   const hedgePct = Math.round((facts.perPerson[moreHedgeIdx]?.hedgeRatio ?? 0) * 100)
   const fasterIdx = facts.perPerson.reduce(
@@ -144,11 +153,11 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
                   <span className="circled">{shareLeader}</span>{' '}
                   {locale === 'de' ? (
                     <>
-                      macht <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong>. {personB && <><span className="circled">{personB}</span> den rest.</>}
+                      macht <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong>. {shareOther && <><span className="circled">{shareOther}</span> den rest.</>}
                     </>
                   ) : (
                     <>
-                      writes <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong>. {personB && <><span className="circled">{personB}</span> takes the rest.</>}
+                      writes <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong>. {shareOther && <><span className="circled">{shareOther}</span> takes the rest.</>}
                     </>
                   )}
                 </>
