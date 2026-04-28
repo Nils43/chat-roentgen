@@ -25,7 +25,7 @@ flowchart LR
         PA[Parser]
         HF[Hard Facts]
         IT[Interpretations]
-        UI[UI / Charts]
+        UI["UI / Charts"]
         EV[Evidence Packet]
         PS[Pseudonymize]
         LS[IndexedDB]
@@ -33,8 +33,8 @@ flowchart LR
     end
 
     subgraph SV["Server layer — Vercel functions"]
-        AX[/api/analyze<br/>credit + proxy/]
-        ST[/api/checkout<br/>+ webhook/]
+        AX["api/analyze<br/>credit + proxy"]
+        ST["api/checkout<br/>+ webhook"]
     end
 
     subgraph EX["External services"]
@@ -44,7 +44,7 @@ flowchart LR
     end
 
     UP --> PA --> HF --> IT --> UI
-    UI -. user clicks "analyze" .-> EV
+    UI -. user clicks analyze .-> EV
     HF --> EV
     PA --> EV
     EV --> PS --> AX --> AN
