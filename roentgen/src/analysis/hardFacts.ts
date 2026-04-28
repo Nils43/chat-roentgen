@@ -1,7 +1,23 @@
 import type { Message, ParsedChat } from '../parser/types'
 
-// Hard Facts — module 01. Everything in this file runs in the browser.
-// No network. No persistence. Pure functions over Message[].
+// Hard Facts — module 01. The privacy story rides on this file: every stat
+// the user sees in the opener exhibit is produced here, in the browser,
+// with zero network calls. That is by design, not coincidence — the AI
+// modules only run after explicit consent, so any stat that needs server
+// help would silently break the "no chat leaves your device unless you say
+// so" contract.
+//
+// Constraints, in order of importance:
+//   1. Pure functions. No window, no fetch, no Date.now() except via the
+//      message timestamps already in `chat`. Everything is deterministic
+//      given the same input → trivial to test, trivial to reason about.
+//   2. Single pass where possible. Some chats hit 50 k+ messages; nested
+//      loops over Message[] start to feel laggy in the parsing animation.
+//   3. No throwing. A malformed message gets defaults, not a crash — the
+//      parser already filters obvious garbage upstream.
+//
+// If you find yourself reaching for `await` in this file, stop and put
+// that work behind an explicit user action somewhere else.
 
 export interface PerPersonStats {
   author: string

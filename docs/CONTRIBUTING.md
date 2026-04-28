@@ -136,6 +136,19 @@ If you're not sure, open an issue first and describe what you're trying to do.
 - Every non-obvious regex gets at least one example line above it. The parser has many of these — match the style.
 - If you discover a non-obvious WhatsApp quirk, document it inline. The next person will save an hour.
 
+#### Exemplars
+
+When in doubt, mirror the comment style of these four files. Each one is short on what-comments and heavy on why-comments — invariants, non-obvious decisions, links between distant pieces of code, things that would surprise a careful reader.
+
+| File | What to learn from it |
+|---|---|
+| [`roentgen/api/analyze.ts`](../roentgen/api/analyze.ts) | Server-layer rationale: why `maxDuration: 60`, why retries are bounded by a deadline, why the refund path lives in two places, why `_supabase` imports are static. |
+| [`roentgen/src/ai/pseudonymize.ts`](../roentgen/src/ai/pseudonymize.ts) | Privacy invariants and two-pass regex reasoning. The function-level comments explain *why* full-name passes happen before token passes, and what the case-insensitive restoration is guarding against. |
+| [`roentgen/src/analysis/hardFacts.ts`](../roentgen/src/analysis/hardFacts.ts) | Pure-function discipline. The top-of-file rationale links the file to the product's privacy promise and explicitly forbids `await`. |
+| [`roentgen/src/ai/relationship.ts`](../roentgen/src/ai/relationship.ts) | Architecture decision recorded next to the code it affects: why three parallel chunks instead of one call, with the latency math that drove the choice. |
+
+A comment that simply restates the next line ("// loop over messages") is worse than no comment — it adds noise and rots faster than the code it describes. If you can delete a comment without losing information, delete it.
+
 ### Linting
 
 ESLint is configured in `eslint.config.js` with the React + TypeScript presets. Don't disable rules in passing — if a rule fights you, raise it on the PR.
