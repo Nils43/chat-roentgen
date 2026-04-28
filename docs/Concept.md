@@ -19,47 +19,45 @@
 The codebase splits into three layers: a **browser layer** that does almost everything, a **server layer** that exists only because two specific things can't run in the browser (an API key and a payment webhook), and an **external services** layer for the APIs we depend on.
 
 ```mermaid
-flowchart LR
-    subgraph BR["Browser layer"]
-        UP[Upload .txt or .zip]
-        PA[Parser]
-        HF[Hard Facts]
-        IT[Interpretations]
-        UI["UI / Charts"]
-        EV[Evidence Packet]
-        PS[Pseudonymize]
-        LS[IndexedDB]
-        LSL[localStorage]
+flowchart TB
+    subgraph BR["1 · Browser — your device"]
+        direction LR
+        UP[Upload<br/>.txt / .zip] --> PA[Parser] --> HF[Hard Facts] --> UI[UI + Charts]
+        UI <--> STORE[("IndexedDB +<br/>localStorage")]
+        HF --> EV[Evidence Packet]
+        UI -. consent .-> EV
+        EV --> PS[Pseudonymize]
     end
 
-    subgraph SV["Server layer — Vercel functions"]
+    subgraph SV["2 · Server — Vercel functions"]
+        direction LR
         AX["api/analyze<br/>credit + proxy"]
-        ST["api/checkout<br/>+ webhook"]
+        CK["api/checkout<br/>+ webhook"]
     end
 
-    subgraph EX["External services"]
+    subgraph EX["3 · Third-party services"]
+        direction LR
         AN[Anthropic]
         SU[Supabase]
         SP[Stripe]
     end
 
-    UP --> PA --> HF --> IT --> UI
-    UI -. user clicks analyze .-> EV
-    HF --> EV
-    PA --> EV
-    EV --> PS --> AX --> AN
-    AN --> AX --> PS
-    PS -. restore real names .-> UI
-    UI <--> LS
-    UI <--> LSL
-    UI <--> SU
-    UI <--> SP
-    SP <--> ST
-    ST <--> SU
+    PS -->|pseudonymized<br/>packet| AX
+    AX <--> AN
+    AX -. restored names .-> UI
 
-    classDef br fill:#dcfce7,stroke:#16a34a,color:#000
-    classDef sv fill:#fee2e2,stroke:#dc2626,color:#000
-    classDef ex fill:#e0e7ff,stroke:#4f46e5,color:#000
+    UI <-->|auth + credits| SU
+    UI <-->|checkout| SP
+    SP -->|webhook| CK
+    CK -->|grant credits| SU
+
+    classDef br fill:#dcfce7,stroke:#16a34a,color:#000,stroke-width:2px
+    classDef sv fill:#fee2e2,stroke:#dc2626,color:#000,stroke-width:2px
+    classDef ex fill:#e0e7ff,stroke:#4f46e5,color:#000,stroke-width:2px
+
+    class UP,PA,HF,UI,STORE,EV,PS br
+    class AX,CK sv
+    class AN,SU,SP ex
 ```
 
 **What each layer does.**
