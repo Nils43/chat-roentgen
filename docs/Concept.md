@@ -14,51 +14,55 @@
 
 ---
 
-## 1. The architecture in one diagram
+## 1. The architecture in two diagrams
 
-The codebase splits into three layers: a **browser layer** that does almost everything, a **server layer** that exists only because two specific things can't run in the browser (an API key and a payment webhook), and an **external services** layer for the APIs we depend on.
+The codebase splits into three layers: a **browser layer** that does almost everything, a **server layer** that exists only because two specific things can't run in the browser (an API key and a payment webhook), and an **external services** layer for the APIs we depend on. Two separate flows run on top of those layers — chat analysis and account/payments — so we draw them separately to keep each one readable.
+
+### Flow A — chat analysis
+
+A WhatsApp export becomes statistics, then (only on consent) a pseudonymized packet that travels through our proxy to Anthropic and comes back with the analysis.
 
 ```mermaid
 flowchart TB
-    subgraph BR["1 · Browser — your device"]
-        direction LR
-        UP[Upload<br/>.txt / .zip] --> PA[Parser] --> HF[Hard Facts] --> UI[UI + Charts]
-        UI <--> STORE[("IndexedDB +<br/>localStorage")]
-        HF --> EV[Evidence Packet]
-        UI -. consent .-> EV
-        EV --> PS[Pseudonymize]
-    end
-
-    subgraph SV["2 · Server — Vercel functions"]
-        direction LR
-        AX["api/analyze<br/>credit + proxy"]
-        CK["api/checkout<br/>+ webhook"]
-    end
-
-    subgraph EX["3 · Third-party services"]
-        direction LR
-        AN[Anthropic]
-        SU[Supabase]
-        SP[Stripe]
-    end
-
-    PS -->|pseudonymized<br/>packet| AX
-    AX <--> AN
+    UP[Upload .txt / .zip] --> PA[Parser] --> HF[Hard Facts] --> UI[UI + Charts]
+    UI <--> ST[(Local storage)]
+    HF --> EV[Evidence Packet]
+    UI -. consent .-> EV
+    EV --> PS[Pseudonymize]
+    PS -->|pseudonymized| AX["api/analyze<br/>credit + proxy"]
+    AX <--> AN[Anthropic]
     AX -. restored names .-> UI
-
-    UI <-->|auth + credits| SU
-    UI <-->|checkout| SP
-    SP -->|webhook| CK
-    CK -->|grant credits| SU
 
     classDef br fill:#dcfce7,stroke:#16a34a,color:#000,stroke-width:2px
     classDef sv fill:#fee2e2,stroke:#dc2626,color:#000,stroke-width:2px
     classDef ex fill:#e0e7ff,stroke:#4f46e5,color:#000,stroke-width:2px
-
-    class UP,PA,HF,UI,STORE,EV,PS br
-    class AX,CK sv
-    class AN,SU,SP ex
+    class UP,PA,HF,UI,ST,EV,PS br
+    class AX sv
+    class AN ex
 ```
+
+Green = browser, red = server, blue = external. The dotted edges are the parts the user controls explicitly: their consent triggers the AI call, and the response gets the real names spliced back in client-side before anything is rendered.
+
+### Flow B — accounts and payments
+
+The browser talks directly to Supabase (auth + credit balance) and Stripe (checkout) via their JS SDKs. The only server hop is the Stripe webhook, which credits the account after a successful purchase.
+
+```mermaid
+flowchart LR
+    UI2[Browser UI] -->|1. checkout| SP[Stripe]
+    SP -->|2. webhook| CK["api/checkout<br/>+ webhook"]
+    CK -->|3. grant credits| SU[Supabase]
+    UI2 <-->|auth + balance| SU
+
+    classDef br fill:#dcfce7,stroke:#16a34a,color:#000,stroke-width:2px
+    classDef sv fill:#fee2e2,stroke:#dc2626,color:#000,stroke-width:2px
+    classDef ex fill:#e0e7ff,stroke:#4f46e5,color:#000,stroke-width:2px
+    class UI2 br
+    class CK sv
+    class SP,SU ex
+```
+
+The chat content from Flow A never appears in Flow B, and vice versa. They share only the user identity (a Supabase UUID).
 
 **What each layer does.**
 
