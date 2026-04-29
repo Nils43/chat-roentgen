@@ -63,6 +63,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
   const shareOther = facts.perPerson.find((p) => p.author !== shareLeader)?.author
   const moreHedgeIdx = facts.perPerson.length > 0 ? argmax('hedgeRatio') : 0
   const hedgePct = Math.round((facts.perPerson[moreHedgeIdx]?.hedgeRatio ?? 0) * 100)
+  const hedgeLeader = facts.perPerson[moreHedgeIdx]?.author ?? personA
   const fasterIdx = facts.perPerson.reduce(
     (best, p, i, arr) => (p.medianReplyMs != null && (arr[best].medianReplyMs == null || p.medianReplyMs < arr[best].medianReplyMs!) ? i : best),
     0,
@@ -1089,7 +1090,9 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
           personB={personB}
           shareLeader={shareLeader}
           shareLeaderPct={shareLeaderPct}
+          shareOther={shareOther}
           hedgePct={hedgePct}
+          hedgeLeader={hedgeLeader}
           chatId={chatId ?? null}
           onStart={handleModule}
           creditsBalance={creditsBalance}
@@ -1380,7 +1383,9 @@ function PaywallRoom({
   personB,
   shareLeader,
   shareLeaderPct,
+  shareOther,
   hedgePct,
+  hedgeLeader,
   chatId,
   onStart,
   creditsBalance,
@@ -1393,7 +1398,9 @@ function PaywallRoom({
   personB: string
   shareLeader: string
   shareLeaderPct: number
+  shareOther?: string
   hedgePct: number
+  hedgeLeader: string
   chatId: string | null
   onStart: (m: ModuleId) => void
   creditsBalance: number
@@ -1425,6 +1432,32 @@ function PaywallRoom({
     `the rule neither of you said out loud`,
     `who leads, who follows, and when it flipped`,
   ]
+
+  // Blur-preview teasers — one real fact computed from the chat (the user CAN
+  // read this) plus a plausible-shaped interpretation we render under a CSS
+  // blur. Goal is to lift the FileCards out of "we promise you bullets" into
+  // "we already read your chat — here is one observation, the rest is one
+  // click away".
+  const file01Preview = {
+    headline:
+      locale === 'de'
+        ? `${hedgeLeader} weicht in ${hedgePct}% der Nachrichten ab`
+        : `${hedgeLeader} hedges ${hedgePct}% of the time`,
+    blurred:
+      locale === 'de'
+        ? `Das ist die Stimme von jemandem, der ein nein lieber in ein vielleicht packt — eine kleine soziale Versicherung gegen den Konflikt, die mit der Zeit zur Identität wird. Du wartest nicht auf eine Antwort, du wartest auf die Erlaubnis sie zu wollen.`
+        : `That's the voice of someone who tucks a no into a maybe by reflex — a tiny social insurance against conflict that hardens into identity over time. You are not waiting for an answer, you are waiting for permission to want one.`,
+  }
+  const file02Preview = {
+    headline:
+      locale === 'de'
+        ? `${shareLeader} macht ${Math.round(shareLeaderPct)}% — ${shareOther ?? personB} den Rest`
+        : `${shareLeader} writes ${Math.round(shareLeaderPct)}% — ${shareOther ?? personB} takes the rest`,
+    blurred:
+      locale === 'de'
+        ? `Asymmetrie ist nicht das Problem; das Muster ist. Wer mehr schreibt, hält die Verbindung offen — wer wenig sagt, lässt sich umwerben. Über Monate verschiebt sich, wer wem gehört.`
+        : `The asymmetry isn't the problem; the pattern is. Whoever writes more keeps the line open — whoever says less is the one being courted. Over months, that shifts who belongs to whom.`,
+  }
 
   return (
     <section className="space-y-6 md:space-y-8 relative">
@@ -1499,6 +1532,7 @@ function PaywallRoom({
           tag={`${t('paywall.file.about', locale)} ${personA.toLowerCase()}`}
           lede={t('paywall.file01.lede', locale, { name: personA.toLowerCase() })}
           bullets={youBullets}
+          preview={file01Preview}
           tilt={-0.4}
           done={profilesDone}
           onPick={() => onStart('profiles')}
@@ -1511,6 +1545,7 @@ function PaywallRoom({
             tag={`${personA.toLowerCase()} × ${personB.toLowerCase()}`}
             lede={t('paywall.file02.lede', locale, { a: personA.toLowerCase(), b: personB.toLowerCase() })}
             bullets={usBullets}
+            preview={file02Preview}
             tilt={0.5}
             done={relationshipDone}
             onPick={() => onStart('relationship')}
@@ -1543,6 +1578,7 @@ function FileCard({
   tag,
   lede,
   bullets,
+  preview,
   tilt,
   done,
   loading,
@@ -1553,6 +1589,12 @@ function FileCard({
   tag: string
   lede: string
   bullets: string[]
+  /** Optional teaser block: a real, readable headline derived from the user's
+   *  Hard Facts plus a blurred plausible interpretation. The point is to lift
+   *  the FileCard from "we promise you bullets" to "we already read your chat
+   *  — here's one observation, the rest is one click away." Hidden once the
+   *  user has unlocked this file (the real analysis is now available). */
+  preview?: { headline: string; blurred: string }
   tilt: number
   done?: boolean
   loading?: boolean
@@ -1591,6 +1633,35 @@ function FileCard({
       <p className="mt-2 serif-body text-sm md:text-base text-ink/80 leading-snug">
         {lede}
       </p>
+
+      {preview && !done && (
+        <div className="mt-4 border-2 border-ink/20 border-dashed p-3 bg-ink/[0.02] relative">
+          <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink/60 mb-1.5">
+            {locale === 'de' ? 'eine beobachtung' : 'one observation'}
+          </div>
+          <div className="serif-body text-sm md:text-base text-ink leading-snug mb-2">
+            {preview.headline}
+          </div>
+          <div
+            className="serif-body italic text-sm md:text-base text-ink/90 leading-snug select-none"
+            style={{ filter: 'blur(5px)', userSelect: 'none' }}
+            aria-hidden="true"
+          >
+            {preview.blurred}
+          </div>
+          <span
+            className="absolute right-2 bottom-2 inline-flex items-center gap-1 px-1.5 py-0.5 bg-ink text-pop-yellow"
+            style={{
+              fontFamily: "'Bebas Neue', sans-serif",
+              fontSize: '11px',
+              letterSpacing: '0.06em',
+              boxShadow: '2px 2px 0 #0A0A0A',
+            }}
+          >
+            ✦ {locale === 'de' ? 'freischalten' : 'unlock'}
+          </span>
+        </div>
+      )}
 
       <ul className="mt-3 space-y-1 border-t-2 border-ink/20 border-dashed pt-3 flex-1">
         {bullets.map((b, i) => (

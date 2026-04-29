@@ -106,8 +106,8 @@ export function CreditsPage({ onBuy, onBack, onSignIn }: Props) {
         </div>
       ) : null}
 
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-        {PACKS.map((p) => (
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+        {PACKS.filter((p) => !p.discreet).map((p) => (
           <PackCard
             key={p.id}
             pack={p}
@@ -117,6 +117,20 @@ export function CreditsPage({ onBuy, onBack, onSignIn }: Props) {
           />
         ))}
       </section>
+
+      {PACKS.filter((p) => p.discreet).map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => handleBuy(p)}
+          disabled={pending !== null}
+          className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink/55 hover:text-ink underline underline-offset-4 decoration-dotted disabled:opacity-50"
+        >
+          {pending === p.id
+            ? r('opening checkout…', 'öffne checkout…')
+            : r(`or grab one credit for €${p.priceEur} →`, `oder ein credit für €${p.priceEur} →`)}
+        </button>
+      ))}
 
       {err && (
         <div
@@ -176,7 +190,7 @@ function PackCard({
     >
       {pack.badge && (
         <div
-          className="absolute -top-3 -right-3 px-2.5 py-1 bg-ink text-pop-yellow border-2 border-ink pointer-events-none"
+          className="absolute -top-3 -right-3 px-2.5 py-1 bg-ink text-pop-yellow border-2 border-ink pointer-events-none max-w-[14ch] text-center leading-tight"
           style={{
             fontFamily: "'Bebas Neue', sans-serif",
             fontSize: '12px',
@@ -185,7 +199,7 @@ function PackCard({
             boxShadow: '2px 2px 0 #0A0A0A',
           }}
         >
-          {pack.badge}
+          {localizeBadge(pack.badge, locale)}
         </div>
       )}
       <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink/70 mb-2">
@@ -254,4 +268,16 @@ function TxnRow({ t, locale }: { t: Transaction; locale: 'en' | 'de' }) {
       </span>
     </li>
   )
+}
+
+// Pack badges are stored as English text strings in packs.ts (UI-only metadata,
+// no logic depends on them). Translate at render time so the data layer stays
+// language-agnostic and Stripe-side strings don't drift.
+function localizeBadge(badge: string, locale: string): string {
+  if (locale !== 'de') return badge
+  const map: Record<string, string> = {
+    'first read + second on us': 'erste analyse + zweite gratis',
+    'best value': 'bestes angebot',
+  }
+  return map[badge] ?? badge
 }
