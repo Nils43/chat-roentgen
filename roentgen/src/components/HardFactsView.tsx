@@ -1193,6 +1193,8 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
             key="early-unlock"
             locale={locale}
             canAnalyzeRelationship={canAnalyzeRelationship}
+            shareLeader={shareLeader}
+            shareLeaderPct={shareLeaderPct}
             onBuyCredits={onBuyCredits}
           />,
         )
@@ -1311,51 +1313,105 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
 // scroll, but a chat with a noticeable asymmetry should not require a long
 // scroll before the buy CTA shows up. Hidden once the user already has
 // credits — the bottom paywall room handles the "spend them" action.
+//
+// Copy strategy: the user just saw their numbers. The job here is not to
+// explain the product but to put a question in their head they cannot
+// answer themselves — anchored on their own real stats so the question
+// feels personal, not generic SaaS.
 function EarlyUnlock({
   locale,
   canAnalyzeRelationship,
+  shareLeader,
+  shareLeaderPct,
   onBuyCredits,
 }: {
   locale: ReturnType<typeof useLocale>
   canAnalyzeRelationship: boolean
+  shareLeader: string
+  shareLeaderPct: number
   onBuyCredits?: () => void
 }) {
   if (!onBuyCredits) return null
-  const lede =
-    locale === 'de'
-      ? canAnalyzeRelationship
-        ? 'Wer den Chat trägt. Wer sich rausnimmt. Welcher Move sich seit Monaten wiederholt. Die KI hat\'s gesehen — sie schreibt\'s nur auf, wenn du klickst.'
-        : 'Wie du schreibst, wenn du nervös wirst. Was du wiederholst, ohne es zu merken. Welche Tells dich verraten. Die KI hat\'s gesehen — sie schreibt\'s nur auf, wenn du klickst.'
-      : canAnalyzeRelationship
-        ? 'Who carries the chat. Who pulls back. The move that keeps repeating. The AI has seen it — it only writes it out when you click.'
-        : 'How you write when you\'re nervous. What you repeat without noticing. The tells that give you away. The AI has seen it — it only writes it out when you click.'
+  const pct = Math.round(shareLeaderPct)
   const cta =
     locale === 'de'
       ? canAnalyzeRelationship
-        ? 'Beide Analysen · €5'
-        : 'Persönliches Profil · €3'
+        ? 'BEIDE ANALYSEN · €5'
+        : 'PERSÖNLICHES PROFIL · €3'
       : canAnalyzeRelationship
-        ? 'Both analyses · €5'
-        : 'Personal profile · €3'
+        ? 'BOTH ANALYSES · €5'
+        : 'PERSONAL PROFILE · €3'
   return (
     <section
-      className="bg-pop-yellow border-2 border-ink p-5 md:p-7 max-w-2xl"
+      className="bg-pop-yellow border-2 border-ink p-6 md:p-9 max-w-3xl"
       style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.4deg)' }}
     >
       <div
-        className="text-xs uppercase tracking-[0.2em] text-ink mb-3"
+        className="text-xs uppercase tracking-[0.2em] text-ink mb-4"
         style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.16em' }}
       >
-        ✦ {locale === 'de' ? 'das was darunter liegt' : 'what\'s underneath'}
+        ✦ {locale === 'de' ? 'eine frage bleibt' : 'one question left'}
       </div>
-      <p className="serif-body text-xl md:text-2xl text-ink leading-snug mb-5">{lede}</p>
+
+      {canAnalyzeRelationship ? (
+        <div className="space-y-4">
+          {/* Hook — anchored on their own stat. */}
+          <p className="font-serif text-3xl md:text-5xl leading-[1.05] tracking-tight text-ink">
+            {locale === 'de' ? (
+              <>
+                {shareLeader} schreibt <span className="bg-ink text-pop-yellow px-1.5">{pct}%</span>.{' '}
+                <span className="text-ink/70">Das wisst ihr.</span>
+              </>
+            ) : (
+              <>
+                {shareLeader} writes <span className="bg-ink text-pop-yellow px-1.5">{pct}%</span>.{' '}
+                <span className="text-ink/70">You both know that.</span>
+              </>
+            )}
+          </p>
+          {/* Curiosity gap — three concrete things they cannot answer. */}
+          <p className="serif-body text-lg md:text-xl text-ink leading-snug">
+            {locale === 'de'
+              ? 'Wann das gekippt ist. Warum es so blieb. Welche stille Regel die Schieflage am Leben hält. Steht alles in der Akte.'
+              : 'When it tipped. Why it stayed. The silent rule keeping the asymmetry alive. It\'s all in the file.'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <p className="font-serif text-3xl md:text-5xl leading-[1.05] tracking-tight text-ink">
+            {locale === 'de' ? (
+              <>
+                Drei Sätze über dich,{' '}
+                <span className="bg-ink text-pop-yellow px-1.5">die treffen</span>.
+              </>
+            ) : (
+              <>
+                Three sentences about you{' '}
+                <span className="bg-ink text-pop-yellow px-1.5">that land</span>.
+              </>
+            )}
+          </p>
+          <p className="serif-body text-lg md:text-xl text-ink leading-snug">
+            {locale === 'de'
+              ? 'Was du wiederholst, ohne es zu merken. Welche Tells dich verraten. Was deine Sprache verbergen will. Steht alles in der Akte.'
+              : 'What you repeat without noticing. The tells that give you away. What your phrasing is trying to hide. It\'s all in the file.'}
+          </p>
+        </div>
+      )}
+
       <button
         onClick={onBuyCredits}
-        className="inline-flex items-center gap-2 bg-ink text-pop-yellow border-2 border-ink px-5 py-3 font-mono text-[12px] uppercase tracking-[0.18em] hover:bg-white hover:text-ink transition-colors"
+        className="mt-6 inline-flex items-center gap-2 bg-ink text-pop-yellow border-2 border-ink px-5 py-3 font-mono text-[12px] uppercase tracking-[0.18em] hover:bg-white hover:text-ink transition-colors"
         style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
       >
         {cta} <span aria-hidden>→</span>
       </button>
+
+      <div className="mt-3 font-mono text-[10px] uppercase tracking-[0.16em] text-ink/55">
+        {locale === 'de'
+          ? 'instant · refund wenn\'s nichts trifft · pseudonyme only'
+          : 'instant · refund if nothing lands · pseudonyms only'}
+      </div>
     </section>
   )
 }
