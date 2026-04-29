@@ -1319,19 +1319,19 @@ function EarlyUnlock({
   const lede =
     locale === 'de'
       ? canAnalyzeRelationship
-        ? 'Du hast die Zahlen. Die KI liest, was die Zahlen nicht sagen — wer wen hält, wer abdriftet, welche Regel ihr nie ausgesprochen habt.'
-        : 'Du hast die Zahlen. Die KI liest, was die Zahlen nicht sagen — wie du wirklich rüberkommst, welche Tells du wiederholst, welche Muster sich durchziehen.'
+        ? 'Wer den Chat trägt. Wer sich rausnimmt. Welcher Move sich seit Monaten wiederholt. Die KI hat\'s gesehen — sie schreibt\'s nur auf, wenn du klickst.'
+        : 'Wie du schreibst, wenn du nervös wirst. Was du wiederholst, ohne es zu merken. Welche Tells dich verraten. Die KI hat\'s gesehen — sie schreibt\'s nur auf, wenn du klickst.'
       : canAnalyzeRelationship
-        ? 'You have the numbers. The AI reads what the numbers don\'t — who keeps things alive, who pulls back, the rule neither of you said out loud.'
-        : 'You have the numbers. The AI reads what the numbers don\'t — how you actually come across, the tells you repeat, the patterns running through it.'
+        ? 'Who carries the chat. Who pulls back. The move that keeps repeating. The AI has seen it — it only writes it out when you click.'
+        : 'How you write when you\'re nervous. What you repeat without noticing. The tells that give you away. The AI has seen it — it only writes it out when you click.'
   const cta =
     locale === 'de'
       ? canAnalyzeRelationship
-        ? 'Beide Analysen · €5'
-        : 'Persönliches Profil · €3'
+        ? 'Beide Analysen · €5 →'
+        : 'Persönliches Profil · €3 →'
       : canAnalyzeRelationship
-        ? 'Both analyses · €5'
-        : 'Personal profile · €3'
+        ? 'Both analyses · €5 →'
+        : 'Personal profile · €3 →'
   return (
     <section
       className="bg-pop-yellow border-2 border-ink p-5 md:p-7 max-w-2xl"
@@ -1341,7 +1341,7 @@ function EarlyUnlock({
         className="text-xs uppercase tracking-[0.2em] text-ink mb-3"
         style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.16em' }}
       >
-        ✦ {locale === 'de' ? 'zwischen den zeilen' : 'between the lines'}
+        ✦ {locale === 'de' ? 'das was darunter liegt' : 'what\'s underneath'}
       </div>
       <p className="serif-body text-xl md:text-2xl text-ink leading-snug mb-5">{lede}</p>
       <button
