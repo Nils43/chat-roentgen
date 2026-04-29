@@ -1154,25 +1154,46 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
     const sections = rooms.filter(
       (r) => !(r.kind === 'gimmick' && r.stamp === 'SPILL IT.'),
     )
+    // Index of the opener room — we inject an early unlock upsell right after
+    // it so the buy CTA is visible without scrolling all the way down to the
+    // PaywallRoom at the end.
+    const openerIdx = sections.findIndex((r) => r.kind === 'content' && r.id === 'opener')
 
     return (
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-14">
-        {sections.map((r, i) =>
-          r.kind === 'content' ? (
-            <div key={`${r.id}-${i}`} className="space-y-8">
-              {r.render()}
-            </div>
-          ) : (
-            <div key={`gimmick-${i}`} className="flex justify-center py-4">
-              <div
-                className="inline-block font-serif text-ink border-2 border-ink px-4 py-1.5 text-xl md:text-2xl tracking-[0.04em] bg-pop-yellow"
-                style={{ transform: `rotate(${i % 2 === 0 ? -2 : 2}deg)`, boxShadow: '4px 4px 0 #0A0A0A' }}
-              >
-                {r.stamp}
+        {sections.map((r, i) => {
+          const node =
+            r.kind === 'content' ? (
+              <div key={`${r.id}-${i}`} className="space-y-8">
+                {r.render()}
               </div>
-            </div>
-          ),
-        )}
+            ) : (
+              <div key={`gimmick-${i}`} className="flex justify-center py-4">
+                <div
+                  className="inline-block font-serif text-ink border-2 border-ink px-4 py-1.5 text-xl md:text-2xl tracking-[0.04em] bg-pop-yellow"
+                  style={{ transform: `rotate(${i % 2 === 0 ? -2 : 2}deg)`, boxShadow: '4px 4px 0 #0A0A0A' }}
+                >
+                  {r.stamp}
+                </div>
+              </div>
+            )
+          // After the opener, drop in an early unlock sticker. Skip when the
+          // user already has credits and at least one analysis is run — the
+          // CTA would just be noise then.
+          if (i === openerIdx && (creditsBalance ?? 0) === 0) {
+            return (
+              <div key={`bundle-${i}`} className="contents">
+                {node}
+                <EarlyUnlock
+                  locale={locale}
+                  canAnalyzeRelationship={canAnalyzeRelationship}
+                  onBuyCredits={onBuyCredits}
+                />
+              </div>
+            )
+          }
+          return node
+        })}
       </div>
     )
   }
@@ -1274,6 +1295,60 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
         />
       )}
     </div>
+  )
+}
+
+// Early unlock — compact upsell sticker, only shown in scroll mode right
+// after the opener. The full PaywallRoom still lives at the bottom of the
+// scroll, but a chat with a noticeable asymmetry should not require a long
+// scroll before the buy CTA shows up. Hidden once the user already has
+// credits — the bottom paywall room handles the "spend them" action.
+function EarlyUnlock({
+  locale,
+  canAnalyzeRelationship,
+  onBuyCredits,
+}: {
+  locale: ReturnType<typeof useLocale>
+  canAnalyzeRelationship: boolean
+  onBuyCredits?: () => void
+}) {
+  if (!onBuyCredits) return null
+  const lede =
+    locale === 'de'
+      ? canAnalyzeRelationship
+        ? 'Die Zahlen waren das was. Die KI sagt dir das warum — wer was bringt, was zwischen euch wirklich läuft.'
+        : 'Die Zahlen waren das was. Die KI sagt dir das warum — wie du in diesem Chat ankommst.'
+      : canAnalyzeRelationship
+        ? 'The numbers were the what. The AI tells you the why — who brings what, what is actually going on between you two.'
+        : 'The numbers were the what. The AI tells you the why — how you actually come across in this chat.'
+  const cta =
+    locale === 'de'
+      ? canAnalyzeRelationship
+        ? 'Beide Analysen freischalten — €5'
+        : 'Persönliches Profil freischalten — €3'
+      : canAnalyzeRelationship
+        ? 'Unlock both analyses — €5'
+        : 'Unlock personal profile — €3'
+  return (
+    <section
+      className="bg-pop-yellow border-2 border-ink p-5 md:p-7 max-w-2xl"
+      style={{ boxShadow: '6px 6px 0 #0A0A0A', transform: 'rotate(-0.4deg)' }}
+    >
+      <div
+        className="text-xs uppercase tracking-[0.2em] text-ink mb-3"
+        style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.16em' }}
+      >
+        ✦ {locale === 'de' ? 'jetzt das warum' : 'now the why'}
+      </div>
+      <p className="serif-body text-xl md:text-2xl text-ink leading-snug mb-5">{lede}</p>
+      <button
+        onClick={onBuyCredits}
+        className="inline-flex items-center gap-2 bg-ink text-pop-yellow border-2 border-ink px-5 py-3 font-mono text-[12px] uppercase tracking-[0.18em] hover:bg-white hover:text-ink transition-colors"
+        style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
+      >
+        {cta} <span aria-hidden>→</span>
+      </button>
+    </section>
   )
 }
 
