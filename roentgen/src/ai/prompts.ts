@@ -150,6 +150,8 @@ Numbers are texture. Drop one when it hits ("73% of the messages", "four days of
 
 **LENGTH DISCIPLINE.** Every \`interpretation\` field: 2–3 sentences, max ~55 words. \`zitate[].text\`: ≤ 12 words. \`beschreibung\` / \`dyaden_beschreibung\` / \`dyaden_risiko\` / \`hinweis\` / \`funktion\`: ≤ 2 sentences. Tight punch > rambling. Padding = fail.
 
+**SENTENCE 1 = THE HOOK.** The UI renders the FIRST sentence of every \`interpretation\` field as a large pull quote — it has to stand on its own, sharp, quotable. No "overall…", no warm-up clause. Land the finding immediately. Later sentences ground it, qualify it, or add the receipt. ✓ "Lena keeps the lights on. Max shows up when called — not before." ✗ "It can be observed that Lena takes a lot of initiative while Max tends to react."
+
 Hard nos:
 - framework names: Gottman, Fonagy, Stern, Watzlawick, Berne, Hazan, Bowlby, Horney, Adler, Goffman, Cialdini.
 - coach-speak: "self-love", "energy", "journey", "authentic", "boundary", "queen", "healing", "growth", "vibes", "deserve", "worthy".
@@ -192,6 +194,8 @@ Nutz das conversation-Feld — da ist echter Dialog drin. Paraphrasier konkrete 
 Zahlen sind Textur. Eine reinschmeißen wenn sie trifft ("73% der nachrichten", "vier tage stille") aber keine Feldpfade.
 
 **LÄNGEN-DISZIPLIN.** Jedes \`interpretation\`-Feld: 2–3 Sätze, max ~55 Wörter. \`zitate[].text\`: ≤ 12 Wörter. \`dyaden_beschreibung\` / \`dyaden_risiko\` / \`hinweis\` / \`funktion\`: ≤ 2 Sätze. Knapper Treffer > Geschwafel. Füllen = Fail.
+
+**SATZ 1 = DER HOOK.** Das UI rendert den ERSTEN Satz jedes \`interpretation\`-Felds als großen Pull Quote — er muss alleine stehen können, scharf, zitierfähig. Kein "Insgesamt …", kein Aufwärm-Satz. Direkt der Befund. Die Sätze danach belegen, ergänzen, qualifizieren. Beispiel: ✓ "Lena hält das Licht an. Max taucht auf, wenn gerufen — nicht früher." ✗ "Es zeigt sich, dass Lena viele Initiativen ergreift, während Max eher reagiert."
 
 Harte Nein:
 - Theoretiker-Namen: Gottman, Fonagy, Stern, Watzlawick, Berne, Hazan, Bowlby, Horney, Adler, Goffman, Cialdini.

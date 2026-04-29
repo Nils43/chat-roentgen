@@ -454,8 +454,48 @@ function Section({
   )
 }
 
+// Prose with a magazine-style lead: split the interpretation into its
+// first sentence (rendered as a big italic pull quote) and the rest
+// (smaller body). Gives every section a typographic anchor so the eye
+// has a place to land while scrolling — without that, the whole page
+// reads as one undifferentiated wall of paragraphs.
 function Prose({ children }: { children: React.ReactNode }) {
-  return <p className="serif-body text-lg md:text-xl text-ink leading-snug">{children}</p>
+  if (typeof children !== 'string') {
+    return <p className="serif-body text-lg md:text-xl text-ink leading-snug">{children}</p>
+  }
+  const text = children.trim()
+  const cut = findFirstSentenceEnd(text)
+  if (cut < 0) {
+    return <p className="serif-body text-lg md:text-xl text-ink leading-snug">{text}</p>
+  }
+  const lead = text.slice(0, cut + 1).trim()
+  const rest = text.slice(cut + 1).trim()
+  return (
+    <div className="space-y-3 pl-4 border-l-2 border-ink/30">
+      <p className="font-serif italic text-2xl md:text-[28px] text-ink leading-[1.15] tracking-[-0.005em]">
+        {lead}
+      </p>
+      {rest && (
+        <p className="serif-body text-base md:text-lg text-ink/80 leading-snug">{rest}</p>
+      )}
+    </div>
+  )
+}
+
+// Find the index of the first sentence-ending punctuation (`. ! ?`)
+// followed by whitespace or end-of-string. We avoid splitting on
+// abbreviations by requiring whitespace after the punctuation.
+function findFirstSentenceEnd(text: string): number {
+  for (let i = 0; i < text.length - 1; i++) {
+    const c = text[i]
+    if (c === '.' || c === '!' || c === '?') {
+      const next = text[i + 1]
+      if (next === ' ' || next === '\n') return i
+    }
+  }
+  // Single-sentence text — return the last char so callers see one full block.
+  if (/[.!?]$/.test(text)) return text.length - 1
+  return -1
 }
 
 function Evidence({
