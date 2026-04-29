@@ -1200,7 +1200,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
     })
 
     return (
-      <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-20 md:space-y-24">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-8 md:space-y-10">
         {children}
       </div>
     )
