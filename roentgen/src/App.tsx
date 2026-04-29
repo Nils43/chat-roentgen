@@ -31,6 +31,7 @@ import { useSession, signInWithGoogle } from './auth/useSession'
 import { useCredits } from './credits/useCredits'
 import { startPackCheckout } from './credits/client'
 import type { Pack } from './credits/packs'
+import { track } from './analytics/posthog'
 
 type Stage =
   | 'intro'
@@ -56,6 +57,13 @@ function App() {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [stage, setStage] = useState<Stage>(library.length > 0 ? 'library' : 'upload')
   const finishIntro = () => setStage(library.length > 0 ? 'library' : 'upload')
+
+  // PostHog: every stage change is a funnel step. Drop-off shows up as
+  // "users hit `parsing` but never reached `analysis`" etc. No PII —
+  // `stage` is a closed enum.
+  useEffect(() => {
+    track('app_view', { stage })
+  }, [stage])
   const [chat, setChat] = useState<ParsedChat | null>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [parseError, setParseError] = useState<string | null>(null)
@@ -191,12 +199,14 @@ function App() {
 
   const handleFile = async (text: string, name: string) => {
     setParseError(null)
+    track('upload_started')
     const parsed = parseWhatsApp(text)
     if (parsed.messages.length === 0) {
       setParseError(
         parsed.warnings[0] ??
           (locale === 'de' ? 'keine nachrichten gefunden — hmm.' : 'no messages found — hmm.'),
       )
+      track('upload_failed', { reason: 'no_messages' })
       return
     }
     const meta = chatLibrary.create(parsed, name)
@@ -226,6 +236,7 @@ function App() {
           ? `dein chat ist ~${sizeMb} MB — das ist zu groß für dieses gerät. exportier einen kürzeren ausschnitt — z.B. nur die letzten paar monate.`
           : `your chat is ~${sizeMb} MB — that's too big to stash on this device. export a shorter slice — like just the last few months.`,
       )
+      track('upload_failed', { reason: 'too_big' })
       return
     }
     clearLocalState()
@@ -233,6 +244,7 @@ function App() {
     setFileName(name)
     setChat(parsed)
     setStage('parsing')
+    track('upload_parsed', { messages: parsed.messages.length, participants: parsed.participants.length })
   }
 
   const clearLocalState = () => {
@@ -268,6 +280,7 @@ function App() {
     // here via the library, they've already met the chat once.
     chatLibrary.markExhibitSeen(id)
     setStage('analysis')
+    track('library_chat_opened')
   }
 
   const goToLibrary = () => {
@@ -374,6 +387,7 @@ function App() {
     setAiError(null)
     setAiProgress({ done: 0, total: 1, current: selfPerson })
     setStage('ai')
+    track('analysis_started', { module: 'profiles' })
     try {
       const results = await runProfileAnalyses({
         chat,
@@ -383,9 +397,11 @@ function App() {
       })
       setProfiles(results)
       setStage('profiles')
+      track('analysis_completed', { module: 'profiles' })
     } catch (e) {
       const err = e as Error
       setAiError(err.message ?? t('app.analysis.failed', locale))
+      track('analysis_failed', { module: 'profiles' })
     } finally {
       // Always refresh — on failure the server has refunded the credit, we
       // need to pull the refunded balance so the UI doesn't display the
@@ -403,13 +419,16 @@ function App() {
     }
     setRelationshipError(null)
     setStage('relationship_loading')
+    track('analysis_started', { module: 'relationship' })
     try {
       const result = await runRelationshipAnalysis({ chat, prepared })
       setRelationship(result)
       setStage('relationship')
+      track('analysis_completed', { module: 'relationship' })
     } catch (e) {
       const err = e as Error
       setRelationshipError(err.message ?? t('app.relationship.failed', locale))
+      track('analysis_failed', { module: 'relationship' })
     } finally {
       void refreshCredits()
     }
@@ -424,6 +443,7 @@ function App() {
     try {
       const { clientSecret } = await startPackCheckout(pack)
       setCheckout({ clientSecret })
+      track('checkout_opened', { pack: pack.id })
     } catch (e) {
       setPayError((e as Error).message)
     } finally {
@@ -434,6 +454,7 @@ function App() {
   const handleCheckoutComplete = () => {
     setCheckout(null)
     void refreshCredits()
+    track('checkout_completed')
     // After a successful purchase, kick the user back to where they came
     // from. If a chat is loaded, that's the analysis screen — they almost
     // always bought credits to unlock a module on it. If there's no chat,
@@ -467,7 +488,10 @@ function App() {
         <CheckoutModal
           clientSecret={checkout.clientSecret}
           onComplete={handleCheckoutComplete}
-          onClose={() => setCheckout(null)}
+          onClose={() => {
+            track('checkout_dismissed')
+            setCheckout(null)
+          }}
         />
       )}
       {showKeepPrompt && (

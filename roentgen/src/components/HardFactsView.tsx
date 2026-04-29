@@ -10,6 +10,7 @@ import { ReplyDistribution } from './charts/ReplyDistribution'
 import { ChatClock } from './charts/ChatClock'
 import { ShareModal } from './ShareModal'
 import { HardFactsShareCard } from './HardFactsShareCard'
+import { track } from '../analytics/posthog'
 import type { ModuleId } from '../store/chatLibrary'
 
 interface Props {
@@ -113,6 +114,12 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
   // inside the relevant sections so the Hard Facts page reads as analysis,
   // not just a stat dump.
   const takes = useMemo(() => spicyTakes(facts, locale), [facts, locale])
+
+  // Funnel telemetry — fire once when this view mounts. Aggregates only,
+  // see analytics/posthog.ts for the privacy contract.
+  useEffect(() => {
+    track('hard_facts_shown', { mode })
+  }, [mode])
 
   const rooms: RoomDef[] = [
     // ── ROOM 1: OPENER — the hardest-hitting asymmetry ──
@@ -1348,6 +1355,11 @@ function EarlyUnlock({
 }) {
   if (!onBuyCredits) return null
   const pct = Math.round(shareLeaderPct)
+  // Track impression once when the unlock sticker actually renders.
+  // Click is captured on the button below.
+  useEffect(() => {
+    track('early_unlock_shown', { canRel: canAnalyzeRelationship })
+  }, [canAnalyzeRelationship])
   const cta =
     locale === 'de'
       ? canAnalyzeRelationship
@@ -1415,7 +1427,10 @@ function EarlyUnlock({
       )}
 
       <button
-        onClick={onBuyCredits}
+        onClick={() => {
+          track('early_unlock_clicked')
+          onBuyCredits()
+        }}
         className="mt-6 inline-flex items-center gap-2 bg-ink text-pop-yellow border-2 border-ink px-5 py-3 font-mono text-[12px] uppercase tracking-[0.18em] hover:bg-white hover:text-ink transition-colors"
         style={{ boxShadow: '4px 4px 0 #0A0A0A' }}
       >
@@ -1556,6 +1571,11 @@ function PaywallRoom({
   const profilesDone = completedModules.includes('profiles')
   const relationshipDone = completedModules.includes('relationship')
   const hasCredit = creditsBalance > 0
+  // Funnel telemetry — fires when the paywall section actually mounts
+  // (slide arrives in exhibit mode, or scroll hits this region).
+  useEffect(() => {
+    track('paywall_room_shown', { hasCredit })
+  }, [hasCredit])
 
   const youBullets = locale === 'de' ? [
     `wie du schreibst, wenn ${personB.toLowerCase()} ghostet`,
@@ -1678,7 +1698,10 @@ function PaywallRoom({
           preview={file01Preview}
           tilt={-0.4}
           done={profilesDone}
-          onPick={() => onStart('profiles')}
+          onPick={() => {
+            track('paywall_cta_clicked', { module: 'profiles' })
+            onStart('profiles')
+          }}
           locale={locale}
         />
         {canAnalyzeRelationship && (
@@ -1691,7 +1714,10 @@ function PaywallRoom({
             preview={file02Preview}
             tilt={0.5}
             done={relationshipDone}
-            onPick={() => onStart('relationship')}
+            onPick={() => {
+              track('paywall_cta_clicked', { module: 'relationship' })
+              onStart('relationship')
+            }}
             locale={locale}
           />
         )}

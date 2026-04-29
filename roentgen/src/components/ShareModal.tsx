@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { toPng } from 'html-to-image'
 import { useLocale } from '../i18n'
+import { track } from '../analytics/posthog'
 
 // Generic share modal. The caller supplies a 1080×1350 card component as
 // `card`; we render it twice — once inside a scaled preview the user can
@@ -50,6 +51,7 @@ export function ShareModal({ card, filename, shareTitle, shareText, onClose }: P
   useEffect(() => {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    track('share_opened')
     return () => {
       document.body.style.overflow = prev
     }
@@ -94,6 +96,7 @@ export function ShareModal({ card, filename, shareTitle, shareText, onClose }: P
             text: shareText,
           })
           setStatus('done')
+          track('share_done', { method: 'native' })
           return
         } catch (e) {
           // User cancelled share sheet — treat as idle, not error.
@@ -114,6 +117,7 @@ export function ShareModal({ card, filename, shareTitle, shareText, onClose }: P
       a.remove()
       URL.revokeObjectURL(url)
       setStatus('done')
+      track('share_done', { method: 'download' })
     } catch (e) {
       setStatus('error')
       setError(e instanceof Error ? e.message : String(e))
