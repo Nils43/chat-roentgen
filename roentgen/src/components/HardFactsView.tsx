@@ -1162,41 +1162,46 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
     // PaywallRoom at the end.
     const openerIdx = sections.findIndex((r) => r.kind === 'content' && r.id === 'opener')
 
+    // Build the children flat — EarlyUnlock has to be a real sibling of the
+    // rendered rooms, not a `display:contents` child, otherwise the parent's
+    // space-y-* rule short-circuits and the unlock sticker hugs the opener.
+    const children: ReactNode[] = []
+    sections.forEach((r, i) => {
+      if (r.kind === 'content') {
+        children.push(
+          <div key={`${r.id}-${i}`} className="space-y-8">
+            {r.render()}
+          </div>,
+        )
+      } else {
+        children.push(
+          <div key={`gimmick-${i}`} className="flex justify-center py-4">
+            <div
+              className="inline-block font-serif text-ink border-2 border-ink px-4 py-1.5 text-xl md:text-2xl tracking-[0.04em] bg-pop-yellow"
+              style={{ transform: `rotate(${i % 2 === 0 ? -2 : 2}deg)`, boxShadow: '4px 4px 0 #0A0A0A' }}
+            >
+              {r.stamp}
+            </div>
+          </div>,
+        )
+      }
+      // Inject the early unlock sticker right after the opener — only when
+      // the user has zero credits, otherwise it's noise.
+      if (i === openerIdx && (creditsBalance ?? 0) === 0) {
+        children.push(
+          <EarlyUnlock
+            key="early-unlock"
+            locale={locale}
+            canAnalyzeRelationship={canAnalyzeRelationship}
+            onBuyCredits={onBuyCredits}
+          />,
+        )
+      }
+    })
+
     return (
       <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-24 md:space-y-28">
-        {sections.map((r, i) => {
-          const node =
-            r.kind === 'content' ? (
-              <div key={`${r.id}-${i}`} className="space-y-8">
-                {r.render()}
-              </div>
-            ) : (
-              <div key={`gimmick-${i}`} className="flex justify-center py-4">
-                <div
-                  className="inline-block font-serif text-ink border-2 border-ink px-4 py-1.5 text-xl md:text-2xl tracking-[0.04em] bg-pop-yellow"
-                  style={{ transform: `rotate(${i % 2 === 0 ? -2 : 2}deg)`, boxShadow: '4px 4px 0 #0A0A0A' }}
-                >
-                  {r.stamp}
-                </div>
-              </div>
-            )
-          // After the opener, drop in an early unlock sticker. Skip when the
-          // user already has credits and at least one analysis is run — the
-          // CTA would just be noise then.
-          if (i === openerIdx && (creditsBalance ?? 0) === 0) {
-            return (
-              <div key={`bundle-${i}`} className="contents">
-                {node}
-                <EarlyUnlock
-                  locale={locale}
-                  canAnalyzeRelationship={canAnalyzeRelationship}
-                  onBuyCredits={onBuyCredits}
-                />
-              </div>
-            )
-          }
-          return node
-        })}
+        {children}
       </div>
     )
   }
