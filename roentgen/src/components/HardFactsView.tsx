@@ -132,7 +132,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
               className="text-xs uppercase tracking-[0.2em] text-ink mb-3"
               style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.16em' }}
             >
-              {locale === 'de' ? '✦ EXHIBIT 0 · DIE PREMISSE' : '✦ EXHIBIT 0 · THE PREMISE'}
+              {locale === 'de' ? '✦ EXHIBIT 0 · DIE AUSGANGSLAGE' : '✦ EXHIBIT 0 · THE PREMISE'}
             </div>
             <p className="serif-body text-xl md:text-2xl text-ink leading-snug">
               <strong className="not-italic font-bold">
@@ -147,7 +147,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
                   {locale === 'de' ? 'stimmen. ' : 'voices. '}
                   <span className="circled">{shareLeader}</span>{' '}
                   {locale === 'de' ? (
-                    <>hat die bühne — <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong> der convo.</>
+                    <>hält die Bühne — <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong> aller Nachrichten.</>
                   ) : (
                     <>runs the show — <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong> of the talking.</>
                   )}
@@ -157,7 +157,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
                   <span className="circled">{shareLeader}</span>{' '}
                   {locale === 'de' ? (
                     <>
-                      macht <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong>. {shareOther && <><span className="circled">{shareOther}</span> den rest.</>}
+                      schreibt <strong className="not-italic font-bold">{Math.round(shareLeaderPct)}%</strong>. {shareOther && <><span className="circled">{shareOther}</span> den Rest.</>}
                     </>
                   ) : (
                     <>
@@ -1319,16 +1319,16 @@ function EarlyUnlock({
   const lede =
     locale === 'de'
       ? canAnalyzeRelationship
-        ? 'Die Zahlen waren das was. Die KI sagt dir das warum — wer was bringt, was zwischen euch wirklich läuft.'
-        : 'Die Zahlen waren das was. Die KI sagt dir das warum — wie du in diesem Chat ankommst.'
+        ? 'Du weißt jetzt, was passiert ist. Die KI erklärt dir das Warum — wer was reinbringt, was zwischen euch wirklich abläuft.'
+        : 'Du weißt jetzt, was passiert ist. Die KI erklärt dir das Warum — wie du in diesem Chat tatsächlich rüberkommst.'
       : canAnalyzeRelationship
         ? 'The numbers were the what. The AI tells you the why — who brings what, what is actually going on between you two.'
         : 'The numbers were the what. The AI tells you the why — how you actually come across in this chat.'
   const cta =
     locale === 'de'
       ? canAnalyzeRelationship
-        ? 'Beide Analysen freischalten — €5'
-        : 'Persönliches Profil freischalten — €3'
+        ? 'Beide Analysen für €5'
+        : 'Persönliches Profil für €3'
       : canAnalyzeRelationship
         ? 'Unlock both analyses — €5'
         : 'Unlock personal profile — €3'
@@ -1341,7 +1341,7 @@ function EarlyUnlock({
         className="text-xs uppercase tracking-[0.2em] text-ink mb-3"
         style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.16em' }}
       >
-        ✦ {locale === 'de' ? 'jetzt das warum' : 'now the why'}
+        ✦ {locale === 'de' ? 'und jetzt das warum' : 'now the why'}
       </div>
       <p className="serif-body text-xl md:text-2xl text-ink leading-snug mb-5">{lede}</p>
       <button
@@ -1441,21 +1441,21 @@ function PaywallRoom({
   const file01Preview = {
     headline:
       locale === 'de'
-        ? `${hedgeLeader} weicht in ${hedgePct}% der Nachrichten ab`
+        ? `${hedgeLeader} weicht in ${hedgePct}% der Nachrichten aus`
         : `${hedgeLeader} hedges ${hedgePct}% of the time`,
     blurred:
       locale === 'de'
-        ? `Das ist die Stimme von jemandem, der ein nein lieber in ein vielleicht packt — eine kleine soziale Versicherung gegen den Konflikt, die mit der Zeit zur Identität wird. Du wartest nicht auf eine Antwort, du wartest auf die Erlaubnis sie zu wollen.`
+        ? `Das ist die Stimme von jemandem, der lieber ein Vielleicht hinschickt als ein Nein. Eine kleine Versicherung gegen den Konflikt — die irgendwann zur Haltung wird. Du wartest nicht auf eine Antwort; du wartest auf die Erlaubnis, eine zu wollen.`
         : `That's the voice of someone who tucks a no into a maybe by reflex — a tiny social insurance against conflict that hardens into identity over time. You are not waiting for an answer, you are waiting for permission to want one.`,
   }
   const file02Preview = {
     headline:
       locale === 'de'
-        ? `${shareLeader} macht ${Math.round(shareLeaderPct)}% — ${shareOther ?? personB} den Rest`
+        ? `${shareLeader} schreibt ${Math.round(shareLeaderPct)}% — ${shareOther ?? personB} den Rest`
         : `${shareLeader} writes ${Math.round(shareLeaderPct)}% — ${shareOther ?? personB} takes the rest`,
     blurred:
       locale === 'de'
-        ? `Asymmetrie ist nicht das Problem; das Muster ist. Wer mehr schreibt, hält die Verbindung offen — wer wenig sagt, lässt sich umwerben. Über Monate verschiebt sich, wer wem gehört.`
+        ? `Die Schieflage ist nicht das Problem — das Muster dahinter schon. Wer mehr schreibt, hält die Leitung offen. Wer wenig sagt, lässt sich umwerben. Über Monate verschiebt das, wer wem gehört.`
         : `The asymmetry isn't the problem; the pattern is. Whoever writes more keeps the line open — whoever says less is the one being courted. Over months, that shifts who belongs to whom.`,
   }
 
