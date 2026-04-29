@@ -1,130 +1,256 @@
 import type { HardFacts, PerPersonStats } from './hardFacts'
 import type { Locale } from '../i18n'
 
-// Template-based interpretation snippets for Hard Facts.
-// Both English and German variants — picked by metric value, not random.
+// Local-only "spicy takes" — short, sharp, brand-voice interpretive lines
+// derived from the Hard Facts purely by threshold rules. No AI call. The
+// same gen-z voice the AI prompts use, just shaped by code.
+//
+// Output is keyed by room id so HardFactsView can pull `takes.split`,
+// `takes.pace` etc. and render them as pull quotes inside each section.
+// First sentence is always the punch (renders larger); remaining text
+// grounds it.
+//
+// Threshold rule: each function returns null when nothing notable shows
+// up — better an empty section than a vague filler line.
 
-export interface Interpretation {
-  metric: string
-  body: string
+export interface SpicyTakes {
+  share: string | null
+  pace: string | null
+  initiation: string | null
+  nights: string | null
+  bursts: string | null
+  silence: string | null
+  hedge: string | null
+  questions: string | null
+  emoji: string | null
+  arc: string | null
+  delta: string | null
 }
 
-function pickShareInterpretation(p: PerPersonStats, locale: Locale): string {
-  const s = p.sharePct
+export function spicyTakes(facts: HardFacts, locale: Locale = 'de'): SpicyTakes {
+  return {
+    share: takeShare(facts, locale),
+    pace: takePace(facts, locale),
+    initiation: takeInitiation(facts, locale),
+    nights: takeNights(facts, locale),
+    bursts: takeBursts(facts, locale),
+    silence: takeSilence(facts, locale),
+    hedge: takeHedge(facts, locale),
+    questions: takeQuestions(facts, locale),
+    emoji: takeEmoji(facts, locale),
+    arc: takeArc(facts, locale),
+    delta: takeDelta(facts, locale),
+  }
+}
+
+// --- per-metric takes -----------------------------------------------------
+
+function takeShare(facts: HardFacts, locale: Locale): string | null {
+  const sorted = [...facts.perPerson].sort((a, b) => b.sharePct - a.sharePct)
+  const top = sorted[0]
+  if (!top) return null
+  const pct = Math.round(top.sharePct)
   if (locale === 'de') {
-    if (s >= 70) return `${p.author} schreibt ${s.toFixed(0)}% aller Messages. Klares Gefälle — eine:r gibt deutlich mehr als die andere Seite.`
-    if (s >= 60) return `${p.author} steuert ${s.toFixed(0)}% der Wörter bei. Spürbar ungleich, aber noch im Rahmen wenn eine Person gesprächiger ist.`
-    if (s >= 55) return `${p.author} schreibt mit ${s.toFixed(0)}% etwas mehr. Kleine Unwucht, wie man sie bei der gesprächigeren Person erwartet.`
-    if (s >= 45) return `Beide schreiben ungefähr gleich viel. Der Effort ist verteilt — auf beiden Seiten ähnliches Engagement.`
-    return ''
+    if (pct >= 70) return `${top.author} trägt das Gespräch fast allein — ${pct} %. Solo-Auftritt, kein Co-Star. Wer so viel schreibt, hält die Verbindung am Leben.`
+    if (pct >= 60) return `${top.author} schreibt ${pct} %. Spürbar mehr. Meistens hängt das daran, wer die Stille schlechter aushält.`
+    if (pct >= 55) return `${top.author} schreibt minimal mehr (${pct} %). Liegt im Rauschen — eine Person ist halt gesprächiger.`
+    if (pct >= 45) return `Beide schreiben ungefähr gleich viel. Niemand zieht allein, niemand hängt zurück.`
+    return null
   }
-  if (s >= 70) return `${p.author} writes ${s.toFixed(0)}% of all messages. A clear gap — one of them is giving much more than the other.`
-  if (s >= 60) return `${p.author} puts in ${s.toFixed(0)}% of the words. Noticeably uneven, but still within the normal range when one person is chattier.`
-  if (s >= 55) return `${p.author} writes a bit more at ${s.toFixed(0)}%. Small imbalance, the kind you'd expect when one person is just more talkative.`
-  if (s >= 45) return `Both write roughly the same amount. The giving is spread out — a sign of similar engagement on both sides.`
-  return ''
+  if (pct >= 70) return `${top.author} carries the chat almost alone — ${pct}%. Solo act, no co-star. Whoever writes that much keeps the line open.`
+  if (pct >= 60) return `${top.author} writes ${pct}%. Noticeably more. Usually that comes down to who can't sit with silence.`
+  if (pct >= 55) return `${top.author} writes a touch more (${pct}%). Within the noise — one of you is just chattier.`
+  if (pct >= 45) return `Both write roughly the same. Nobody is carrying it alone, nobody is hanging back.`
+  return null
 }
 
-function pickInitiationInterpretation(p: PerPersonStats, locale: Locale): string {
-  const share = p.initiationShare * 100
+function takePace(facts: HardFacts, locale: Locale): string | null {
+  const withTime = facts.perPerson.filter((p): p is PerPersonStats & { medianReplyMs: number } => p.medianReplyMs != null)
+  if (withTime.length < 2) return null
+  const sorted = [...withTime].sort((a, b) => a.medianReplyMs - b.medianReplyMs)
+  const fast = sorted[0]
+  const slow = sorted[sorted.length - 1]
+  const fastMin = fast.medianReplyMs / 60000
+  const slowMin = slow.medianReplyMs / 60000
+  const ratio = slowMin / Math.max(1, fastMin)
+  // Same person — skip.
+  if (fast.author === slow.author) return null
   if (locale === 'de') {
-    if (share >= 75) return `${p.author} macht nach Pausen in ${share.toFixed(0)}% der Fälle den ersten Move. Wer nach der Stille zuerst schreibt, denkt zuerst an die andere Person.`
-    if (share >= 60) return `${p.author} schreibt nach Pausen überdurchschnittlich oft zuerst (${share.toFixed(0)}%). Liest sich wie aktives Interesse.`
-    return ''
+    if (ratio >= 10) {
+      return `${fast.author} antwortet in ${formatTime(fastMin, 'de')} — ${slow.author} braucht ${formatTime(slowMin, 'de')}. Verschiedene Sportarten. Wer länger wartet, sitzt am längeren Hebel.`
+    }
+    if (ratio >= 3) {
+      return `${fast.author} ist deutlich schneller (${formatTime(fastMin, 'de')}) als ${slow.author} (${formatTime(slowMin, 'de')}). Klares Tempo-Gefälle.`
+    }
+    return `Beide antworten in einem ähnlichen Takt — irgendwo zwischen ${formatTime(fastMin, 'de')} und ${formatTime(slowMin, 'de')}. Match.`
   }
-  if (share >= 75) return `${p.author} makes the first move after pauses in ${share.toFixed(0)}% of cases. Whoever writes first after silence is thinking of the other first.`
-  if (share >= 60) return `${p.author} is the first to write after pauses above average (${share.toFixed(0)}%). That reads as active interest.`
-  return ''
+  if (ratio >= 10) {
+    return `${fast.author} replies in ${formatTime(fastMin, 'en')} — ${slow.author} takes ${formatTime(slowMin, 'en')}. Different sports. Whoever waits longer holds the longer lever.`
+  }
+  if (ratio >= 3) {
+    return `${fast.author} is noticeably faster (${formatTime(fastMin, 'en')}) than ${slow.author} (${formatTime(slowMin, 'en')}). Clear pace gap.`
+  }
+  return `Both reply at a similar tempo — somewhere between ${formatTime(fastMin, 'en')} and ${formatTime(slowMin, 'en')}. Matched.`
 }
 
-function pickReplyInterpretation(p: PerPersonStats, locale: Locale): string {
-  const ms = p.medianReplyMs
-  if (ms == null) return ''
-  const min = ms / 60000
+function takeInitiation(facts: HardFacts, locale: Locale): string | null {
+  const sorted = [...facts.perPerson].sort((a, b) => b.initiationShare - a.initiationShare)
+  const top = sorted[0]
+  if (!top) return null
+  const pct = Math.round(top.initiationShare * 100)
   if (locale === 'de') {
-    if (min < 2) return `${p.author} antwortet meistens in unter 2 Minuten. High availability — zeitlich oder emotional.`
-    if (min < 10) return `${p.author} antwortet meistens innerhalb von ${Math.round(min)} Minuten. Schnell und präsent.`
-    if (min < 60) return `${p.author} antwortet typischerweise nach ${Math.round(min)} Minuten.`
-    if (min < 240) return `${p.author} braucht etwa ${Math.round(min / 60)} Stunden zum Antworten. Kann Absicht sein, kann einfach Alltag sein.`
-    return `${p.author} antwortet erst nach ${Math.round(min / 60)} Stunden. In enger Bindung klares Distanz-Signal — in losem Kontakt völlig normal.`
+    if (pct >= 75) return `${top.author} bricht die Stille in 3 von 4 Fällen zuerst. Wer den Faden nach einer Pause wieder aufnimmt, denkt zuerst an die andere Person.`
+    if (pct >= 60) return `${top.author} schreibt nach Pausen öfter zuerst (${pct} %). Liest sich wie aktives Halten.`
+    return null
   }
-  if (min < 2) return `${p.author} usually replies in under 2 minutes. A sign of high availability — either in time or emotionally.`
-  if (min < 10) return `${p.author} usually replies within ${Math.round(min)} minutes. Quick and present.`
-  if (min < 60) return `${p.author} typically answers after ${Math.round(min)} minutes.`
-  if (min < 240) return `${p.author} takes around ${Math.round(min / 60)} hours to reply. Could be intentional distance, could just be life.`
-  return `${p.author} only replies after ${Math.round(min / 60)} hours. In a close bond that's a clear distance signal — in a loose contact, totally normal.`
+  if (pct >= 75) return `${top.author} breaks the silence first 3 out of 4 times. Whoever picks up the thread after a pause is thinking about the other person first.`
+  if (pct >= 60) return `${top.author} is more often the one writing first after a lull (${pct}%). Reads as actively holding it.`
+  return null
 }
 
-function pickQuestionInterpretation(p: PerPersonStats, locale: Locale): string {
-  const r = p.questionRatio * 100
+function takeNights(facts: HardFacts, locale: Locale): string | null {
+  const sorted = [...facts.perPerson].sort((a, b) => b.lateNightCount - a.lateNightCount)
+  const top = sorted[0]
+  if (!top || top.lateNightCount < 5) return null
+  const ratio = Math.round(top.lateNightRatio * 100)
   if (locale === 'de') {
-    if (r >= 30) return `Fast jede dritte Message von ${p.author} endet mit Fragezeichen (${r.toFixed(0)}%). Starkes Interesse — ${p.author} lässt Raum für die andere Person.`
-    if (r >= 18) return `${p.author} stellt in ${r.toFixed(0)}% der Messages Fragen. Offen, aufmerksam, neugierig.`
-    if (r < 8) return `Nur ${r.toFixed(0)}% der Messages von ${p.author} sind Fragen. Wenig Fragen — kann Confidence sein, kann Desinteresse sein, kann einfach Style sein.`
-    return ''
+    if (top.lateNightCount >= 50 || ratio >= 25) {
+      return `${top.author} schreibt ${top.lateNightCount}× zwischen 23 und 5 Uhr. Das sind nicht die Nachrichten von 14 Uhr — wenn die Filter unten sind, kommt anderes.`
+    }
+    return `${top.author} ist ${top.lateNightCount}× nachts unterwegs gewesen. Selten genug, um aufzufallen — oft genug, um Muster zu sein.`
   }
-  if (r >= 30) return `Almost every third message from ${p.author} ends with a question mark (${r.toFixed(0)}%). Strong interest in the other person — ${p.author} leaves room for the other to talk.`
-  if (r >= 18) return `${p.author} asks questions in ${r.toFixed(0)}% of messages. Open, attentive, curious.`
-  if (r < 8) return `Only ${r.toFixed(0)}% of ${p.author}'s messages are questions. Not a lot of asking — could be confidence, could be disinterest, could just be a different style.`
-  return ''
+  if (top.lateNightCount >= 50 || ratio >= 25) {
+    return `${top.author} writes ${top.lateNightCount}× between 11 PM and 5 AM. Not the same messages 2 PM would write — when the filter drops, something else comes through.`
+  }
+  return `${top.author} sent ${top.lateNightCount} late-night messages. Rare enough to notice, frequent enough to call a pattern.`
 }
 
-function pickHedgeInterpretation(p: PerPersonStats, locale: Locale): string {
-  const r = p.hedgeRatio * 100
+function takeBursts(facts: HardFacts, locale: Locale): string | null {
+  const sorted = [...facts.perPerson].sort((a, b) => b.longestBurst - a.longestBurst)
+  const top = sorted[0]
+  if (!top || top.longestBurst < 6) return null
   if (locale === 'de') {
-    if (r >= 40) return `${p.author} weicht ${r.toFixed(0)}% der Messages ab ("vielleicht", "eigentlich", "irgendwie"). Deutet auf Unsicherheit, Angst vor Ablehnung oder diplomatischen Ton.`
-    if (r >= 20) return `${p.author} nutzt regelmäßig weiche Wörter wie "vielleicht" oder "eigentlich" (${r.toFixed(0)}%). Vorsichtig-abwägender Style.`
-    return ''
+    return `${top.author} hat einen Lauf von ${top.longestBurst} Nachrichten ohne Antwort hingelegt. Wer monologisiert, wartet auf etwas Bestimmtes.`
   }
-  if (r >= 40) return `${p.author} softens ${r.toFixed(0)}% of messages ("maybe", "actually", "kind of"). That points to uncertainty, wariness of rejection, or a diplomatic tone.`
-  if (r >= 20) return `${p.author} regularly uses soft words like "maybe" or "actually" (${r.toFixed(0)}%). A careful, weighing style.`
-  return ''
+  return `${top.author} once sent ${top.longestBurst} messages in a row without a reply. People monologue when they're waiting for one specific thing.`
 }
 
-function pickEmojiInterpretation(p: PerPersonStats, locale: Locale): string {
-  const e = p.emojiPerMsg
+function takeSilence(facts: HardFacts, locale: Locale): string | null {
+  const days = facts.longestSilenceDays
+  if (days < 4) return null
   if (locale === 'de') {
-    if (e >= 1.5) return `${p.author} schickt im Schnitt ${e.toFixed(1)} Emojis pro Message. Ausdrucksstark, emotional direkt.`
-    if (e < 0.15) return `${p.author} nutzt fast nie Emojis (${e.toFixed(2)} pro Message). Eher sachlich, text-first.`
-    return ''
+    if (days >= 14) return `${days} Tage Funkstille. Niemand hat angefangen — niemand hat aufgehört. Schlimmer als ein Streit ist meistens das Schweigen, das niemand benennt.`
+    if (days >= 7) return `Eine Woche Pause (${days} Tage). Lang genug, um sich zu fragen, ob's noch geht.`
+    return `${days} Tage am Stück nichts. Eine Pause, die zu kurz ist für einen Streit, zu lang für Zufall.`
   }
-  if (e >= 1.5) return `${p.author} sends ${e.toFixed(1)} emojis per message on average. Expressive and emotionally direct.`
-  if (e < 0.15) return `${p.author} almost never uses emojis (${e.toFixed(2)} per message). More matter-of-fact, text-first style.`
-  return ''
+  if (days >= 14) return `${days} days of silence. Nobody started it — nobody ended it. The fight nobody names usually does more damage than the one they have.`
+  if (days >= 7) return `A week-long gap (${days} days). Long enough to make either of you wonder.`
+  return `${days} days with nothing. Too short for a fight, too long to be coincidence.`
 }
 
-export function interpretHardFacts(facts: HardFacts, locale: Locale = 'en'): Interpretation[] {
-  const out: Interpretation[] = []
-
-  const primary = [...facts.perPerson].sort((a, b) => b.sharePct - a.sharePct)[0]
-  if (primary) {
-    const share = pickShareInterpretation(primary, locale)
-    if (share) out.push({ metric: 'share', body: share })
+function takeHedge(facts: HardFacts, locale: Locale): string | null {
+  const sorted = [...facts.perPerson].sort((a, b) => b.hedgeRatio - a.hedgeRatio)
+  const top = sorted[0]
+  if (!top) return null
+  const pct = Math.round(top.hedgeRatio * 100)
+  if (locale === 'de') {
+    if (pct >= 30) return `${top.author} packt fast jede Aussage in ein Vielleicht (${pct} %). Der Default-Modus ist Vorsicht — die Sicherheit, die das Vielleicht verspricht, hat einen Preis.`
+    if (pct >= 18) return `${top.author} weicht in ${pct} % der Nachrichten aus. Diplomatisch — oder unsicher, je nachdem, wo du hinschaust.`
+    return null
   }
+  if (pct >= 30) return `${top.author} tucks almost every statement into a maybe (${pct}%). The default mode is caution — and the safety the maybe promises has a price.`
+  if (pct >= 18) return `${top.author} hedges ${pct}% of messages. Diplomatic — or uncertain, depending on where you look.`
+  return null
+}
 
-  for (const p of facts.perPerson) {
-    const init = pickInitiationInterpretation(p, locale)
-    if (init) out.push({ metric: `init:${p.author}`, body: init })
-    const reply = pickReplyInterpretation(p, locale)
-    if (reply) out.push({ metric: `reply:${p.author}`, body: reply })
-    const q = pickQuestionInterpretation(p, locale)
-    if (q) out.push({ metric: `question:${p.author}`, body: q })
-    const h = pickHedgeInterpretation(p, locale)
-    if (h) out.push({ metric: `hedge:${p.author}`, body: h })
-    const e = pickEmojiInterpretation(p, locale)
-    if (e) out.push({ metric: `emoji:${p.author}`, body: e })
+function takeQuestions(facts: HardFacts, locale: Locale): string | null {
+  const sorted = [...facts.perPerson].sort((a, b) => b.questionRatio - a.questionRatio)
+  const high = sorted[0]
+  const low = sorted[sorted.length - 1]
+  if (!high || !low) return null
+  const highPct = Math.round(high.questionRatio * 100)
+  const lowPct = Math.round(low.questionRatio * 100)
+  if (high.author === low.author) return null
+  if (locale === 'de') {
+    if (highPct - lowPct >= 15) {
+      return `${high.author} fragt (${highPct} %), ${low.author} antwortet (${lowPct} %). Wer fragt, hält den Raum offen — und wer wenig fragt, hat oft schon entschieden.`
+    }
+    if (highPct >= 25) {
+      return `${high.author} stellt in ${highPct} % der Nachrichten Fragen. Hält den Raum aktiv für die andere Person offen.`
+    }
+    return null
   }
-
-  if (facts.perPerson.length >= 2 && facts.investmentDelta >= 20) {
-    const sorted = [...facts.perPerson].sort((a, b) => b.powerScore - a.powerScore)
-    out.push({
-      metric: 'delta',
-      body:
-        locale === 'de'
-          ? `Der Effort ist klar ungleich. ${sorted[1].author} gibt durchgehend mehr — in Volume, beim ersten Move, in der Reply-Speed. Die relaxte Position gehört meistens der Seite, die weniger gibt.`
-          : `The effort is clearly uneven. ${sorted[1].author} gives more across the board — in volume, in making the first move, in how fast they reply. Usually the more relaxed position belongs to whoever gives less.`,
-    })
+  if (highPct - lowPct >= 15) {
+    return `${high.author} asks (${highPct}%), ${low.author} answers (${lowPct}%). Whoever asks holds the room open — whoever rarely asks has often already decided.`
   }
+  if (highPct >= 25) {
+    return `${high.author} asks questions in ${highPct}% of messages. Actively keeping the room open for the other person.`
+  }
+  return null
+}
 
-  return out
+function takeEmoji(facts: HardFacts, locale: Locale): string | null {
+  const withEmoji = facts.perPerson.filter((p) => p.emojiPerMsg > 0)
+  if (withEmoji.length < 2) return null
+  const sorted = [...facts.perPerson].sort((a, b) => b.emojiPerMsg - a.emojiPerMsg)
+  const high = sorted[0]
+  const low = sorted[sorted.length - 1]
+  if (high.author === low.author) return null
+  const ratio = high.emojiPerMsg / Math.max(0.05, low.emojiPerMsg)
+  if (locale === 'de') {
+    if (ratio >= 4) {
+      return `${high.author} schickt deutlich mehr Emojis (${high.emojiPerMsg.toFixed(1)} pro Nachricht) als ${low.author} (${low.emojiPerMsg.toFixed(1)}). Verschiedene emotionale Lautstärken — und meistens versteht eine Seite die andere falsch.`
+    }
+    if (high.emojiPerMsg >= 1.5) {
+      return `${high.author} schickt ${high.emojiPerMsg.toFixed(1)} Emojis pro Nachricht. Emotional direkt, kein Camouflage.`
+    }
+    return null
+  }
+  if (ratio >= 4) {
+    return `${high.author} sends way more emojis (${high.emojiPerMsg.toFixed(1)} per message) than ${low.author} (${low.emojiPerMsg.toFixed(1)}). Different emotional volumes — and usually one side is misreading the other.`
+  }
+  if (high.emojiPerMsg >= 1.5) {
+    return `${high.author} sends ${high.emojiPerMsg.toFixed(1)} emojis per message. Emotionally direct, no camouflage.`
+  }
+  return null
+}
+
+function takeArc(facts: HardFacts, locale: Locale): string | null {
+  const weeks = facts.weekly ?? []
+  if (weeks.length < 8) return null
+  const half = Math.floor(weeks.length / 2)
+  const first = weeks.slice(0, half).reduce((s, w) => s + w.count, 0) / Math.max(1, half)
+  const second = weeks.slice(half).reduce((s, w) => s + w.count, 0) / Math.max(1, weeks.length - half)
+  if (first === 0) return null
+  const change = (second - first) / first
+  const pct = Math.round(Math.abs(change) * 100)
+  if (locale === 'de') {
+    if (change >= 0.4) return `Der Chat zieht an. Die zweite Hälfte hat ${pct} % mehr Nachrichten als die erste. Etwas hat sich geöffnet.`
+    if (change <= -0.4) return `Der Chat kühlt ab. Die zweite Hälfte hat ${pct} % weniger Nachrichten als die erste. Was vorher leicht war, ist jetzt Aufwand.`
+    return null
+  }
+  if (change >= 0.4) return `The chat is heating up. The second half has ${pct}% more messages than the first. Something opened up.`
+  if (change <= -0.4) return `The chat is cooling. The second half has ${pct}% fewer messages than the first. What used to be easy is now effort.`
+  return null
+}
+
+function takeDelta(facts: HardFacts, locale: Locale): string | null {
+  if (facts.perPerson.length < 2) return null
+  if (facts.investmentDelta < 18) return null
+  const sorted = [...facts.perPerson].sort((a, b) => b.powerScore - a.powerScore)
+  const less = sorted[1]
+  if (locale === 'de') {
+    return `Eine Seite gibt durchgehend mehr — Volumen, erste Moves, Antwort-Tempo. Die entspannte Position gehört in der Regel der Seite, die weniger gibt: ${less.author}.`
+  }
+  return `One side gives more across the board — volume, first moves, reply speed. The relaxed position usually belongs to whoever gives less: ${less.author}.`
+}
+
+// --- helpers --------------------------------------------------------------
+
+function formatTime(min: number, locale: Locale): string {
+  if (min < 1) return locale === 'de' ? '< 1 Min.' : '< 1 min'
+  if (min < 60) return locale === 'de' ? `${Math.round(min)} Min.` : `${Math.round(min)} min`
+  const h = Math.round(min / 60)
+  if (h < 24) return locale === 'de' ? `${h} Std.` : `${h}h`
+  return locale === 'de' ? `${Math.round(h / 24)} Tg.` : `${Math.round(h / 24)}d`
 }

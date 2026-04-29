@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { t, useLocale } from '../i18n'
 import type { HardFacts } from '../analysis/hardFacts'
 import { formatDuration } from '../analysis/hardFacts'
+import { spicyTakes } from '../analysis/interpretation'
 import { CountUp } from './CountUp'
 import { SplitBar } from './charts/SplitBar'
 import { EngagementCurve } from './charts/EngagementCurve'
@@ -106,6 +107,12 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
 
   // Share-as-image modal — opens from the opener room.
   const [shareOpen, setShareOpen] = useState(false)
+
+  // Local-only "spicy takes" — sharp brand-voice one-liners derived from
+  // the facts by threshold rules. Computed once, rendered as pull quotes
+  // inside the relevant sections so the Hard Facts page reads as analysis,
+  // not just a stat dump.
+  const takes = useMemo(() => spicyTakes(facts, locale), [facts, locale])
 
   const rooms: RoomDef[] = [
     // ── ROOM 1: OPENER — the hardest-hitting asymmetry ──
@@ -1168,9 +1175,11 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
     const children: ReactNode[] = []
     sections.forEach((r, i) => {
       if (r.kind === 'content') {
+        const take = takeForRoom(r.id, takes)
         children.push(
-          <div key={`${r.id}-${i}`} className="space-y-8">
+          <div key={`${r.id}-${i}`} className="space-y-6">
             {r.render()}
+            {take && <SpicyTake>{take}</SpicyTake>}
           </div>,
         )
       } else {
@@ -1268,7 +1277,13 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
               </div>
             </div>
           ) : (
-            <div className="space-y-8">{currentRoom.render()}</div>
+            <div className="space-y-6">
+              {currentRoom.render()}
+              {currentRoom.kind === 'content' && (() => {
+                const take = takeForRoom(currentRoom.id, takes)
+                return take ? <SpicyTake>{take}</SpicyTake> : null
+              })()}
+            </div>
           )}
         </div>
       </div>
@@ -1414,6 +1429,73 @@ function EarlyUnlock({
       </div>
     </section>
   )
+}
+
+// SpicyTake — pull-quote rendering for the local Hard Facts interpretation.
+// Mirrors the magazine-style treatment used by the AI Prose component in
+// RelationshipView so the interpretive lines feel like part of the same
+// editorial system. Splits the take on the first sentence boundary: the
+// punch goes large + italic + accent-bar; the rest grounds it in body.
+function SpicyTake({ children }: { children: string | null | undefined }) {
+  if (!children) return null
+  const text = children.trim()
+  if (!text) return null
+  const cut = findFirstSentenceEnd(text)
+  if (cut < 0) {
+    return (
+      <div className="pl-4 border-l-2 border-pop-yellow">
+        <p className="font-serif italic text-2xl md:text-[28px] text-ink leading-[1.15]">{text}</p>
+      </div>
+    )
+  }
+  const lead = text.slice(0, cut + 1).trim()
+  const rest = text.slice(cut + 1).trim()
+  return (
+    <div className="pl-4 border-l-2 border-pop-yellow space-y-2">
+      <p className="font-serif italic text-2xl md:text-[28px] text-ink leading-[1.15] tracking-[-0.005em]">
+        {lead}
+      </p>
+      {rest && <p className="serif-body text-base md:text-lg text-ink/75 leading-snug">{rest}</p>}
+    </div>
+  )
+}
+
+function findFirstSentenceEnd(text: string): number {
+  for (let i = 0; i < text.length - 1; i++) {
+    const c = text[i]
+    if (c === '.' || c === '!' || c === '?') {
+      const next = text[i + 1]
+      if (next === ' ' || next === '\n') return i
+    }
+  }
+  if (/[.!?]$/.test(text)) return text.length - 1
+  return -1
+}
+
+// Map room ids to the spicy-take key the room should surface. The opener
+// already carries an asymmetry headline of its own, so its share-take
+// goes onto the split room instead. Some rooms intentionally have no
+// take yet ("clock", "paywall", "closing") — they return null.
+function takeForRoom(
+  id: string,
+  takes: ReturnType<typeof spicyTakes>,
+): string | null {
+  switch (id) {
+    case 'split':
+      return takes.share ?? takes.delta
+    case 'pace':
+      return takes.pace
+    case 'opens':
+      return takes.initiation
+    case 'nights':
+      return takes.nights ?? takes.bursts
+    case 'arc':
+      return takes.arc ?? takes.silence
+    case 'emojis':
+      return takes.emoji ?? takes.hedge ?? takes.questions
+    default:
+      return null
+  }
 }
 
 function ClosingRoom({ total }: { total: number }) {
