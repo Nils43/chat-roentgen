@@ -1163,7 +1163,7 @@ export function HardFactsView({ facts, onStartAi, onStartModule, creditsBalance 
     const openerIdx = sections.findIndex((r) => r.kind === 'content' && r.id === 'opener')
 
     return (
-      <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-14">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 pb-32 pt-8 space-y-24 md:space-y-28">
         {sections.map((r, i) => {
           const node =
             r.kind === 'content' ? (
