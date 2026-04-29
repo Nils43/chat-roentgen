@@ -1319,19 +1319,19 @@ function EarlyUnlock({
   const lede =
     locale === 'de'
       ? canAnalyzeRelationship
-        ? 'Du weißt jetzt, was passiert ist. Die KI erklärt dir das Warum — wer was reinbringt, was zwischen euch wirklich abläuft.'
-        : 'Du weißt jetzt, was passiert ist. Die KI erklärt dir das Warum — wie du in diesem Chat tatsächlich rüberkommst.'
+        ? 'Du hast die Zahlen. Die KI liest, was die Zahlen nicht sagen — wer wen hält, wer abdriftet, welche Regel ihr nie ausgesprochen habt.'
+        : 'Du hast die Zahlen. Die KI liest, was die Zahlen nicht sagen — wie du wirklich rüberkommst, welche Tells du wiederholst, welche Muster sich durchziehen.'
       : canAnalyzeRelationship
-        ? 'The numbers were the what. The AI tells you the why — who brings what, what is actually going on between you two.'
-        : 'The numbers were the what. The AI tells you the why — how you actually come across in this chat.'
+        ? 'You have the numbers. The AI reads what the numbers don\'t — who keeps things alive, who pulls back, the rule neither of you said out loud.'
+        : 'You have the numbers. The AI reads what the numbers don\'t — how you actually come across, the tells you repeat, the patterns running through it.'
   const cta =
     locale === 'de'
       ? canAnalyzeRelationship
-        ? 'Beide Analysen für €5'
-        : 'Persönliches Profil für €3'
+        ? 'Beide Analysen · €5'
+        : 'Persönliches Profil · €3'
       : canAnalyzeRelationship
-        ? 'Unlock both analyses — €5'
-        : 'Unlock personal profile — €3'
+        ? 'Both analyses · €5'
+        : 'Personal profile · €3'
   return (
     <section
       className="bg-pop-yellow border-2 border-ink p-5 md:p-7 max-w-2xl"
@@ -1341,7 +1341,7 @@ function EarlyUnlock({
         className="text-xs uppercase tracking-[0.2em] text-ink mb-3"
         style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.16em' }}
       >
-        ✦ {locale === 'de' ? 'und jetzt das warum' : 'now the why'}
+        ✦ {locale === 'de' ? 'zwischen den zeilen' : 'between the lines'}
       </div>
       <p className="serif-body text-xl md:text-2xl text-ink leading-snug mb-5">{lede}</p>
       <button
