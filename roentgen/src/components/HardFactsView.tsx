@@ -1332,11 +1332,11 @@ function EarlyUnlock({
   const cta =
     locale === 'de'
       ? canAnalyzeRelationship
-        ? 'Beide Analysen · €5 →'
-        : 'Persönliches Profil · €3 →'
+        ? 'Beide Analysen · €5'
+        : 'Persönliches Profil · €3'
       : canAnalyzeRelationship
-        ? 'Both analyses · €5 →'
-        : 'Personal profile · €3 →'
+        ? 'Both analyses · €5'
+        : 'Personal profile · €3'
   return (
     <section
       className="bg-pop-yellow border-2 border-ink p-5 md:p-7 max-w-2xl"
