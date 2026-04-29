@@ -20,7 +20,7 @@ To run it locally for development:
 4. Create your environment file: `cp .env.example .env.local` and add your Anthropic API key
 5. Start the dev server: `npm run dev` and open `http://localhost:3000`
 
-For the full setup guide, see [GETTING_STARTED.md](./GETTING_STARTED.md).
+For the full setup guide, see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ---
 
@@ -29,8 +29,6 @@ For the full setup guide, see [GETTING_STARTED.md](./GETTING_STARTED.md).
 Upload a WhatsApp `.txt` export and the app parses it locally. The Hard Facts module loads immediately — message split between participants, response times, who initiates conversations, emoji usage, and an activity heatmap by hour and day of week. None of this requires a server call.
 
 If you unlock the AI modules, you get a profile of your own communication style, an analysis of the dynamic between both people, and a breakdown of the most significant moments in the chat. Moments are described as patterns, not quoted directly.
-
-A full walkthrough is available in [TUTORIAL.md](./TUTORIAL.md).
 
 ---
 
@@ -75,16 +73,15 @@ Multi-chat comparison, Discord and iMessage support, localization.
 
 ## Additional resources
 
-- [GETTING_STARTED.md](./GETTING_STARTED.md) — full local development setup
-- [TUTORIAL.md](./TUTORIAL.md) — step-by-step user walkthrough
-- [CONTRIBUTING.md](./docs/CONTRIBUTING.md) — contribution guidelines
-- [tea_konzept.md](./tea_konzept.md) — product concept document (German)
+- [`Concept.md`](./Concept.md) — architecture and design rationale
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — contribution guidelines
+- [`tea_konzept.md`](../tea_konzept.md) — product concept document (German)
 
 ---
 
 ## License
 
-MIT. This means you are free to use, copy, modify, and distribute this code, as long as the original copyright notice is included. See [LICENSE](./LICENSE) for the full license text.
+MIT. Free to use, copy, modify, and distribute this code, as long as the original copyright notice is included.
 
 ---
 

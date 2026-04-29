@@ -2,7 +2,7 @@
 
 Thanks for considering a contribution. This guide gets you from *cloning the repo* to *opening a pull request* without surprises.
 
-If you haven't yet, read [`CONCEPT.md`](./CONCEPT.md) first. It explains the architecture and — more importantly — the three privacy constraints that drive every design decision. Most "why is this code so weird" questions are answered there.
+If you haven't yet, read [`Concept.md`](./Concept.md) first. It explains the architecture and — more importantly — the three privacy constraints that drive every design decision. Most "why is this code so weird" questions are answered there.
 
 ---
 
@@ -42,7 +42,7 @@ npm install
 cp .env.example .env
 ```
 
-The defaults in `.env.example` enable **fixture mode** — the app runs entirely on pre-written JSON responses with no API key. Open `.env` if you later want to switch to live mode; see [`README.md`](./roentgen/README.md) for the full env reference.
+The defaults in `.env.example` enable **fixture mode** — the app runs entirely on pre-written JSON responses with no API key. Open `.env` if you later want to switch to live mode; see [`roentgen/README.md`](../roentgen/README.md) for the full env reference.
 
 ### Run
 
@@ -54,7 +54,7 @@ Open <http://localhost:5173>. Upload any WhatsApp `.txt` export (Settings → Ch
 
 ### Optional — live AI mode
 
-If you want to develop against the real Anthropic API, see the *Switching to live AI* section in [`README.md`](./roentgen/README.md). For most contributions, fixture mode is enough.
+If you want to develop against the real Anthropic API, see the *Switching to live AI* section in [`roentgen/README.md`](../roentgen/README.md). For most contributions, fixture mode is enough.
 
 ---
 
@@ -227,6 +227,6 @@ A reviewer will look for: privacy compliance, code style, behavior in fixture mo
 
 - **Bugs:** open a GitHub issue with steps to reproduce, expected vs. actual behavior, and your browser + OS. **Do not paste real chat content.** A redacted snippet of the relevant lines is enough; usually only the date format matters.
 - **Feature ideas:** open an issue and describe the user problem first, the proposed solution second. The privacy constraints in [§5](#5-privacy-rules--non-negotiable) are the main filter — if a feature needs to break them, it likely won't ship as-is, but there's often a creative way to keep them.
-- **Questions about the architecture:** [`CONCEPT.md`](./CONCEPT.md) is the long answer. If it doesn't cover your question, the answer probably belongs in there — open an issue and we'll add it.
+- **Questions about the architecture:** [`Concept.md`](./Concept.md) is the long answer. If it doesn't cover your question, the answer probably belongs in there — open an issue and we'll add it.
 
 Welcome aboard.

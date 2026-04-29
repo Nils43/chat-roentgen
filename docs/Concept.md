@@ -320,10 +320,10 @@ The default model is `claude-haiku-4-5-20251001`. Sonnet is a one-env-var upgrad
 
 ## 13. What this document does not cover
 
-- **How to run the app locally.** That's in [`roentgen/README.md`](./roentgen/README.md) and the *Getting Started* section there.
+- **How to run the app locally.** That's in [`roentgen/README.md`](../roentgen/README.md) and the *Getting Started* section there.
 - **How to contribute changes.** That's in [`CONTRIBUTING.md`](./CONTRIBUTING.md).
-- **Product reasoning, brand voice, target user.** [`tea_konzept.md`](./tea_konzept.md) and [`tea_brand_reference.md`](./tea_brand_reference.md).
-- **Privacy and legal compliance.** [`dpia.md`](./dpia.md), [`vvt.md`](./vvt.md), [`privacy-audit.md`](./privacy-audit.md).
+- **Product reasoning, brand voice, target user.** [`tea_konzept.md`](../tea_konzept.md) and [`tea_brand_reference.md`](../tea_brand_reference.md).
+- **Privacy and legal compliance.** [`dpia.md`](../dpia.md), [`vvt.md`](../vvt.md), [`privacy-audit.md`](../privacy-audit.md).
 - **Per-file API documentation.** Read the source — public exports are typed and the non-obvious ones are commented inline.
 
 ---
