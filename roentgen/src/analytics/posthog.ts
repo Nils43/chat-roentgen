@@ -19,19 +19,26 @@ import posthog from 'posthog-js'
 //   - Pageviews off. We send `app_view` events when stages change so
 //     we can map them to the actual stage flow, not the URL.
 //
-// Initialisation is gated on VITE_POSTHOG_KEY being set. If it isn't
-// (local dev, fixture mode, anyone forking the repo), the tracker
-// silently no-ops — no console noise, no broken events.
+// Default key is the live spillteato.me project (EU). PostHog "Project
+// API Keys" (phc_…) are *public* by design — same threat model as a
+// Stripe publishable key. They only let the bearer write events to a
+// single project; reads require the secret personal key on the dash.
+// Hardcoding it here means production works without a Vercel env var.
+// Override locally with VITE_POSTHOG_KEY in .env if you want events to
+// land in your own PostHog project instead of prod (recommended for
+// dev so you don't pollute the funnel).
+const DEFAULT_POSTHOG_KEY = 'phc_sAi8xGopM8pufhrtmE5swwhZobrCcSCLQcTVZkaY2Wsx'
+const DEFAULT_POSTHOG_HOST = 'https://eu.i.posthog.com'
 
 let initialised = false
 
 export function initPostHog(): void {
   if (initialised) return
   if (typeof window === 'undefined') return
-  const key = import.meta.env.VITE_POSTHOG_KEY as string | undefined
+  const key = (import.meta.env.VITE_POSTHOG_KEY as string | undefined) ?? DEFAULT_POSTHOG_KEY
   if (!key) return
 
-  const host = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ?? 'https://eu.i.posthog.com'
+  const host = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ?? DEFAULT_POSTHOG_HOST
   posthog.init(key, {
     api_host: host,
     ui_host: 'https://eu.posthog.com',
