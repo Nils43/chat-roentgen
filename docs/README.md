@@ -74,7 +74,8 @@ Multi-chat comparison, Discord and iMessage support, localization.
 ## User Flow
 
 This diagram shows the path a typical first-time user takes through tea, from landing on the site to saving their first insight.
-    
+
+```mermaid
 flowchart TD
     Start([User opens<br/>chat-roentgen.vercel.app])
     
@@ -132,6 +133,7 @@ flowchart TD
     class Step1,Step2,Step3,Step4,Proc1,Proc2,Proc3 process
     class Dec1,Dec2,Dec3 decision
     class In1,In2,In3,Out1,Out2 io
+```
 
 ---
 
