@@ -71,6 +71,70 @@ Multi-chat comparison, Discord and iMessage support, localization.
 
 ---
 
+## User Flow
+
+This diagram shows the path a typical first-time user takes through tea, from landing on the site to saving their first insight.
+    
+flowchart TD
+    Start([User opens<br/>chat-roentgen.vercel.app])
+    
+    Step1[User reads pitch<br/>and privacy note]
+    Dec1{Trusts tea<br/>enough to upload?}
+    Exit1([User leaves<br/>the site])
+    
+    In1[/User exports<br/>WhatsApp chat<br/>from phone/]
+    In2[/User drops txt file<br/>into tea/]
+    Proc1[tea parses chat<br/>locally in browser]
+    Step2[User reads<br/>Hard Facts:<br/>message split,<br/>response times,<br/>heatmap]
+    
+    Dec2{Wants deeper<br/>AI analysis?}
+    Out1[/User saves<br/>screenshot of<br/>Hard Facts/]
+    
+    Step3[User reads<br/>consent screen<br/>data counter shown]
+    Dec3{Agrees to<br/>send sample?}
+    
+    In3[/User pays<br/>via Stripe<br/>single unlock/]
+    Proc2[tea pseudonymizes<br/>names in browser]
+    Proc3[Sample sent<br/>to Claude API]
+    Step4[User reads Profile<br/>and Highlights]
+    
+    Out2[/User saves<br/>anonymized<br/>share card/]
+    End([Session ends<br/>no account, no trail])
+    
+    Start --> Step1
+    Step1 --> Dec1
+    Dec1 -->|No| Exit1
+    Dec1 -->|Yes| In1
+    In1 --> In2
+    In2 --> Proc1
+    Proc1 --> Step2
+    Step2 --> Dec2
+    Dec2 -->|No| Out1
+    Out1 --> End
+    Dec2 -->|Yes| Step3
+    Step3 --> Dec3
+    Dec3 -->|No, stay local| Step2
+    Dec3 -->|Yes| In3
+    In3 --> Proc2
+    Proc2 --> Proc3
+    Proc3 --> Step4
+    Step4 --> Out2
+    Out2 --> End
+    
+    classDef startNode fill:#16140F,stroke:#16140F,stroke-width:2px,color:#ECFD38,font-weight:bold
+    classDef endNode fill:#ECFD38,stroke:#16140F,stroke-width:2px,color:#16140F,font-weight:bold
+    classDef process fill:#F0EBE0,stroke:#16140F,stroke-width:1px,color:#16140F
+    classDef decision fill:#FFFAE0,stroke:#16140F,stroke-width:2px,color:#16140F
+    classDef io fill:#E3DCCB,stroke:#16140F,stroke-width:1px,color:#16140F
+    
+    class Start startNode
+    class End,Exit1 endNode
+    class Step1,Step2,Step3,Step4,Proc1,Proc2,Proc3 process
+    class Dec1,Dec2,Dec3 decision
+    class In1,In2,In3,Out1,Out2 io
+
+---
+
 ## Additional resources
 
 - [`Concept.md`](./Concept.md) — architecture and design rationale
