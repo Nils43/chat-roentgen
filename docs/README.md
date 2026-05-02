@@ -155,5 +155,5 @@ MIT. Free to use, copy, modify, and distribute this code, as long as the origina
 
 ## Maintained by
 
-Antonia and Nils Heck — CODE University of Applied Sciences, Berlin
+Antonia Wittrin and Nils Heck — CODE University of Applied Sciences, Berlin
 
