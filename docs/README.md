@@ -139,11 +139,11 @@ flowchart TD
 
 ## Additional resources
 
+- [`getting-started.md`](./getting-started.md) — local setup walkthrough for developers (~10 min to a running instance)
+- [`tutorial.md`](./tutorial.md) — end-to-end walkthrough of a first tea session for users
 - [`Concept.md`](./Concept.md) — architecture and design rationale
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md) — contribution guidelines
-- [`tea_konzept.md`](../tea_konzept.md) — product concept document 
-- [`tutorial.md`](../tutorial.md) — toturial document
-- [`getting-started.md`](../getting-startetd.md) — product concept document
+- [`tea_konzept.md`](../tea_konzept.md) — original product concept document (German)
 
 ---
 
