@@ -1,115 +1,115 @@
 # Analyses — Token-Efficiency Deep Research
 
-> Ziel: **maximal scharfer Output bei minimaler Input-Masse.** Jedes Token muss eine Interpretations-Hebelwirkung haben. Voice: trocken-ironisch im Receipts-Ton.
+> Goal: **maximum sharp output with minimum input mass.** Every token must carry interpretive leverage. Voice: dry, observational Receipts-Ton.
 
 ---
 
-## 1. Die ehrliche Bestandsaufnahme
+## 1. The honest baseline
 
-Nach der ersten Rework-Runde (`analyses-rework.md`) schicken wir statt 20k Raw-Chat-Tokens jetzt ~2-3k Evidence-JSON + 26 kuratierte Moments an Haiku 4.5. Das ist schon ~8× billiger. Aber:
+After the first rework round (`analyses-rework.md`) we now ship ~2-3k Evidence-JSON + 26 curated moments to Haiku 4.5 instead of 20k raw chat tokens. That's already ~8× cheaper. But:
 
-- **Der Evidence-Blob ist redundant.** Wir schicken `messagesPct` **und** die absoluten Zahlen. Wir schicken `medianReplyMinutes` **und** die buckets. Viele Prozent-Werte stehen auf drei Nachkommastellen, obwohl niemand den Unterschied zwischen 0.732 und 0.73 interpretieren kann.
-- **Die Moments sind zu viele und zu lang.** 26 Moments à ≤220 Zeichen = ~1100 Tokens. Davon sind 60% Dubletten derselben Kategorie (z.B. 5 late-night-Moments hintereinander).
-- **Das System-Prompt ist immer noch ~500 Tokens mit viel Metasprache** (mehrere Wiederholungen von "concrete not categorical", "no coach talk" etc.).
-- **Der Voice-Anker fehlt.** Das Modell weiß nicht, dass es trocken-ironisch klingen soll. Also fällt es auf neutral-klinisch zurück.
-- **Das Output-Schema** zwingt Haiku zu ~40 Prosa-Feldern mit je "2-3 Sätze" → ~3000 Output-Tokens. Nahe am max_tokens-Limit, deshalb der Crash.
+- **The evidence blob is redundant.** We send `messagesPct` **and** the absolute counts. We send `medianReplyMinutes` **and** the buckets. Many percentage values come with three decimal places, even though no one can interpret the difference between 0.732 and 0.73.
+- **There are too many moments and they're too long.** 26 moments at ≤220 chars = ~1100 tokens. 60% of those are duplicates of the same category (e.g. 5 late-night moments back-to-back).
+- **The system prompt is still ~500 tokens with a lot of metaspeak** (multiple repetitions of "concrete not categorical", "no coach talk" etc.).
+- **The voice anchor is missing.** The model doesn't know it should sound dry and ironic. So it falls back to neutral-clinical.
+- **The output schema** forces Haiku into ~40 prose fields each with "2-3 sentences" → ~3000 output tokens. Close to the max_tokens limit, hence the crash.
 
-Der Hebel liegt jetzt nicht mehr beim Input-Volumen, sondern bei **Input-Qualität** und **Output-Disziplin**.
-
----
-
-## 2. Die Efficiency-Frontier verstehen
-
-### Was das Modell braucht, um gute Prosa zu schreiben
-
-Empirisch (Claude-Verhalten in Tool-Use-Settings):
-
-1. **Zahlen, die Asymmetrie zeigen.** Ein Delta ist interpretierbar, zwei Absolutwerte müssen erst verglichen werden. Haiku macht das schlechter als Sonnet.
-2. **Konkrete Sprach-Fragmente.** 5-10 echte Formulierungen schlagen 100 Durchschnittswerte. "hedges_topExamples: ['nur so ne idee', 'vielleicht', 'weiß nicht ob']" ist 20× mehr wert als "hedgesRatio: 0.31".
-3. **Zeitliche Marker.** Ein Kipppunkt-Datum ist wertvoller als die ganze weekly-Kurve.
-4. **Reason-Tags an Moments.** Das Wort "apology" an einem Moment spart dem Modell die Klassifikation.
-
-### Was das Modell nicht braucht
-
-1. Redundante Darstellungen derselben Metrik.
-2. Hohe Zahlengenauigkeit (3 Nachkommastellen).
-3. Aufzählung aller Wochen — die Form reicht.
-4. Erklärende Metasprache im Prompt ("concrete not categorical" + "no coach talk" + "no framework names" sagen alle dieselbe Sache).
-5. Wiederholte Safety-Anweisungen.
-
-### Die Null-Regel
-
-**Jeder Prompt-Token muss eine Aussage treffen, die der Schema-Struktur NICHT inhärent ist.** Wenn das Schema ein Enum `['positiv', 'negativ', 'unklar']` hat, muss der Prompt das nicht nochmal erklären.
+The lever is no longer input volume but **input quality** and **output discipline**.
 
 ---
 
-## 3. Input-Layer — was genau reinkommt
+## 2. Understanding the efficiency frontier
+
+### What the model needs to write good prose
+
+Empirically (Claude behavior in tool-use settings):
+
+1. **Numbers that show asymmetry.** A delta is interpretable; two absolute values have to be compared first. Haiku does this worse than Sonnet.
+2. **Concrete language fragments.** 5-10 real phrasings beat 100 averages. "hedges_topExamples: ['nur so ne idee', 'vielleicht', 'weiß nicht ob']" is 20× more valuable than "hedgesRatio: 0.31".
+3. **Temporal markers.** A tipping-point date is more valuable than the entire weekly curve.
+4. **Reason tags on moments.** The word "apology" on a moment saves the model the classification step.
+
+### What the model doesn't need
+
+1. Redundant representations of the same metric.
+2. High numerical precision (3 decimal places).
+3. Enumeration of every week — the shape is enough.
+4. Explanatory metaspeak in the prompt ("concrete not categorical" + "no coach talk" + "no framework names" all say the same thing).
+5. Repeated safety instructions.
+
+### The zero rule
+
+**Every prompt token must make a statement that is NOT inherent to the schema structure.** If the schema has an enum `['positiv', 'negativ', 'unklar']`, the prompt doesn't need to explain it again.
+
+---
+
+## 3. Input layer — what exactly goes in
 
 ### 3.1 Evidence Packet v2 — Slim Edition
 
-**Weg mit:**
-- `totals.messages/words/emojis` — steht implizit in `people[x].messagesPct + totals` nicht nötig
-- `span.durationDays` — das Modell bekommt `firstDate` und `lastDate`
-- `rhythm.mostActiveHour` als Zahl — menschliche Hour-Labels sind interpretierbarer
-- `arc` mit 8 Buckets — 3 Buckets reichen (Start, Mitte, Ende)
-- `people[x].replyUnder5m/replyOver1d` — die Distribution-Buckets sind zu feinkörnig
-- `asymmetry.initiationDrift.firstHalfShare/secondHalfShare` — nur der Swap-Boolean und wer in welcher Hälfte führt
+**Cut:**
+- `totals.messages/words/emojis` — implicit in `people[x].messagesPct + totals`, not needed
+- `span.durationDays` — the model gets `firstDate` and `lastDate`
+- `rhythm.mostActiveHour` as a number — human hour labels are more interpretable
+- `arc` with 8 buckets — 3 buckets are enough (start, middle, end)
+- `people[x].replyUnder5m/replyOver1d` — distribution buckets are too fine-grained
+- `asymmetry.initiationDrift.firstHalfShare/secondHalfShare` — only the swap boolean and who leads in which half
 
-**Neu rein:**
-- `people[x].signatureWords: string[3-5]` — die häufigsten nicht-trivialen Wörter pro Person (lokal aus Frequenzanalyse, stop-words gefiltert)
-- `people[x].signatureOpeners: string[2-3]` — typische Satzanfänge
-- `people[x].toneHint` — lokal abgeleitet: 'questioning' | 'declarative' | 'hedging' | 'playful' | 'terse' | 'verbose'
-- `asymmetry.note` — vorausberechneter One-Liner: "A sends 73%, replies 4× faster, initiates 84% of pauses. B runs the clock."
-- `flags[]` — lokal erkannte Red-Flag-Trigger: `'one_sided_apologies' | 'night_only_contact' | 'silent_phases_grow' | 'burst_asymmetry' | 'none'`
+**Add:**
+- `people[x].signatureWords: string[3-5]` — the most frequent non-trivial words per person (locally derived from frequency analysis, stopwords filtered)
+- `people[x].signatureOpeners: string[2-3]` — typical sentence openers
+- `people[x].toneHint` — locally derived: 'questioning' | 'declarative' | 'hedging' | 'playful' | 'terse' | 'verbose'
+- `asymmetry.note` — pre-computed one-liner: "A sends 73%, replies 4× faster, initiates 84% of pauses. B runs the clock."
+- `flags[]` — locally detected red-flag triggers: `'one_sided_apologies' | 'night_only_contact' | 'silent_phases_grow' | 'burst_asymmetry' | 'none'`
 
-**Ziel-Größe:** ~400-600 Tokens statt aktuell 1000-1500.
+**Target size:** ~400-600 tokens vs the current 1000-1500.
 
 ### 3.2 Curated Moments v2 — Less is More
 
-Von 26 auf **12 Moments** reduzieren, nach Reason-Diversität statt Score:
+Drop from 26 to **12 moments**, prioritizing reason diversity over score:
 
-| Reason | Anzahl | Max-Länge |
+| Reason | Count | Max length |
 |--------|--------|-----------|
 | apology | 0-2 | 120 chars |
 | hedge_cluster | 0-2 | 120 chars |
 | late_night | 1-2 | 100 chars |
 | burst_start | 0-2 | 80 chars |
-| post_silence + pre_silence (paarweise) | 0-2 pairs | 100 chars |
+| post_silence + pre_silence (paired) | 0-2 pairs | 100 chars |
 | drift_window | 0-2 | 100 chars |
-| long_message | 0-1 | 180 chars (der eine lange Monolog-Moment) |
+| long_message | 0-1 | 180 chars (the one long monologue moment) |
 | peak_day | 0-1 | 80 chars |
 
-**Cap pro Kategorie verhindert Haiku-Tunnel-Vision auf einen Reason-Typ.**
+**A cap per category prevents Haiku tunnel-vision on one reason type.**
 
-Format: `#N ts author reason | text` → ~70-150 Tokens pro Moment.
-12 Moments × 100 Tokens = **~1200 Tokens**.
+Format: `#N ts author reason | text` → ~70-150 tokens per moment.
+12 moments × 100 tokens = **~1200 tokens**.
 
-### 3.3 Gesamtvolumen Input
+### 3.3 Total input volume
 
-| Komponente | Tokens |
+| Component | Tokens |
 |------------|--------|
-| System-Prompt (neu, Kap. 4) | ~300 |
-| Tool Schema (gekappt, Kap. 6) | ~2500 |
+| System prompt (new, ch. 4) | ~300 |
+| Tool schema (trimmed, ch. 6) | ~2500 |
 | Evidence Packet v2 | ~500 |
 | Moments (12) | ~1200 |
-| **Summe Input pro Call** | **~4500** |
+| **Input sum per call** | **~4500** |
 
-Schema-Tokens sind gecacht (Kap. 7) → erst-Call full price, zweiter Call nur ~500 Tokens "frisch".
+Schema tokens are cached (ch. 7) → first call full price, second call only ~500 "fresh" tokens.
 
 ---
 
-## 4. Prompt-Layer — Minimum System Prompt mit Voice-Anchor
+## 4. Prompt layer — minimum system prompt with voice anchor
 
-### 4.1 Warum das Prompt radikal kleiner werden kann
+### 4.1 Why the prompt can shrink radically
 
-Das aktuelle Prompt wiederholt 3× dieselbe Regel:
+The current prompt repeats the same rule 3×:
 - "Concrete, not categorical"
 - "No labels, observed behavior"  
 - "Describe pattern in plain language"
 
-Das Modell lernt aus einem Beispiel schneller als aus drei Meta-Anweisungen. **Zwei Voice-Beispiele ersetzen 80% der Metasprache.**
+The model learns faster from one example than from three meta-instructions. **Two voice examples replace 80% of the metaspeak.**
 
-### 4.2 Neuer System-Prompt (Profile) — Target 250 Tokens
+### 4.2 New system prompt (Profile) — target 250 tokens
 
 ```
 You read an Evidence Packet (pre-computed stats + 12 tagged moments) and write
@@ -131,9 +131,9 @@ Safety: abuse, suicidal ideation, control, violence → name it, point to help.
 Output only via submit_profile tool. English.
 ```
 
-~280 Tokens. Jedes Wort zieht.
+~280 tokens. Every word pulls weight.
 
-### 4.3 Relationship System-Prompt — Target 300 Tokens
+### 4.3 Relationship system prompt — target 300 tokens
 
 Same framework, tone-anchors adapted:
 
@@ -160,7 +160,7 @@ Use the provided pseudonyms exactly.
 Output only via submit_relationship tool. English.
 ```
 
-~320 Tokens.
+~320 tokens.
 
 ---
 
@@ -204,32 +204,32 @@ Forces the model to bind claims to concrete evidence. The prompt says "anchor ev
 
 ---
 
-## 6. Voice — der ironisch-trockene Receipts-Ton
+## 6. Voice — the dry, ironic Receipts-Ton
 
-### 6.1 Tone-Pillars
+### 6.1 Tone pillars
 
-- **Direkt.** "You reply fast. They don't." Nicht "There is a pattern of differential response latency."
-- **Konkret.** Immer eine Zahl oder ein Moment. "73%", "#7", "3am on Sundays". Nie "often", "sometimes".
-- **Dry smirk.** Ein Satz pro Sektion der sticht. "Three minutes to reply. Always. Even when 'no' was the answer."
-- **Kein Pop-Psych.** Keine "queen energy", keine "boundaries-speech", kein "you deserve better".
-- **Kein Mitleid.** Beobachten. Nicht beruhigen, nicht aufrütteln.
+- **Direct.** "You reply fast. They don't." Not "There is a pattern of differential response latency."
+- **Concrete.** Always a number or a moment. "73%", "#7", "3am on Sundays". Never "often", "sometimes".
+- **Dry smirk.** One sentence per section that bites. "Three minutes to reply. Always. Even when 'no' was the answer."
+- **No pop-psych.** No "queen energy", no "boundaries-speech", no "you deserve better".
+- **No pity.** Observe. Don't soothe, don't rally.
 
-### 6.2 Do/Don't-Pairs für den Prompt
+### 6.2 Do/Don't pairs for the prompt
 
-Haiku lernt aus 2-3 gut gewählten Beispielen besser als aus 500 Metas. Die Voice-Anchor-Sektion im System-Prompt macht das.
+Haiku learns better from 2-3 well-chosen examples than from 500 metas. The voice-anchor section in the system prompt does this work.
 
-Weitere Kandidaten für künftige Iteration:
+Further candidates for future iteration:
 - ✓ "They start every chat. You finish it. Both of you know it."
 - ✓ "The sorries landed before any actual wrong. That's a reflex, not a response."
 - ✗ "Communication patterns indicate a caregiver-seeker dynamic."
 
-### 6.3 Was wenn Haiku den Ton nicht trifft?
+### 6.3 What if Haiku misses the tone?
 
-Fallback: Beim Post-Processing checken, ob Output bestimmte Coach-Wörter enthält (self-love, energy, journey, authentic, boundary, queen, healing, growth). Wenn > 1 → retry mit stärkerem Prompt oder Sonnet-Escalation.
+Fallback: in post-processing, check whether the output contains certain coach words (self-love, energy, journey, authentic, boundary, queen, healing, growth). If > 1 → retry with a stronger prompt or escalate to Sonnet.
 
 ---
 
-## 7. Prompt Caching — praktisch nutzen
+## 7. Prompt caching — putting it to work
 
 Anthropic supports `cache_control: {"type": "ephemeral"}` on system prompt blocks + tool schemas. 5-min TTL.
 
@@ -261,7 +261,7 @@ Caveat: profile and relationship have DIFFERENT system prompts. Either unify the
 
 ---
 
-## 8. Proposed Pipeline — alles zusammen
+## 8. Proposed pipeline — putting it all together
 
 ### 8.1 Token budget per call
 
@@ -293,7 +293,7 @@ Caveat: profile and relationship have DIFFERENT system prompts. Either unify the
 | Relationship (cached) | $0.006 | $0.030 | **~3.6 ct** |
 | Both per chat | | | **~7.6 ct** |
 
-Alle Varianten <10 ct, comfortable margin to the 30 ct ceiling.
+All variants <10 ct, comfortable margin to the 30 ct ceiling.
 
 ### 8.3 Quality bets
 
@@ -310,12 +310,12 @@ In this order:
 
 ### 9.1 Evidence v2 (`src/ai/evidence.ts`)
 
-- [ ] Add `signatureWords(messages): string[]` — pro Person, top-5 Wörter nach TF-IDF-ish Scoring, stopword-gefiltert (deutsch + englisch)
-- [ ] Add `signatureOpeners(messages): string[]` — häufige 2-3-Gramm-Satzanfänge pro Person
-- [ ] Add `toneHint(person): 'questioning' | 'declarative' | 'hedging' | 'playful' | 'terse' | 'verbose'` — abgeleitet aus questionsRatio, hedgesRatio, emojiPerMsg, avgWords
-- [ ] Add `asymmetryNote: string` — vorausberechneter One-Liner
-- [ ] Add `flags: Flag[]` — lokale Red-Flag-Heuristiken
-- [ ] Strip: totals (keep only messages), span.durationDays, rhythm.mostActiveHour as number, people.replyBuckets, arc → 3-bucket version, asymmetry.initiationDrift.firstHalfShare/secondHalfShare (nur swap + leaders)
+- [ ] Add `signatureWords(messages): string[]` — per person, top-5 words by TF-IDF-ish scoring, stopword-filtered (German + English)
+- [ ] Add `signatureOpeners(messages): string[]` — frequent 2-3-gram sentence openers per person
+- [ ] Add `toneHint(person): 'questioning' | 'declarative' | 'hedging' | 'playful' | 'terse' | 'verbose'` — derived from questionsRatio, hedgesRatio, emojiPerMsg, avgWords
+- [ ] Add `asymmetryNote: string` — pre-computed one-liner
+- [ ] Add `flags: Flag[]` — local red-flag heuristics
+- [ ] Strip: totals (keep only messages), span.durationDays, rhythm.mostActiveHour as number, people.replyBuckets, arc → 3-bucket version, asymmetry.initiationDrift.firstHalfShare/secondHalfShare (only swap + leaders)
 - [ ] Round all percents to 2 decimals
 
 ### 9.2 Curated sample v2

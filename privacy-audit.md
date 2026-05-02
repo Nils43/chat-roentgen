@@ -1,165 +1,165 @@
 # Privacy Audit · tea
 
-> DSGVO-First-Audit. Was wir heute tun, wo wir rechtlich stehen, und was zu tun ist.
-> Stand: 2026-04-21. Live-Dokument.
+> GDPR-first audit. What we do today, where we stand legally, and what's left to do.
+> As of: 2026-04-21. Living document.
 
 ---
 
-## 1. Datenfluss heute — wohin geht was?
+## 1. Data flow today — what goes where?
 
-### Zone 1 — On-device (Browser)
-- **Chat-Upload** (`Upload.tsx` → `parser/whatsapp.ts`): .txt/.zip wird im Browser geparst. Keine HTTP-Requests. Unzip läuft via `jszip` lokal.
-- **Hard Facts Analyse** (`hardFacts.ts`): reines JS-Rechnen, keine Netzwerk-Calls.
-- **Speicherung:** Chat-Inhalte liegen in **IndexedDB** (`sessionStore.ts`), Meta in **localStorage** (`chatLibrary`). Alles pro Browser.
+### Zone 1 — On-device (browser)
+- **Chat upload** (`Upload.tsx` → `parser/whatsapp.ts`): .txt/.zip is parsed in the browser. No HTTP requests. Unzip runs locally via `jszip`.
+- **Hard Facts analysis** (`hardFacts.ts`): pure JS computation, no network calls.
+- **Storage:** chat content lives in **IndexedDB** (`sessionStore.ts`), metadata in **localStorage** (`chatLibrary`). All per browser.
 
-### Zone 2 — Proxy (Server, transient)
-- **POST /api/analyze** (`server/proxy.ts`): nimmt `{model, max_tokens, system, messages, tools, tool_choice}` entgegen, leitet an Anthropic weiter.
-- Body nur im RAM während des Requests. Kein Disk-Log, kein Request-Body-Logging. Size-Cap 500 KB.
-- API-Key wird nie an den Browser geschickt.
+### Zone 2 — Proxy (server, transient)
+- **POST /api/analyze** (`server/proxy.ts`): receives `{model, max_tokens, system, messages, tools, tool_choice}` and forwards to Anthropic.
+- Body only in RAM during the request. No disk log, no request-body logging. Size cap 500 KB.
+- API key is never sent to the browser.
 
-### Zone 3 — Anthropic (Third-Party, EU → USA)
-- **Evidence Packet** (~500 Tokens JSON) + **12 kuratierte Nachrichten** (~1500 Tokens Text) gehen raus.
-- Vorher **pseudonymisiert**: Namen → "Person A/B", E-Mails → `[email]`, Links → `[link]`, Telefonnummern → `[phone]`.
-- **Anthropic-Policy:** keine Training-Nutzung, 30 Tage Retention für Trust & Safety.
+### Zone 3 — Anthropic (third party, EU → USA)
+- **Evidence Packet** (~500 tokens JSON) + **12 curated messages** (~1500 tokens text) go out.
+- Beforehand **pseudonymized**: names → "Person A/B", emails → `[email]`, links → `[link]`, phone numbers → `[phone]`.
+- **Anthropic policy:** no training use, 30-day retention for Trust & Safety.
 
-### Third-Party Externals (heute)
-- **Google Fonts** (`index.css`): `fonts.googleapis.com` lädt Bebas Neue + Courier Prime beim ersten Seitenbesuch. **→ DSGVO-Problem**, siehe Kap. 4.1.
-- **Keine Analytics**. Kein GA, kein Plausible, kein Fathom, kein Sentry.
-- **Keine Cookies** (nur IndexedDB + localStorage, technisch notwendig).
+### Third-party externals (today)
+- **Google Fonts** (`index.css`): `fonts.googleapis.com` loads Bebas Neue + Courier Prime on the first page visit. **→ GDPR problem**, see section 4.1.
+- **No analytics**. No GA, no Plausible, no Fathom, no Sentry.
+- **No cookies** (only IndexedDB + localStorage, technically necessary).
 
 ---
 
-## 2. Rechtslage (DSGVO)
+## 2. Legal situation (GDPR)
 
-### 2.1 Rollen
-| Rolle | Wer | Basis |
+### 2.1 Roles
+| Role | Who | Basis |
 |------|-----|-------|
-| **Controller** | Der User für die eigenen Chat-Daten (Haushaltsausnahme greift für private Nutzung) | Art. 2(2)(c) DSGVO |
-| **Controller** | tea für Account-/Tech-Daten (wenn wir welche hätten — haben wir heute nicht) | Art. 4(7) |
-| **Processor** | tea für Chat-Daten die an die AI gehen | Art. 28 |
-| **Sub-Processor** | Anthropic (via Proxy → Third-Country) | Art. 28(2) |
+| **Controller** | The user for their own chat data (household exemption applies for private use) | Art. 2(2)(c) GDPR |
+| **Controller** | tea for account/tech data (if we had any — we don't today) | Art. 4(7) |
+| **Processor** | tea for chat data sent to the AI | Art. 28 |
+| **Sub-Processor** | Anthropic (via proxy → third country) | Art. 28(2) |
 
-### 2.2 Rechtsgrundlagen
-- **Account/Login**: brauchen wir aktuell nicht → Thema entfällt.
-- **Eigene Chat-Daten** (Teil der Haushaltsausnahme): keine DSGVO-Anwendung.
-- **AI-Verarbeitung der Ausschnitte**: **Einwilligung** nach Art. 6(1)(a) — explizit, informiert, widerrufbar.
-- **Sensible Kategorien** (Art. 9): Chats können Gesundheit, Sexualleben, politische Meinungen enthalten → **explizite Einwilligung** nach Art. 9(2)(a) nötig, nicht nur Art. 6.
-- **Daten der anderen Person**: Haushaltsausnahme greift für den User. tea als Processor verarbeitet im Auftrag des Users. Pseudonymisierung minimiert das Risiko.
+### 2.2 Legal bases
+- **Account/login**: not currently needed → topic does not apply.
+- **User's own chat data** (part of the household exemption): GDPR does not apply.
+- **AI processing of the excerpts**: **consent** under Art. 6(1)(a) — explicit, informed, revocable.
+- **Sensitive categories** (Art. 9): chats may contain health, sex life, political opinions → **explicit consent** under Art. 9(2)(a) required, not just Art. 6.
+- **Data of the other person**: household exemption applies for the user. tea as Processor processes on behalf of the user. Pseudonymization minimizes the risk.
 
-### 2.3 Drittland-Transfer (Anthropic = USA)
-- Nach **Schrems II** problematisch ohne zusätzliche Garantien.
-- Braucht: **Data Processing Addendum (DPA)** mit Anthropic **plus EU SCCs** plus **TIA (Transfer Impact Assessment)**.
-- Anthropic hat Standard-DPA: https://www.anthropic.com/legal/dpa → abschließen + verlinken.
-- Aktueller EU-US Data Privacy Framework (adäquanzbeschluss seit 2023): Anthropic muss zertifiziert sein, sonst brauchen wir SCCs zusätzlich.
+### 2.3 Third-country transfer (Anthropic = USA)
+- Per **Schrems II** problematic without additional safeguards.
+- Requires: **Data Processing Addendum (DPA)** with Anthropic **plus EU SCCs** plus **TIA (Transfer Impact Assessment)**.
+- Anthropic has a standard DPA: https://www.anthropic.com/legal/dpa → execute + link.
+- Current EU-US Data Privacy Framework (adequacy decision since 2023): Anthropic must be certified, otherwise we additionally need SCCs.
 
-### 2.4 Google Fonts = rechtliche Altlast
-- LG München 2022 (20.01.2022, Az. 3 O 17493/20): **Einbindung via CDN = rechtswidrig** bei fehlender Einwilligung.
-- Massenabmahnungen 2022 in Deutschland.
-- Lösung: **Self-hosting** der Fonts (Google Fonts Helper / download + locally serve).
+### 2.4 Google Fonts = legal legacy
+- LG München 2022 (20.01.2022, case no. 3 O 17493/20): **embedding via CDN = unlawful** without consent.
+- Mass cease-and-desist letters in Germany in 2022.
+- Solution: **self-hosting** the fonts (Google Fonts Helper / download + serve locally).
 
-### 2.5 Betroffenenrechte (Art. 15-22)
-| Recht | Wie heute | Gap |
+### 2.5 Data subject rights (Art. 15-22)
+| Right | How today | Gap |
 |-------|-----------|-----|
-| Auskunft (15) | User hat alle Daten selbst im Browser | Klarstellung im Policy-Text |
-| Berichtigung (16) | n/a — keine Profile angelegt | — |
-| Löschung (17) | `chatLibrary.remove(id)` löscht Chat + Session | Kein "alles löschen"-Button |
-| Portabilität (20) | Chat-Export fehlt | **Export als JSON implementieren** |
-| Widerruf (7) | Consent-Screen vorhanden aber Widerruf nach dem Call unmöglich (Data schon bei Anthropic) | Klarstellung |
-| Beschwerde (77) | Aufsichtsbehörde nennen (z.B. BayLDA wenn Firma in Bayern) | Im Policy-Text |
+| Access (15) | User has all data themselves in the browser | Clarification in policy text |
+| Rectification (16) | n/a — no profiles created | — |
+| Erasure (17) | `chatLibrary.remove(id)` deletes chat + session | No "delete everything" button |
+| Portability (20) | Chat export missing | **Implement export as JSON** |
+| Withdrawal (7) | Consent screen present but withdrawal after the call impossible (data already at Anthropic) | Clarification |
+| Complaint (77) | Name supervisory authority (e.g. BayLDA if company in Bavaria) | In policy text |
 
 ---
 
-## 3. Gaps — was wir heute NICHT haben
+## 3. Gaps — what we do NOT have today
 
-1. **Keine Datenschutzerklärung** im Produkt. Harter GDPR-Breaker wenn live.
-2. **Kein Impressum** (§5 TMG + §18 MStV Pflicht für Dienstanbieter in DE).
-3. **Google Fonts** via CDN = Abmahn-Radar.
-4. **Kein Datenexport** für den User — scheitert Art. 20.
-5. **Kein "alles löschen"**-Knopf — nur einzel-delete. Art. 17 verlangt "ohne Umstände".
-6. **Keine expliziten Hinweise** auf Art. 9-Risiko (Chats enthalten sensible Kategorien) im Consent-Flow.
-7. **Fehlende Transfer-Klarstellung** im AI-Consent-Screen (ja es steht "an Anthropic", aber ohne Hinweis auf USA, SCCs, Widerruf-Folgen).
-8. **Kein DPIA** (Art. 35) dokumentiert — bei solchen sensiblen Daten formal erforderlich.
+1. **No privacy policy** in the product. Hard GDPR breaker if live.
+2. **No imprint** (§5 TMG + §18 MStV obligation for service providers in Germany).
+3. **Google Fonts** via CDN = cease-and-desist radar.
+4. **No data export** for the user — fails Art. 20.
+5. **No "delete everything"** button — only single-delete. Art. 17 requires "without undue delay".
+6. **No explicit notice** of Art. 9 risk (chats contain sensitive categories) in the consent flow.
+7. **Missing transfer clarification** in the AI consent screen (yes, it says "to Anthropic", but without notice of USA, SCCs, withdrawal consequences).
+8. **No DPIA** (Art. 35) documented — formally required for such sensitive data.
 
 ---
 
-## 4. Plan — in Implementierungs-Reihenfolge
+## 4. Plan — in implementation order
 
-### 4.1 Google Fonts self-hosten (URGENT)
-**Aufwand:** klein, **Risiko:** sofort abmahnfähig aktuell.
-- Fonts runterladen, in `public/fonts/` legen, per `@font-face` selbst einbinden
-- `@import` aus `index.css` raus
+### 4.1 Self-host Google Fonts (URGENT)
+**Effort:** small, **risk:** currently subject to immediate cease-and-desist.
+- Download fonts, place in `public/fonts/`, embed yourself via `@font-face`
+- Remove `@import` from `index.css`
 
-### 4.2 Datenschutzerklärung als Route
-Neue Komponente `PrivacyPolicy.tsx`, erreichbar via Footer-Link + Zahnrad. Inhalte:
-- Verantwortlicher (Name, Adresse, E-Mail) — für privaten Demo: Platzhalter
-- Rechtsgrundlagen der drei Zonen
-- Liste der Daten-Empfänger (Anthropic, Stripe, Hosting)
-- Drittland-Transfer + SCCs + DPF-Hinweis
-- Betroffenenrechte inkl. Beschwerderecht (BayLDA genannt)
-- Datenkategorien, Zwecke, Speicherdauern
-- Ehrlich über Anthropic 30-Tage-Retention
+### 4.2 Privacy policy as a route
+New component `PrivacyPolicy.tsx`, reachable via footer link + gear icon. Contents:
+- Controller (name, address, email) — for the private demo: placeholder
+- Legal bases of the three zones
+- List of data recipients (Anthropic, Stripe, hosting)
+- Third-country transfer + SCCs + DPF notice
+- Data subject rights including right to complain (BayLDA named)
+- Data categories, purposes, retention periods
+- Honest about Anthropic 30-day retention
 
-### 4.3 Impressum als Route
-Neue Komponente `Imprint.tsx`:
-- Name, Anschrift, Kontakt
-- Verantwortlich für Inhalt nach §18 MStV
-- Haftungsausschluss
+### 4.3 Imprint as a route
+New component `Imprint.tsx`:
+- Name, address, contact
+- Responsible for content under §18 MStV
+- Disclaimer
 
-### 4.4 Settings-Panel
-Neue Route/Modal mit:
-- **"Export all data"** — JSON-Dump aller Chats + Ergebnisse
-- **"Delete all data"** — wipes IndexedDB + localStorage, "sure?"-Bestätigung
-- Status: wie viele Chats, wie viele Analysen
-- Link zu Privacy + Imprint
+### 4.4 Settings panel
+New route/modal with:
+- **"Export all data"** — JSON dump of all chats + results
+- **"Delete all data"** — wipes IndexedDB + localStorage, "sure?" confirmation
+- Status: how many chats, how many analyses
+- Link to Privacy + Imprint
 
-### 4.5 Consent-Screen härten
-- Explizit nennen: *"Ein Ausschnitt wird an **Anthropic (USA)** gesendet. Speicherdauer dort: 30 Tage. Kein Training."*
-- Hinweis: *"Chats können sensible Themen enthalten (Gesundheit, Sexualleben, politische Ansichten). Durch "Start" erteilst du **explizite Einwilligung** nach Art. 9 DSGVO für diese Verarbeitung."*
-- Checkbox (nicht vorausgewählt) für Art. 9 consent
+### 4.5 Harden consent screen
+- Explicitly state: *"An excerpt is sent to **Anthropic (USA)**. Retention there: 30 days. No training."*
+- Notice: *"Chats may contain sensitive topics (health, sex life, political views). By clicking "Start" you grant **explicit consent** under Art. 9 GDPR for this processing."*
+- Checkbox (not pre-selected) for Art. 9 consent
 
-### 4.6 Upload-Screen mit Art. 9 Hinweis
-- Bestehende House-Rules Checkbox ergänzen um Verweis auf die **explizite Einwilligung bei AI-Start**
+### 4.6 Upload screen with Art. 9 notice
+- Extend the existing house-rules checkbox with a reference to the **explicit consent at AI start**
 
-### 4.7 Privacy-Hinweis bei erstem App-Start
-Einmaliger Banner (localStorage-Flag) beim ersten Besuch:
-- *"Wir analysieren lokal. Für tiefe Einblicke geht ein kleiner Teil an eine AI in den USA. Deine Chats werden nie gespeichert."*
+### 4.7 Privacy notice on first app start
+One-time banner (localStorage flag) on the first visit:
+- *"We analyze locally. For deep insights, a small portion goes to an AI in the USA. Your chats are never stored."*
 - [Ok, got it] [Read the policy]
 
-### 4.8 DPIA dokumentieren
-Neues Dokument `dpia.md` im Repo: Art. 35 Data Protection Impact Assessment. Wird nicht im Produkt gezeigt, dokumentiert intern.
+### 4.8 Document the DPIA
+New document `dpia.md` in the repo: Art. 35 Data Protection Impact Assessment. Not shown in the product, documented internally.
 
-### 4.9 DPA mit Anthropic abschließen (operativ, nicht im Code)
-- Anthropic DPA unterzeichnen
-- SCCs anhängen
-- TIA (Transfer Impact Assessment) schreiben
-
----
-
-## 5. Was wir nicht tun müssen
-
-- **Cookie-Banner:** wir setzen keine Cookies. IndexedDB + localStorage ist "strictly necessary" für den Hauptzweck (Chat-Speicher) — fällt unter Art. 5(3) ePrivacy-Ausnahme.
-- **Newsletter-Double-Opt-in:** kein Newsletter.
-- **IP-Logging:** wir logen gar nichts auf dem Proxy, das bleibt so.
+### 4.9 Execute DPA with Anthropic (operational, not in code)
+- Sign Anthropic DPA
+- Attach SCCs
+- Write TIA (Transfer Impact Assessment)
 
 ---
 
-## 6. Was wir jetzt implementieren (V1-Privacy)
+## 5. What we don't have to do
 
-In dieser Reihenfolge im Code:
-
-1. ✅ Self-hosted Fonts — Google Fonts raus aus `index.css`, lokal in `/public/fonts/`
-2. ✅ `PrivacyPolicy.tsx` Route mit voller DSGVO-Policy (deutscher Tone, englische UI-Strings)
-3. ✅ `Imprint.tsx` Route  
-4. ✅ Settings-Panel mit Export + Delete-All + Stats
-5. ✅ Footer-Links zu Privacy + Imprint in allen Hauptviews
-6. ✅ Consent-Screen: Art.-9-Hinweis + expliziter Anthropic/USA/30-Tage-Text
-7. ✅ First-visit Privacy-Hinweis
-
-Dokumente außerhalb Code:
-
-8. `dpia.md` als interne Dokumentation (dieses Repo)
-9. DPA Anthropic + SCCs → operativ zu klären
+- **Cookie banner:** we set no cookies. IndexedDB + localStorage is "strictly necessary" for the main purpose (chat storage) — falls under the Art. 5(3) ePrivacy exemption.
+- **Newsletter double opt-in:** no newsletter.
+- **IP logging:** we log nothing at all on the proxy, and that stays that way.
 
 ---
 
-*V1 · 2026-04-21 · Live-Dokument.*
+## 6. What we are implementing now (V1 privacy)
+
+In this order in the code:
+
+1. ✅ Self-hosted fonts — Google Fonts out of `index.css`, locally in `/public/fonts/`
+2. ✅ `PrivacyPolicy.tsx` route with full GDPR policy (German tone, English UI strings)
+3. ✅ `Imprint.tsx` route  
+4. ✅ Settings panel with export + delete-all + stats
+5. ✅ Footer links to Privacy + Imprint in all main views
+6. ✅ Consent screen: Art. 9 notice + explicit Anthropic/USA/30-day text
+7. ✅ First-visit privacy notice
+
+Documents outside code:
+
+8. `dpia.md` as internal documentation (this repo)
+9. DPA Anthropic + SCCs → to be settled operationally
+
+---
+
+*V1 · 2026-04-21 · Living document.*

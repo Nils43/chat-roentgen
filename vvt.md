@@ -1,138 +1,138 @@
-# Verzeichnis von Verarbeitungstätigkeiten · tea
+# Record of Processing Activities · tea
 
-> Art. 30 DSGVO. Internes Dokument. Wird auf Anfrage der Aufsichtsbehörde vorgelegt, **nicht** im Produkt angezeigt.
-> Stand: 2026-04-21. Review bei jeder Architekturänderung.
+> Art. 30 GDPR. Internal document. Provided to the supervisory authority on request, **not** displayed in the product.
+> As of: 2026-04-21. Reviewed on every architecture change.
 
 ---
 
-## 0. Verantwortlicher
+## 0. Controller
 
-| Feld | Wert |
+| Field | Value |
 |------|------|
 | Name | [Your Name / Company] |
-| Anschrift | [Street, Postal Code, City, Country] |
-| E-Mail | [contact@your-domain] |
-| Datenschutzbeauftragter | Nicht bestellungspflichtig; funktionale Rolle beim Controller |
-| Zuständige Aufsichtsbehörde | [z.B. BayLDA — Bayerisches Landesamt für Datenschutzaufsicht] |
+| Address | [Street, Postal Code, City, Country] |
+| Email | [contact@your-domain] |
+| Data Protection Officer | Not required to be appointed; functional role at the Controller |
+| Competent supervisory authority | [e.g. BayLDA — Bavarian State Office for Data Protection Supervision] |
 
 ---
 
-## VT-01 · On-Device Analyse (Hard Facts)
+## PA-01 · On-Device Analysis (Hard Facts)
 
-| Feld | Inhalt |
+| Field | Content |
 |------|--------|
-| **Zweck (Art. 30(1)(b))** | Quantitative Analyse des vom User hochgeladenen Chats zur Selbstreflexion. |
-| **Kategorien Betroffene** | Nutzer; Chat-Teilnehmer:innen (Person B) — nur indirekt. |
-| **Kategorien Daten** | Chat-Nachrichten (Text, Zeitstempel, Author). Enthält potenziell besondere Kategorien nach Art. 9. |
-| **Rechtsgrundlage** | Haushaltsausnahme Art. 2(2)(c) DSGVO für den User. Technisch notwendige Speicherung nach §25 Abs. 2 Nr. 2 TDDDG. |
-| **Empfänger** | Keine. Ausschließlich browserlokal (IndexedDB, localStorage). |
-| **Drittland-Transfer** | Nein. |
-| **Speicherdauer** | Bis zur User-Löschung (per Chat oder "Delete all data" in Settings). |
-| **Technische/organisatorische Maßnahmen** | Keine Server-Kommunikation; XSS-Prevention im Parser (Text-Rendering, keine HTML-Interpolation); Dateigrößen-Limit beim Upload; kein Logging. |
+| **Purpose (Art. 30(1)(b))** | Quantitative analysis of the chat uploaded by the user for self-reflection. |
+| **Categories of data subjects** | Users; chat participants (Person B) — only indirectly. |
+| **Categories of data** | Chat messages (text, timestamps, author). May contain special categories under Art. 9. |
+| **Legal basis** | Household exemption Art. 2(2)(c) GDPR for the user. Technically necessary storage under §25(2) No. 2 TDDDG. |
+| **Recipients** | None. Browser-local only (IndexedDB, localStorage). |
+| **Third-country transfer** | No. |
+| **Retention period** | Until deletion by the user (per chat or "Delete all data" in Settings). |
+| **Technical/organizational measures** | No server communication; XSS prevention in the parser (text rendering, no HTML interpolation); file-size limit on upload; no logging. |
 
 ---
 
-## VT-02 · AI-gestützte Analyse (Personal + Relationship)
+## PA-02 · AI-assisted Analysis (Personal + Relationship)
 
-| Feld | Inhalt |
+| Field | Content |
 |------|--------|
-| **Zweck** | Vertiefende psychologische Interpretation des eigenen Kommunikationsmusters (Personal) bzw. der Paar-Dynamik (Relationship). |
-| **Kategorien Betroffene** | Nutzer (mit Einwilligung); Chat-Teilnehmer:innen (pseudonymisiert, nicht profiliert). |
-| **Kategorien Daten** | Pre-computed Evidence Packet (~500 Tokens JSON): Statistiken, Tone-Hints, Flags, pseudonymisierte Namen. 12 kuratierte Nachrichten-Ausschnitte (≤ 140 Zeichen je Moment), pseudonymisiert und PII-gescrubbt. Potenziell besondere Kategorien (Art. 9). |
-| **Rechtsgrundlage** | Art. 6(1)(a) Einwilligung + Art. 9(2)(a) explizite Einwilligung (Consent-Screen pro Analyse). |
-| **Empfänger** | Anthropic PBC (Auftragsverarbeiter, USA) via eigenen Proxy. |
-| **Drittland-Transfer** | Ja — USA. Safeguards: DPA mit Anthropic, EU SCCs (Modul 2), ggf. EU-US Data Privacy Framework (Art. 45), TIA dokumentiert. |
-| **Speicherdauer** | Auf tea-Seite: nicht gespeichert (transient im Proxy-RAM). Auf Anthropic-Seite: bis zu 30 Tage Trust & Safety Retention, dann Auto-Löschung. Kein Training. |
-| **Technische/organisatorische Maßnahmen** | TLS 1.3 ende-zu-ende; kein Body-Logging im Proxy; API-Key nur server-side; Pseudonymisierung + PII-Scrubbing vor Versand; Request-Size-Cap 500 KB; Tool-Use-Schema begrenzt Output-Form; Prompt-Injection-Guards im System-Prompt. |
+| **Purpose** | In-depth psychological interpretation of one's own communication pattern (Personal) or of the couple dynamic (Relationship). |
+| **Categories of data subjects** | Users (with consent); chat participants (pseudonymized, not profiled). |
+| **Categories of data** | Pre-computed Evidence Packet (~500 tokens JSON): statistics, tone hints, flags, pseudonymized names. 12 curated message excerpts (≤ 140 characters per moment), pseudonymized and PII-scrubbed. Potentially special categories (Art. 9). |
+| **Legal basis** | Art. 6(1)(a) consent + Art. 9(2)(a) explicit consent (consent screen per analysis). |
+| **Recipients** | Anthropic PBC (Processor, USA) via our own proxy. |
+| **Third-country transfer** | Yes — USA. Safeguards: DPA with Anthropic, EU SCCs (Module 2), where applicable EU-US Data Privacy Framework (Art. 45), TIA documented. |
+| **Retention period** | On the tea side: not stored (transient in proxy RAM). On the Anthropic side: up to 30 days Trust & Safety retention, then auto-deletion. No training. |
+| **Technical/organizational measures** | TLS 1.3 end-to-end; no body logging in the proxy; API key server-side only; pseudonymization + PII scrubbing before transmission; request size cap of 500 KB; tool-use schema constrains output form; prompt-injection guards in the system prompt. |
 
 ---
 
-## VT-03 · Local Session Storage
+## PA-03 · Local Session Storage
 
-| Feld | Inhalt |
+| Field | Content |
 |------|--------|
-| **Zweck** | Wiedereröffnung bereits analysierter Chats ohne erneuten Upload; Persistenz von AI-Ergebnissen. |
-| **Kategorien Betroffene** | Nutzer; Chat-Teilnehmer:innen. |
-| **Kategorien Daten** | Chat-Rohtext + berechnete Ergebnisse (HardFacts, ProfileResult, RelationshipResult), Metadaten (Dateiname, Teilnehmer, Zeitraum). |
-| **Rechtsgrundlage** | Art. 2(2)(c) Haushaltsausnahme / §25(2) TDDDG (technisch unbedingt erforderlich für Kern-Funktion). |
-| **Empfänger** | Keine. Nur im Browser des Users. |
-| **Drittland-Transfer** | Nein. |
-| **Speicherdauer** | Bis zur User-Löschung. One-Click-Wipe verfügbar (Settings → Delete all data). |
-| **Technische/organisatorische Maßnahmen** | IndexedDB + localStorage scope-gebunden auf Origin; kein Cross-Site-Zugriff; Export-Funktion für Art. 20. |
+| **Purpose** | Reopening previously analyzed chats without re-uploading; persistence of AI results. |
+| **Categories of data subjects** | Users; chat participants. |
+| **Categories of data** | Raw chat text + computed results (HardFacts, ProfileResult, RelationshipResult), metadata (filename, participants, time period). |
+| **Legal basis** | Art. 2(2)(c) household exemption / §25(2) TDDDG (strictly necessary for the core function). |
+| **Recipients** | None. Only in the user's browser. |
+| **Third-country transfer** | No. |
+| **Retention period** | Until deletion by the user. One-click wipe available (Settings → Delete all data). |
+| **Technical/organizational measures** | IndexedDB + localStorage scoped to the origin; no cross-site access; export function for Art. 20. |
 
 ---
 
-## VT-04 · Asset-Delivery (Fonts)
+## PA-04 · Asset Delivery (Fonts)
 
-| Feld | Inhalt |
+| Field | Content |
 |------|--------|
-| **Zweck** | Laden der UI-Schriften (Bebas Neue, Courier Prime). |
-| **Kategorien Betroffene** | Webseiten-Besucher. |
-| **Kategorien Daten** | IP-Adresse + User-Agent beim Font-Fetch (technisch unvermeidbar bei HTTPS-Assets). |
-| **Rechtsgrundlage** | Art. 6(1)(f) Berechtigtes Interesse (funktionale Darstellung). |
-| **Empfänger** | BunnyWay d.o.o. (bunny.net / Bunny Fonts), Slowenien (EU). |
-| **Drittland-Transfer** | Nein (EU-basiert, GDPR-konformes CDN, kein IP-Logging laut Anbieter). |
-| **Speicherdauer** | Kein persistentes Speichern durch tea. Bunny Fonts loggt laut eigener Policy keine IP-Adressen. |
-| **Technische/organisatorische Maßnahmen** | Bunny Fonts statt Google Fonts gewählt explizit wegen GDPR-Konformität (LG München 2022, 3 O 17493/20). Preconnect + TLS. |
+| **Purpose** | Loading the UI fonts (Bebas Neue, Courier Prime). |
+| **Categories of data subjects** | Website visitors. |
+| **Categories of data** | IP address + user agent on font fetch (technically unavoidable for HTTPS assets). |
+| **Legal basis** | Art. 6(1)(f) legitimate interest (functional rendering). |
+| **Recipients** | BunnyWay d.o.o. (bunny.net / Bunny Fonts), Slovenia (EU). |
+| **Third-country transfer** | No (EU-based, GDPR-compliant CDN, no IP logging according to the provider). |
+| **Retention period** | No persistent storage by tea. According to its own policy, Bunny Fonts does not log IP addresses. |
+| **Technical/organizational measures** | Bunny Fonts chosen over Google Fonts explicitly for GDPR compliance (Munich Regional Court 2022, 3 O 17493/20). Preconnect + TLS. |
 
 ---
 
-## VT-05 · Hosting / Deployment
+## PA-05 · Hosting / Deployment
 
-| Feld | Inhalt |
+| Field | Content |
 |------|--------|
-| **Zweck** | Ausliefern der statischen Assets und des API-Proxys. |
-| **Kategorien Betroffene** | Webseiten-Besucher. |
-| **Kategorien Daten** | IP-Adresse, User-Agent, Request-URL (Standard-Webserver-Metadaten, transient, nicht persistiert). |
-| **Rechtsgrundlage** | Art. 6(1)(f) Berechtigtes Interesse (Betrieb der Webseite). |
-| **Empfänger** | [Hosting-Provider — z.B. Vercel Inc. (USA) oder Cloudflare Inc. (USA)]. |
-| **Drittland-Transfer** | [Ja, falls USA — SCCs + DPF wenn zertifiziert]. Falls EU-Region gewählt: nein. |
-| **Speicherdauer** | Request-Log laut Provider-Default. IP-Logs auf tea-Seite: keine. |
-| **Technische/organisatorische Maßnahmen** | TLS 1.3; HSTS; CSP (Content Security Policy); keine Request-Body-Logs; Proxy-Code Open-Source-fähig für Audit. |
+| **Purpose** | Serving the static assets and the API proxy. |
+| **Categories of data subjects** | Website visitors. |
+| **Categories of data** | IP address, user agent, request URL (standard web-server metadata, transient, not persisted). |
+| **Legal basis** | Art. 6(1)(f) legitimate interest (operation of the website). |
+| **Recipients** | [Hosting provider — e.g. Vercel Inc. (USA) or Cloudflare Inc. (USA)]. |
+| **Third-country transfer** | [Yes, if USA — SCCs + DPF if certified]. If an EU region is selected: no. |
+| **Retention period** | Request log per provider default. IP logs on the tea side: none. |
+| **Technical/organizational measures** | TLS 1.3; HSTS; CSP (Content Security Policy); no request-body logs; proxy code suitable for open-source audit. |
 
 ---
 
-## VT-06 · Betroffenenrechte-Prozess
+## PA-06 · Data Subject Rights Process
 
-| Feld | Inhalt |
+| Field | Content |
 |------|--------|
-| **Zweck** | Umsetzung von Auskunfts-/Löschungs-/Portabilitäts-Anfragen nach Art. 15, 17, 20 DSGVO. |
-| **Kategorien Betroffene** | Nutzer; theoretisch jede betroffene Person, die einen Antrag stellt. |
-| **Kategorien Daten** | Identifikations-Daten der antragstellenden Person (Name, Kontakt-E-Mail), soweit für die Bearbeitung nötig. |
-| **Rechtsgrundlage** | Art. 6(1)(c) Rechtliche Verpflichtung (DSGVO-Compliance). |
-| **Empfänger** | Keine. |
-| **Drittland-Transfer** | Nein. |
-| **Speicherdauer** | Auftragskorrespondenz nach Verfahrensabschluss max. 3 Jahre aus Rechenschaftspflicht (Art. 5(2)). |
-| **Technische/organisatorische Maßnahmen** | In-App: Settings → Export / Delete all. E-Mail-Kontakt für Anträge im Impressum + Privacy Policy. Manuell bearbeitet mit 1-Monats-Frist nach Art. 12(3). |
+| **Purpose** | Handling access, deletion, and portability requests under Art. 15, 17, 20 GDPR. |
+| **Categories of data subjects** | Users; in principle any data subject who submits a request. |
+| **Categories of data** | Identification data of the requesting person (name, contact email), to the extent needed to process the request. |
+| **Legal basis** | Art. 6(1)(c) legal obligation (GDPR compliance). |
+| **Recipients** | None. |
+| **Third-country transfer** | No. |
+| **Retention period** | Case correspondence kept for max. 3 years after closure of the procedure to satisfy accountability obligations (Art. 5(2)). |
+| **Technical/organizational measures** | In-app: Settings → Export / Delete all. Email contact for requests in the legal notice + privacy policy. Handled manually within the one-month deadline under Art. 12(3). |
 
 ---
 
-## 1. Übergreifende technisch-organisatorische Maßnahmen
+## 1. Cross-cutting technical and organizational measures
 
-- **Vertraulichkeit:** TLS 1.3 ende-zu-ende; API-Key server-side; keine Body-Logs.
-- **Integrität:** Kein persistentes Chat-Content-Storage auf Server-Seite; Tool-Use-Schema validiert AI-Output.
-- **Verfügbarkeit:** Provider-Standards; kein aktiver DR-Plan nötig mangels persistentem Server-State.
-- **Belastbarkeit:** Rate-Limit im Proxy (über Hosting-Provider-Standards); Size-Cap 500 KB pro Request.
-- **Überprüfung:** Jährliche Review dieses VVT, der Privacy Policy und des DPIA; Dependency-Updates laufend.
+- **Confidentiality:** TLS 1.3 end-to-end; API key server-side; no body logs.
+- **Integrity:** No persistent chat-content storage on the server side; tool-use schema validates AI output.
+- **Availability:** Provider standards; no active DR plan needed given the lack of persistent server state.
+- **Resilience:** Rate limiting in the proxy (on top of hosting provider standards); 500 KB size cap per request.
+- **Review:** Annual review of this Record of Processing Activities, the privacy policy, and the DPIA; dependency updates on an ongoing basis.
 
 ---
 
-## 2. Liste Auftragsverarbeiter (Art. 28)
+## 2. List of Processors (Art. 28)
 
-| Nr. | Name | Zweck | Vertrag | Region |
+| No. | Name | Purpose | Contract | Region |
 |----|------|-------|---------|--------|
-| 1 | Anthropic PBC | AI-Inferenz | DPA + SCCs + (ggf.) DPF | USA |
-| 2 | [Hosting-Provider] | Static + Proxy Hosting | DPA | [EU oder USA mit SCCs] |
-| 3 | BunnyWay d.o.o. | Font-CDN | DPA vorhanden (Bunny DPA) | EU (Slowenien) |
+| 1 | Anthropic PBC | AI inference | DPA + SCCs + (where applicable) DPF | USA |
+| 2 | [Hosting provider] | Static + proxy hosting | DPA | [EU or USA with SCCs] |
+| 3 | BunnyWay d.o.o. | Font CDN | DPA in place (Bunny DPA) | EU (Slovenia) |
 
 ---
 
-## 3. Änderungshistorie
+## 3. Change history
 
-| Version | Datum | Änderung |
+| Version | Date | Change |
 |---------|-------|----------|
-| 1.0 | 2026-04-21 | Erstversion |
+| 1.0 | 2026-04-21 | Initial version |
 
 ---
 
-*VVT V1 · 2026-04-21 · vertraulich · internes Dokument nach Art. 30 DSGVO.*
+*RoPA V1 · 2026-04-21 · confidential · internal document under Art. 30 GDPR.*
