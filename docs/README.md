@@ -141,7 +141,9 @@ flowchart TD
 
 - [`Concept.md`](./Concept.md) — architecture and design rationale
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md) — contribution guidelines
-- [`tea_konzept.md`](../tea_konzept.md) — product concept document (German)
+- [`tea_konzept.md`](../tea_konzept.md) — product concept document 
+- [`tutorial.md`](../tutorial.md) — toturial document
+- [`getting-started.md`](../getting-startetd.md) — product concept document
 
 ---
 
