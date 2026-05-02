@@ -4,7 +4,7 @@ interface Props {
   onBack: () => void
 }
 
-// DSGVO-konforme Datenschutzerklärung. Vollständig zweisprachig (DE/EN).
+// GDPR-compliant privacy policy. Fully bilingual (DE/EN).
 export function PrivacyPolicy({ onBack }: Props) {
   const locale = useLocale()
   const de = locale === 'de'

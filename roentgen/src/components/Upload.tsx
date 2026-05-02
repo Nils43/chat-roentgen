@@ -138,7 +138,7 @@ export function Upload({ onFile }: Props) {
         )}
       </div>
 
-      {/* Misuse-Disclaimer mit Consent-Checkbox */}
+      {/* Misuse disclaimer with consent checkbox */}
       <div
         className="mt-6 card max-w-2xl mx-auto"
         style={{ transform: 'rotate(-0.3deg)', boxShadow: '4px 4px 0 #0A0A0A' }}
