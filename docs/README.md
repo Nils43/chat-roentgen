@@ -4,7 +4,7 @@ tea is a web app that analyzes exported WhatsApp conversations. The quantitative
 
 The app shows patterns in your own communication. Not advice, not scores — just what is actually there in the data.
 
-**Live:** https://chat-roentgen.vercel.app
+**Live:** www.spillteato.me
 
 ---
 
