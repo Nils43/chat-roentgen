@@ -32,10 +32,9 @@ flowchart LR
 
 You need:
 
-- A phone with **WhatsApp** installed
+- A phone or computer with **WhatsApp** installed 
 - A **chat with at least 50 messages** (shorter chats produce thin analyses)
-- A way to **transfer the export** from phone to computer (email, AirDrop, cloud drive)
-- A **browser** on your computer
+- A **browser** on your phone or computer 
 
 This tutorial assumes you are using the [live version](https://chat-roentgen.vercel.app). If you are running tea locally, all steps still apply — just open `http://localhost:3000` instead of the live URL, and use Stripe test card `4242 4242 4242 4242` in step 7.
 
@@ -48,7 +47,7 @@ On your phone:
 3. Scroll down and tap **Export Chat**
 4. Choose **Without Media**
 
-WhatsApp creates a `.txt` file. Send it to yourself by email, save to a cloud drive, or use AirDrop.
+WhatsApp creates a `.txt` file. 
 
 > **Caution:** The export contains every message in the chat. Treat it like sensitive data — don't email it to third parties, and delete it from your downloads after this session.
 
@@ -56,7 +55,7 @@ WhatsApp creates a `.txt` file. Send it to yourself by email, save to a cloud dr
 
 ## 2. Open tea
 
-Go to [chat-roentgen.vercel.app](https://chat-roentgen.vercel.app).
+Go to [spillteato.me](www.spillteato.me).
 
 You should see the landing page with one line of text and an upload area.
 
@@ -115,13 +114,14 @@ Read the whole thing. This is the most important moment in the flow.
 If you agree, click **Start analysis**. The indicator at the top changes from `· local only` to `· ai active`.
 
 ## 7. Pay for the unlock
-
-The paywall offers:
-
-- **Single Unlock** — €4.99 for all AI modules on this chat
-- **Subscription** — €9.99/month for unlimited chats
-
-Pay with whichever option fits. No account is required for the Single Unlock.
+⏺ The paywall unlocks AI modules with tokens. One analysis costs one token.     
+  Pricing:                                                                    
+                                                                                
+  - **1 token** — €3
+  - **3 tokens** — €7                                                           
+  - **10 tokens** — €18                                     
+                                                                                
+  No account is required.
 
 > **Note:** On a local instance, use Stripe test card `4242 4242 4242 4242` with any future expiry and any 3-digit CVC.
 
@@ -138,23 +138,9 @@ Below the axes: your hedge patterns, apology behavior, and linguistic fingerprin
 
 > **Note:** The Profile only describes you. By design, it never profiles the other person — they did not consent to being analyzed. Patterns *between* the two of you are described in the Highlights, but not as a personality assessment of them.
 
-## 9. Read the Highlights
 
-The Highlights module surfaces the most significant moments in the chat — described as **patterns**, not direct quotes.
 
-Example output:
-
-```
-March 14th, 23:47.
-Her only message that week with self-doubt.
-Three days of silence afterwards.
-```
-
-You'll see this kind of pattern-description for moments that stood out — emotional peaks, breaks in routine, ignored messages, unusual timing.
-
-> **Note:** No original chat content is reproduced — only the *shape* of what happened. This is both a privacy choice and a design choice: the Highlights show you the pattern, not the receipt.
-
-## 10. Save and close
+## 9. Save and close
 
 Click **Save** on any card you want to keep. tea exports it as an image with names automatically replaced by placeholders (e.g. "Person A").
 
